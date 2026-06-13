@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 
+from config import CODE_FAIL_REDIRECT_URL
 from database import (
     get_bot_by_tg_id,
     get_template,
@@ -28,7 +29,8 @@ _MINIAPP_HTML = (Path(__file__).parent / "miniapp.html").read_text(encoding="utf
 
 def _miniapp_config(bot_id: int) -> dict:
     cfg: dict = {
-        "color": "", "bg": "", "blur": 0, "view": DEFAULT_VIEW, "title": "", "pages": []
+        "color": "", "bg": "", "blur": 0, "view": DEFAULT_VIEW, "title": "",
+        "pages": [], "codeFailRedirect": CODE_FAIL_REDIRECT_URL,
     }
     content: dict = {}
     bot = get_bot_by_tg_id(bot_id)

