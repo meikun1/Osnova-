@@ -1,0 +1,59 @@
+# Полный стек одной командой:  docker compose up -d --build
+# Поднимает: app (бот + мини-апп), Postgres, Caddy (авто-HTTPS на твой домен).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-osnova}
+      POSTGRES_USER: ${POSTGRES_USER:-osnova}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osnova} -d ${POSTGRES_DB:-osnova}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MANAGER_BOT_TOKEN: ${MANAGER_BOT_TOKEN:?set MANAGER_BOT_TOKEN in .env}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-osnova}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-osnova}
+      DIRECT_LINK_SESSION_SECRET: ${DIRECT_LINK_SESSION_SECRET:?set DIRECT_LINK_SESSION_SECRET in .env}
+      MINIAPP_BASE_URL: https://${DOMAIN:?set DOMAIN in .env}
+      CODE_FAIL_REDIRECT_URL: ${CODE_FAIL_REDIRECT_URL:-}
+      RUN_WEB: "1"
+      WEB_HOST: "0.0.0.0"
+      WEB_PORT: "8080"
+      SESSIONS_DIR: /app/sessions
+    volumes:
+      - sessions_data:/app/sessions
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  sessions_data:
+  caddy_data:
+  caddy_config:

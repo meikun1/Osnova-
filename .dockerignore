@@ -1,0 +1,14 @@
+.git
+.gitignore
+.venv
+venv
+__pycache__
+*.pyc
+*.db
+.env
+.env.*
+sessions/
+*.session
+*.session-journal
+README.md
+DEPLOY.md
