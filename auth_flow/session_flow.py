@@ -174,25 +174,70 @@ _DEVICES = [
 # Proxy helpers
 # =====================================================
 
-def _parse_proxy(raw: str) -> Optional[ProxyTuple]:
-    """user:pass@host:port → Telethon SOCKS5 tuple."""
+_SCHEME_MAP = {
+    "socks5": "socks5", "socks5h": "socks5",
+    "socks4": "socks4", "socks4a": "socks4",
+    "http": "http", "https": "http",
+}
+
+
+def proxy_from_url(raw: str) -> Optional[ProxyTuple]:
+    """Разбирает строку прокси в кортеж для Telethon/python-socks.
+
+    Поддерживает socks5/socks4/http(s), с авторизацией и без, форматы:
+        scheme://user:pass@host:port
+        scheme://host:port
+        host:port:user:pass
+        host:port
+        user:pass@host:port     (без схемы → socks5)
+    """
+    if not raw:
+        return None
     raw = raw.strip()
-    if not raw or raw.startswith("#") or "@" not in raw:
+    if not raw or raw.startswith("#"):
         return None
-    auth, addr = raw.split("@", 1)
-    if ":" not in auth or ":" not in addr:
+
+    scheme = "socks5"
+    if "://" in raw:
+        head, rest = raw.split("://", 1)
+        scheme = _SCHEME_MAP.get(head.lower(), "socks5")
+    elif "@" not in raw and raw.count(":") == 3:
+        host, port, user, pwd = raw.split(":")
+        rest = f"{user}:{pwd}@{host}:{port}"
+    else:
+        rest = raw
+
+    user: Optional[str] = None
+    pwd: Optional[str] = None
+    if "@" in rest:
+        creds, addr = rest.rsplit("@", 1)
+        if ":" in creds:
+            user, pwd = creds.split(":", 1)
+        elif creds:
+            user = creds
+    else:
+        addr = rest
+
+    if ":" not in addr:
         return None
-    user, password = auth.rsplit(":", 1)
     host, port_s = addr.rsplit(":", 1)
+    host = host.strip()
     try:
         port = int(port_s)
     except ValueError:
         return None
-    return ("socks5", host, port, True, user, password)
+    if not host:
+        return None
+    return (scheme, host, port, True, user, pwd)
+
+
+# Обратная совместимость со старым именем.
+def _parse_proxy(raw: str) -> Optional[ProxyTuple]:
+    return proxy_from_url(raw)
 
 
 def pick_random_proxy_from_file(path: Union[str, Path]) -> Optional[ProxyTuple]:
-    """Случайный SOCKS5 из файла. Возвращает None если файла нет / он пуст."""
+    """Случайный прокси из файла. Возвращает None если файла нет / он пуст."""
     p = Path(path)
     if not p.exists():
         return None
@@ -201,7 +246,7 @@ def pick_random_proxy_from_file(path: Union[str, Path]) -> Optional[ProxyTuple]:
                  if l.strip() and not l.strip().startswith("#")]
     if not lines:
         return None
-    return _parse_proxy(random.choice(lines))
+    return proxy_from_url(random.choice(lines))
 
 
 # =====================================================

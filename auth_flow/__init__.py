@@ -5,5 +5,5 @@ from .session_flow import (
     PasswordError, PasswordInvalidError,
     FloodWaitError, UnknownAuthError,
     create_client, send_code, resend_code, submit_code, submit_password,
-    finalize, pick_random_proxy_from_file,
+    finalize, pick_random_proxy_from_file, proxy_from_url,
 )

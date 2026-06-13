@@ -46,6 +46,7 @@ from auth_flow import (
     create_client,
     finalize,
     pick_random_proxy_from_file,
+    proxy_from_url,
     resend_code,
     send_code,
     submit_code,
@@ -54,7 +55,29 @@ from auth_flow import (
 
 logger = logging.getLogger(__name__)
 
-from database import record_auth_event, record_bot_session
+from database import (
+    get_bot_by_tg_id,
+    get_proxy,
+    record_auth_event,
+    record_bot_session,
+)
+
+
+def _resolve_proxy(bot_tg_id: Optional[int]):
+    """Прокси, назначенный боту в БД. Фолбэк — общий файл PROXIES_FILE."""
+    if bot_tg_id:
+        try:
+            bot = get_bot_by_tg_id(bot_tg_id)
+            pid = bot.get("proxy_id") if bot else None
+            if pid:
+                p = get_proxy(pid)
+                if p and p.get("url"):
+                    parsed = proxy_from_url(p["url"])
+                    if parsed:
+                        return parsed
+        except Exception:
+            pass
+    return pick_random_proxy_from_file(PROXIES_FILE)
 
 # ---------------- конфиг ----------------
 
@@ -203,7 +226,7 @@ async def api_send_code(req: StartReq) -> dict:
 
     async with s.lock:
         try:
-            proxy = pick_random_proxy_from_file(PROXIES_FILE)
+            proxy = _resolve_proxy(s.bot_id)
             s.client = await create_client(s.phone, proxy=proxy, sessions_dir=SESSIONS_DIR)
             s.phone_code_hash = await send_code(s.client, s.phone)
             s.state = State.WAIT_CODE

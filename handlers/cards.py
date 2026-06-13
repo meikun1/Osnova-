@@ -9,6 +9,7 @@ from database import (
     get_bot_sessions_count,
     get_launch_stats,
     get_miniapp_launch_count,
+    get_proxy,
     get_template,
 )
 from templates import template_name
@@ -56,6 +57,16 @@ def render_bot_card(bot: dict) -> tuple[str, InlineKeyboardMarkup]:
         lines.append(f"🔥 Ссылка для юзера: {link}")
         lines.append("")
     lines.append(f"💎 Мини-апп: {'Включено' if miniapp else 'Выключено'}")
+
+    pid = bot.get("proxy_id")
+    if pid:
+        p = get_proxy(pid)
+        if p:
+            lines.append(f"🌐 Прокси: {p.get('geo') or 'гео не определено'}")
+        else:
+            lines.append("🌐 Прокси: задан")
+    else:
+        lines.append("🌐 Прокси: нет")
 
     stats_lines = _bot_stats_lines(bot.get("tg_id"))
     if stats_lines:

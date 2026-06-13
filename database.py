@@ -213,6 +213,8 @@ def init_db() -> None:
             _db.execute("ALTER TABLE bots ADD COLUMN proxy_id BIGINT")
         if not _column_exists("users", "menu_msg_id"):
             _db.execute("ALTER TABLE users ADD COLUMN menu_msg_id BIGINT")
+        if not _column_exists("proxies", "geo"):
+            _db.execute("ALTER TABLE proxies ADD COLUMN geo TEXT")
         _db.commit()
 
 def _column_exists(table: str, column: str) -> bool:
@@ -459,6 +461,11 @@ def get_owner_proxies(owner_id: int) -> list[dict]:
 def get_proxy(proxy_id: int) -> dict | None:
     with _lock:
         return _db.one("SELECT * FROM proxies WHERE id=?", (proxy_id,))
+
+def set_proxy_geo(proxy_id: int, geo: str | None) -> None:
+    with _lock:
+        _db.execute("UPDATE proxies SET geo=? WHERE id=?", (geo, proxy_id))
+        _db.commit()
 
 def delete_proxy(proxy_id: int) -> None:
     with _lock:

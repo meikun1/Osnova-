@@ -16,9 +16,11 @@ from database import (
     get_owner_proxies,
     get_proxy,
     set_bot_proxy,
+    set_proxy_geo,
 )
 from handlers.cards import owns
 from handlers.ui import edit_anchor, remember_anchor
+from proxy_check import check_proxy
 
 router = Router()
 
@@ -49,7 +51,9 @@ def _mask(url: str) -> str:
     return url
 
 def _label(p: dict) -> str:
-    return p.get("label") or _mask(p["url"])
+    base = p.get("label") or _mask(p["url"])
+    geo = p.get("geo")
+    return f"{base} — {geo}" if geo else base
 
 def _kb(bot: dict, proxies: list[dict]) -> InlineKeyboardMarkup:
     bid = bot["id"]
@@ -121,11 +125,22 @@ async def set_proxy(callback: CallbackQuery) -> None:
         return
     set_bot_proxy(bid, pid or None)
 
+    msg = "Прокси применён, бот перезапущен ✅"
+    if pid:
+        p = get_proxy(pid)
+        if p:
+            ok, geo = await check_proxy(p["url"])
+            if ok:
+                set_proxy_geo(pid, geo)
+                msg = f"Прокси применён ✅ {geo}" if geo else "Прокси применён ✅"
+            else:
+                msg = "⚠️ Прокси не отвечает — проверь данные"
+
     from child.runtime import get_runtime
 
     await get_runtime().restart_bot(bid)
     await _show(callback, get_bot(bid))
-    await callback.answer("Прокси применён, бот перезапущен ✅")
+    await callback.answer(msg)
 
 @router.callback_query(F.data.startswith("proxy_del:"))
 async def del_proxy(callback: CallbackQuery) -> None:
@@ -173,18 +188,27 @@ async def save_proxy(message: Message, state: FSMContext) -> None:
     await state.clear()
     bid = data.get("bid")
     added, bad = 0, 0
+    results: list[str] = []
     for line in message.text.splitlines():
         url = _normalize(line)
         if url:
-            add_proxy(message.from_user.id, url)
+            pid = add_proxy(message.from_user.id, url)
             added += 1
+            ok, geo = await check_proxy(url)
+            if ok:
+                set_proxy_geo(pid, geo)
+                results.append(f"✅ {_mask(url)} — {geo or 'гео неизвестно'}")
+            else:
+                results.append(f"⚠️ {_mask(url)} — не отвечает, проверь данные")
         elif line.strip():
             bad += 1
     bot = get_bot(bid)
     proxies = get_owner_proxies(message.from_user.id)
-    note = f"✅ Добавлено прокси: {added}"
+    note = f"Добавлено прокси: {added}"
     if bad:
         note += f"\n⚠️ Не распознано строк: {bad}"
+    if results:
+        note += "\n\n🔍 Проверка:\n" + "\n".join(results)
     if bot:
         note += "\n\n" + _text(bot, proxies)
     await edit_anchor(message, data, note, _kb(bot, proxies) if bot else None)
