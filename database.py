@@ -54,16 +54,21 @@ class _DB:
         return sql.replace("?", "%s") if self.kind == "pg" else sql
 
     def execute(self, sql: str, params: tuple = ()):
-        try:
-            cur = self.conn.cursor()
-            cur.execute(self._q(sql), params)
-            return cur
-        except self._conn_errors:
-
-            self._connect()
-            cur = self.conn.cursor()
-            cur.execute(self._q(sql), params)
-            return cur
+        # Несколько попыток: Neon на бесплатном тарифе засыпает и первое
+        # обращение после простоя рвёт соединение / отвечает не сразу.
+        for attempt in range(4):
+            try:
+                cur = self.conn.cursor()
+                cur.execute(self._q(sql), params)
+                return cur
+            except self._conn_errors:
+                if attempt == 3:
+                    raise
+                time.sleep(0.4 * (attempt + 1))
+                try:
+                    self._connect()
+                except Exception:
+                    pass
 
     def commit(self) -> None:
 

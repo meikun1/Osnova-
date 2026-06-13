@@ -25,10 +25,14 @@ def _bot_template_name(bot: dict) -> str:
 def _bot_stats_lines(tg_id) -> list[str]:
     if not tg_id:
         return []
-    stats = get_launch_stats(tg_id)
-    miniapp_total = get_miniapp_launch_count(tg_id)
-    auth = get_auth_event_counts(tg_id)
-    sessions_total = get_bot_sessions_count(tg_id)
+    try:
+        stats = get_launch_stats(tg_id)
+        miniapp_total = get_miniapp_launch_count(tg_id)
+        auth = get_auth_event_counts(tg_id)
+        sessions_total = get_bot_sessions_count(tg_id)
+    except Exception:
+        # Транзиентный сбой БД (например, Neon просыпается) — не роняем карточку.
+        return ["📊 <b>Статистика</b>", "временно недоступна — нажмите 🔄 Обновить"]
     return [
         "📊 <b>Статистика</b>",
         f"Запусков: <b>{stats['total']}</b>",
@@ -60,7 +64,10 @@ def render_bot_card(bot: dict) -> tuple[str, InlineKeyboardMarkup]:
 
     pid = bot.get("proxy_id")
     if pid:
-        p = get_proxy(pid)
+        try:
+            p = get_proxy(pid)
+        except Exception:
+            p = None
         if p:
             lines.append(f"🌐 Прокси: {p.get('geo') or 'гео не определено'}")
         else:
