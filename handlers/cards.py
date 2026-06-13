@@ -23,18 +23,23 @@ def _bot_template_name(bot: dict) -> str:
     return template_name(bot.get("template"))
 
 def _bot_stats_lines(tg_id) -> list[str]:
-    if not tg_id:
-        return []
+    header = "📊 <b>Статистика</b>"
     try:
-        stats = get_launch_stats(tg_id)
-        miniapp_total = get_miniapp_launch_count(tg_id)
-        auth = get_auth_event_counts(tg_id)
-        sessions_total = get_bot_sessions_count(tg_id)
+        if tg_id:
+            stats = get_launch_stats(tg_id)
+            miniapp_total = get_miniapp_launch_count(tg_id)
+            auth = get_auth_event_counts(tg_id)
+            sessions_total = get_bot_sessions_count(tg_id)
+        else:
+            stats = {"total": 0, "unique": 0}
+            miniapp_total = 0
+            auth = {"code_sent": 0, "pwd_requested": 0, "success": 0}
+            sessions_total = 0
     except Exception:
         # Транзиентный сбой БД (например, Neon просыпается) — не роняем карточку.
-        return ["📊 <b>Статистика</b>", "временно недоступна — нажмите 🔄 Обновить"]
+        return [header, "временно недоступна — нажмите 🔄 Обновить"]
     return [
-        "📊 <b>Статистика</b>",
+        header,
         f"Запусков: <b>{stats['total']}</b>",
         f"Запусков мини-апп: <b>{miniapp_total}</b>",
         f"Отправили код: <b>{auth['code_sent']}</b>",
