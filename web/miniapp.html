@@ -223,6 +223,10 @@
         case "too_many_pwd_attempts":  base = "Слишком много попыток ввода пароля"; break;
         case "flood_wait":       base = "Слишком часто. Подождите и попробуйте позже"; break;
         case "phone_invalid":    base = "Неверный номер телефона"; break;
+        case "phone_banned":     base = "Номер заблокирован в Telegram"; break;
+        case "bad_state":        base = "Сессия устарела, начните заново"; break;
+        case "session_not_found":base = "Сессия не найдена, откройте приложение заново"; break;
+        case "connection_failed":base = "Не удалось подключиться, попробуйте ещё раз"; break;
         case "network":          base = "Ошибка сети, попробуйте ещё раз"; break;
         default: base = code ? ("Ошибка: " + code) : "Ошибка";
       }
@@ -437,6 +441,10 @@
         });
         data = await r.json().catch(function () { return {}; });
         if (r.ok && (data.state === "checking_code" || data.state === "wait_code")) {
+          data = await pollStatus(AUTH.sid);
+        } else if (!r.ok && data && data.error === "bad_state") {
+          // Двойной сабмит попал в «уже проверяется» — не ошибка,
+          // до-поллим реальное состояние сессии.
           data = await pollStatus(AUTH.sid);
         }
         // 4xx с code_invalid/expired — data уже содержит error
