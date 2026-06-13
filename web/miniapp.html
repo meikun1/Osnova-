@@ -231,8 +231,9 @@
       if (p.emoji) out += '<div class="emoji">' + p.emoji + "</div>";
       if (p.text) out += '<div class="text">' + p.text + "</div>";
       if (p.key === "code") {
-        out += '<input class="inp" id="inp" inputmode="numeric" '
-             + 'placeholder="• • • • •" autocomplete="one-time-code" />';
+        out += '<input class="inp" id="inp" inputmode="numeric" maxlength="5" '
+             + 'pattern="[0-9]*" placeholder="• • • • •" autocomplete="one-time-code" '
+             + 'oninput="this.value=this.value.replace(/[^0-9]/g,\'\').slice(0,5)" />';
       } else if (p.key === "twofa") {
         out += '<input class="inp" id="inp" type="password" placeholder="'
              + esc(p.placeholder) + '" autocomplete="current-password" />';
