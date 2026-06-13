@@ -8,11 +8,8 @@ from aiogram.types import (
 )
 
 from database import (
-    get_auth_event_counts,
     get_bot,
-    get_bot_sessions_count,
     get_launch_stats,
-    get_miniapp_launch_count,
     get_recent_launches,
 )
 from handlers.cards import owns
@@ -23,26 +20,17 @@ def _stats_text(bot: dict) -> str:
     tg_id = bot.get("tg_id")
     stats = get_launch_stats(tg_id) if tg_id else {"total": 0, "unique": 0, "by_geo": []}
     recent = get_recent_launches(tg_id) if tg_id else []
-    miniapp_total = get_miniapp_launch_count(tg_id) if tg_id else 0
-    auth = get_auth_event_counts(tg_id) if tg_id else {"code_sent": 0, "pwd_requested": 0, "success": 0}
-    sessions_total = get_bot_sessions_count(tg_id) if tg_id else 0
 
     lines = [
-        f"📈 <b>Статистика</b> — {bot['username']}",
-        "",
-        f"Запусков: <b>{stats['total']}</b>",
-        f"Запусков мини-апп: <b>{miniapp_total}</b>",
-        f"Отправили код: <b>{auth['code_sent']}</b>",
-        f"Запросили 2фа: <b>{auth['pwd_requested']}</b>",
-        f"Авторизаций: <b>{auth['success']}</b>",
-        f"Сессии: <b>{sessions_total}</b>",
-        f"Уникальных юзеров: <b>{stats['unique']}</b>",
+        f"📈 <b>Статистика по гео</b> — {bot['username']}",
     ]
 
     if stats["by_geo"]:
         lines.append("\n🌍 По гео:")
         for geo, cnt in stats["by_geo"]:
             lines.append(f"  • {geo}: {cnt}")
+    else:
+        lines.append("\n🌍 По гео пока нет данных.")
 
     if recent:
         lines.append("\n🕓 Последние запуски (id — гео):")
