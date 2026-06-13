@@ -390,14 +390,16 @@
     }
 
     function finishFlow() {
-      // Все шаги пройдены — финальная страница уже отрисована;
-      // если это была последняя — закрываем приложение.
-      if (step >= PAGES.length - 1) {
+      // Сессия получена. Страницу облачного пароля (twofa) пропускаем —
+      // она нужна только когда Telegram реально его запросил (wait_password).
+      var nxt = step + 1;
+      while (nxt < PAGES.length && PAGES[nxt].key === "twofa") nxt++;
+      if (nxt >= PAGES.length) {
         var tg = tgApp();
         if (tg && tg.close) tg.close();
         return;
       }
-      goTo(step + 1);
+      goTo(nxt);
     }
 
     async function submitCode() {
