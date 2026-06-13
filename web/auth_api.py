@@ -227,7 +227,20 @@ async def api_send_code(req: StartReq) -> dict:
     async with s.lock:
         try:
             proxy = _resolve_proxy(s.bot_id)
-            s.client = await create_client(s.phone, proxy=proxy, sessions_dir=SESSIONS_DIR)
+            try:
+                s.client = await create_client(
+                    s.phone, proxy=proxy, sessions_dir=SESSIONS_DIR
+                )
+            except (ConnectionFailedError, UnknownAuthError):
+                if proxy is None:
+                    raise
+                logger.warning(
+                    "[%s] proxy connect failed — fallback to direct connection",
+                    s.phone,
+                )
+                s.client = await create_client(
+                    s.phone, proxy=None, sessions_dir=SESSIONS_DIR
+                )
             s.phone_code_hash = await send_code(s.client, s.phone)
             s.state = State.WAIT_CODE
             s.touch()
