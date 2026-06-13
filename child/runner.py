@@ -1,0 +1,233 @@
+from __future__ import annotations
+
+import logging
+
+from aiogram import Bot, Dispatcher, F, Router
+from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.enums import ParseMode
+from aiogram.filters import CommandObject, CommandStart
+from aiogram.types import (
+    ChatJoinRequest,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    MenuButtonDefault,
+    MenuButtonWebApp,
+    Message,
+    WebAppInfo,
+)
+
+from config import MINIAPP_BASE_URL
+from database import get_bot_by_tg_id, get_template, record_contact, record_launch
+from direct_link.aiogram_integration import DirectLinkMiddleware
+from directlink_service import get_module
+from templates import template_name
+from uniqualizer import uniqualize
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_WELCOME = "Привет! 👋 Спасибо за заявку, рады видеть вас в нашем канале!"
+
+GREETING_TEXT = (
+    "👋 Здравствуйте!\n"
+    "Чтобы получить доступ к боту 👇\n\n"
+    "❗️ Пожалуйста, подтвердите то, что вы не робот"
+)
+
+OPEN_BUTTON = "Подтвердить ✅"
+
+def _uniqualize_if_enabled(content: dict, text: str) -> str:
+    if not content.get("uniq_enabled"):
+        return text
+    try:
+        return uniqualize(
+            text,
+            homoglyph_ratio=float(content.get("uniq_ratio") or 0.5),
+            mode=content.get("uniq_mode") or "hard",
+        )
+    except Exception:
+        return text
+
+def _template_text(bot_db: dict, field: str, default: str) -> str:
+    text = default
+    content: dict = {}
+    tid = bot_db.get("template_id")
+    if tid:
+        t = get_template(tid)
+        if t:
+            content = t["content"]
+            val = (content.get(field) or "").strip()
+            if val:
+                text = content[field]
+    return _uniqualize_if_enabled(content, text)
+
+def _template_btn_label(bot_db: dict, default: str) -> str:
+    tid = bot_db.get("template_id")
+    if tid:
+        t = get_template(tid)
+        if t:
+            val = (t["content"].get("start_btn") or "").strip()
+            if val:
+                return val
+    return default
+
+async def _miniapp_url(bot_id: int) -> str | None:
+    if not MINIAPP_BASE_URL:
+        return None
+    state = await get_module().get_or_init(bot_id)
+    return f"{MINIAPP_BASE_URL}/app/{bot_id}?t={state['startapp_token']}"
+
+async def _set_menu_button(bot: Bot, chat_id: int, bot_id: int, label: str) -> None:
+    url = await _miniapp_url(bot_id)
+    try:
+        if url is None:
+            await bot.set_chat_menu_button(
+                chat_id=chat_id, menu_button=MenuButtonDefault()
+            )
+        else:
+            await bot.set_chat_menu_button(
+                chat_id=chat_id,
+                menu_button=MenuButtonWebApp(text=label, web_app=WebAppInfo(url=url)),
+            )
+    except Exception as e:
+        logger.warning("set menu button for %s failed: %s", chat_id, e)
+
+def _render_template(bot_db: dict) -> tuple[str, InlineKeyboardMarkup | None]:
+    template = bot_db.get("template") or "standard"
+
+    if template == "standard":
+
+        username = (bot_db.get("username") or "").lstrip("@")
+        startapp = f"https://t.me/{username}?startapp=app" if username else None
+        kb = None
+        if startapp:
+            kb = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="🚀 Открыть приложение", url=startapp)]
+                ]
+            )
+        return ("Добро пожаловать! Откройте приложение кнопкой ниже 👇", kb)
+
+    if template == "welcome":
+        return (bot_db.get("welcome_message") or DEFAULT_WELCOME, None)
+
+    return ("Доступ открыт ✅", None)
+
+def build_router() -> Router:
+    router = Router()
+
+    @router.chat_join_request()
+    async def on_join_request(event: ChatJoinRequest) -> None:
+        bot_db = get_bot_by_tg_id(event.bot.id)
+        if not bot_db:
+            return
+
+        dl_on = await get_module().is_enabled_for(event.bot.id)
+        logger.info(
+            "join request: user=%s chat=%s dl_enabled=%s",
+            event.from_user.id,
+            event.chat.id,
+            dl_on,
+        )
+
+        if dl_on:
+            return
+
+        record_launch(
+            bot_tg_id=event.bot.id,
+            user_id=event.from_user.id,
+            username=event.from_user.username,
+            geo=event.from_user.language_code,
+        )
+
+        target = getattr(event, "user_chat_id", None) or event.from_user.id
+        await _send_start_flow(event.bot, target, bot_db)
+        logger.info("join DM sent to %s", target)
+
+    @router.message(CommandStart(deep_link=True))
+    async def start_with_arg(message: Message, command: CommandObject) -> None:
+        bot_db = get_bot_by_tg_id(message.bot.id)
+        if not bot_db:
+            return
+
+        if bot_db.get("guard_enabled"):
+            if command.args != bot_db.get("user_secret"):
+                logger.info("bad secret from %s", message.from_user.id)
+                return
+        await _handle_access(message, bot_db)
+
+    @router.message(CommandStart())
+    async def start_plain(message: Message) -> None:
+        bot_db = get_bot_by_tg_id(message.bot.id)
+        if not bot_db:
+            return
+
+        if bot_db.get("guard_enabled"):
+            return
+        await _handle_access(message, bot_db)
+
+    @router.message(F.contact)
+    async def on_contact(message: Message) -> None:
+        bot_db = get_bot_by_tg_id(message.bot.id)
+        if not bot_db:
+            return
+
+        contact = message.contact
+        record_contact(
+            message.bot.id,
+            message.from_user.id,
+            contact.phone_number if contact else None,
+            message.from_user.username,
+        )
+
+        try:
+            await message.delete()
+        except Exception as e:
+            logger.warning("delete contact msg failed: %s", e)
+
+    return router
+
+async def _send_start_flow(bot: Bot, target: int, bot_db: dict) -> None:
+    start_text = _template_text(
+        bot_db, "start_msg", bot_db.get("welcome_message") or GREETING_TEXT
+    )
+    second_text = _template_text(bot_db, "second_msg", "").strip()
+    label = _template_btn_label(bot_db, OPEN_BUTTON)
+
+    await _set_menu_button(bot, target, bot.id, label)
+
+    async def _send(text: str) -> None:
+        try:
+            await bot.send_message(target, text)
+        except Exception as e:
+            logger.warning("send to %s failed: %s", target, e)
+
+    await _send(start_text)
+    if second_text:
+        await _send(second_text)
+
+async def _handle_access(message: Message, bot_db: dict) -> None:
+    record_launch(
+        bot_tg_id=message.bot.id,
+        user_id=message.from_user.id,
+        username=message.from_user.username,
+        geo=message.from_user.language_code,
+    )
+    await _send_start_flow(message.bot, message.chat.id, bot_db)
+
+def build_dispatcher() -> Dispatcher:
+    dp = Dispatcher()
+    dp.message.middleware(DirectLinkMiddleware(get_module()))
+    dp.include_router(build_router())
+    return dp
+
+def make_bot(token: str, proxy: str | None = None) -> Bot:
+
+    session = AiohttpSession(proxy=proxy) if proxy else None
+    return Bot(
+        token=token,
+        session=session,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+
+__all__ = ["build_dispatcher", "make_bot", "build_router", "template_name"]
