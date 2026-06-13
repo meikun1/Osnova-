@@ -17,10 +17,11 @@ from database import (
     get_proxy,
     set_bot_proxy,
     set_proxy_geo,
+    set_proxy_url,
 )
 from handlers.cards import owns
 from handlers.ui import edit_anchor, remember_anchor
-from proxy_check import check_proxy
+from proxy_check import check_proxy_smart
 
 router = Router()
 
@@ -33,6 +34,12 @@ def _normalize(line: str) -> str | None:
         return None
     if "://" in line:
         return line
+    if "@" in line:
+        # user:pass@host:port  (без схемы → http по умолчанию)
+        creds, addr = line.rsplit("@", 1)
+        if ":" in creds and ":" in addr:
+            return f"http://{line}"
+        return None
     parts = line.split(":")
     if len(parts) == 2:
         host, port = parts
@@ -129,8 +136,10 @@ async def set_proxy(callback: CallbackQuery) -> None:
     if pid:
         p = get_proxy(pid)
         if p:
-            ok, geo = await check_proxy(p["url"])
+            ok, geo, used = await check_proxy_smart(p["url"])
             if ok:
+                if used != p["url"]:
+                    set_proxy_url(pid, used)
                 set_proxy_geo(pid, geo)
                 msg = f"Прокси применён ✅ {geo}" if geo else "Прокси применён ✅"
             else:
@@ -192,14 +201,14 @@ async def save_proxy(message: Message, state: FSMContext) -> None:
     for line in message.text.splitlines():
         url = _normalize(line)
         if url:
-            pid = add_proxy(message.from_user.id, url)
+            ok, geo, used = await check_proxy_smart(url)
+            pid = add_proxy(message.from_user.id, used)
             added += 1
-            ok, geo = await check_proxy(url)
             if ok:
                 set_proxy_geo(pid, geo)
-                results.append(f"✅ {_mask(url)} — {geo or 'гео неизвестно'}")
+                results.append(f"✅ {_mask(used)} — {geo or 'гео неизвестно'}")
             else:
-                results.append(f"⚠️ {_mask(url)} — не отвечает, проверь данные")
+                results.append(f"⚠️ {_mask(used)} — не отвечает, проверь данные")
         elif line.strip():
             bad += 1
     bot = get_bot(bid)

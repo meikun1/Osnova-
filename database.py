@@ -467,6 +467,11 @@ def set_proxy_geo(proxy_id: int, geo: str | None) -> None:
         _db.execute("UPDATE proxies SET geo=? WHERE id=?", (geo, proxy_id))
         _db.commit()
 
+def set_proxy_url(proxy_id: int, url: str) -> None:
+    with _lock:
+        _db.execute("UPDATE proxies SET url=? WHERE id=?", (url, proxy_id))
+        _db.commit()
+
 def delete_proxy(proxy_id: int) -> None:
     with _lock:
         _db.execute(
