@@ -754,7 +754,6 @@
       _initP = (async () => {
         const THREE = await import('three');
         const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-        const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -763,14 +762,22 @@
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-        camera.position.set(1.8, 2.0, 5.7);   // сверху-сбоку — явный наклон
+        camera.position.set(0, 0, 6.7);
         camera.lookAt(0, 0, 0);
 
+        // равномерное Y-симметричное окружение — цвет НЕ меняется при вращении
         const pmrem = new THREE.PMREMGenerator(renderer);
-        scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-        scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x9090b0, 1.35));  // мягкий ровный свет
-        const k = new THREE.DirectionalLight(0xffffff, 0.4); k.position.set(2, 4, 5); scene.add(k);
+        function makeEnv() {
+          const c = document.createElement('canvas'); c.width = 8; c.height = 256;
+          const x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, 0, 256);
+          g.addColorStop(0.0, '#e9ecf3'); g.addColorStop(0.5, '#b6bccb'); g.addColorStop(1.0, '#777d8f');
+          x.fillStyle = g; x.fillRect(0, 0, 8, 256);
+          const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping;
+          const e = pmrem.fromEquirectangular(t).texture; t.dispose(); return e;
+        }
+        scene.environment = makeEnv();
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        scene.add(new THREE.HemisphereLight(0xeef0f6, 0x8085a0, 1.15));
 
         // авто-вращение без ручного управления
         const clock = new THREE.Clock();
@@ -791,8 +798,11 @@
 
           const md = Math.max(size.x, size.y, size.z) || 1;
           pivot.scale.setScalar(2.6 / md);          // масштаб вокруг центра
-          scene.add(pivot);
-          phoneObj = pivot;
+          const tilt = new THREE.Group();
+          tilt.rotation.x = -0.10;                  // наклон экраном от зрителя ~5.7°
+          tilt.add(pivot);
+          scene.add(tilt);
+          phoneObj = pivot;                         // вращается вокруг своей (наклонённой) оси
         });
 
         let running = false, raf = 0;
