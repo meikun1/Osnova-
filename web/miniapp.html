@@ -334,7 +334,7 @@
 
     function phoneAnimHTML() {
       return '<div class="phone-anim">'
-        + '<img src="/static/code-sticker.webp" alt="">'
+        + '<img src="/static/code-sticker.gif" alt="">'
         + '</div>';
     }
 
@@ -384,7 +384,7 @@
     function renderCodeStep(i) {
       var p = PAGES[i];
       codeBuf = "";
-      var out = '<div class="phone-anim"><img src="/static/code-sticker.webp" alt=""></div>';
+      var out = '<div class="phone-anim"><img src="/static/code-sticker.gif" alt=""></div>';
       if (p.text) out += '<div class="text">' + p.text + "</div>";
       out += codeCellsHTML();
       out += '<input type="hidden" id="inp">';
