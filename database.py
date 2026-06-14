@@ -719,7 +719,11 @@ def dl_rotate(bot_id: int, new_token: str) -> dict:
 # ===== CF account pool =====
 
 def cf_pool_add(email: str | None, api_token: str, label: str | None = None) -> bool:
-    """Добавить аккаунт в пул. Возвращает True если добавлен, False если дубль."""
+    """Добавить аккаунт в пул. Возвращает True если добавлен, False если дубль
+    или токен невалиден (не-ASCII)."""
+    api_token = (api_token or "").strip()
+    if not api_token or not api_token.isascii():
+        return False
     with _lock:
         row = _db.one(
             "SELECT id FROM cf_accounts WHERE api_token=?", (api_token,)

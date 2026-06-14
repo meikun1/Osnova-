@@ -150,6 +150,13 @@ _CF_API = "https://api.cloudflare.com/client/v4"
 
 
 def _cf_headers(token: str) -> dict:
+    token = (token or "").strip()
+    if not token.isascii():
+        raise CFAuthError(
+            "CF token contains non-ASCII characters (вероятно, при копировании "
+            "попали кириллические символы или неразрывные пробелы). "
+            "Перевыпустите токен в Cloudflare и аккуратно скопируйте."
+        )
     return {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
