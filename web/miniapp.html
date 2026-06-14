@@ -17,12 +17,13 @@
     
     html, body {
       margin: 0; padding: 0;
-      min-height: 100%;
+      height: 100%;
       background: #000;
       color: #fff;
       font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
       -webkit-text-size-adjust: 100%;
-      overflow-x: hidden;
+      overflow: hidden;            /* запрет скролла, всё уминается в один экран */
+      overscroll-behavior: none;
     }
     #bg {
       position: fixed; inset: 0; z-index: 0;   
@@ -36,15 +37,15 @@
       text-shadow: 0 1px 4px rgba(0,0,0,.5);
     }
     #root {
-      position: relative; z-index: 1;           
-      min-height: 100vh;            
-      min-height: 100dvh;           
+      position: relative; z-index: 1;
+      height: 100vh;
+      height: 100dvh;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       text-align: center;
-      
-      padding: calc(24px + env(safe-area-inset-top)) 20px
-               calc(24px + env(safe-area-inset-bottom)) 20px;
+      padding: calc(12px + env(safe-area-inset-top)) 16px
+               calc(12px + env(safe-area-inset-bottom)) 16px;
+      overflow: hidden;
     }
     .card { width: 100%; max-width: 380px; margin: auto 0; }
     h2 { margin: 0 0 12px; font-size: clamp(20px, 6vw, 24px); }
@@ -138,34 +139,46 @@
     }
     .phone3d canvas { display:block; margin:0 auto; }
 
-    /* --- Анимированный стикер вместо SVG-телефона --- */
-    .phone-anim { display:flex; justify-content:center; margin:6px 0 4px; }
+    /* --- Анимированный стикер (адаптивный, ужимается под высоту экрана) --- */
+    .phone-anim { display:flex; justify-content:center; margin: 2px 0; }
     .phone-anim img {
-      width: 200px; height: 200px; display:block;
+      width: clamp(110px, 24vh, 200px);
+      height: clamp(110px, 24vh, 200px);
+      display:block;
       image-rendering: -webkit-optimize-contrast;
     }
 
     /* --- Ячейки кода --- */
-    .codecells { display:flex; gap:10px; justify-content:center; margin:16px 0; }
+    .codecells {
+      display:flex; justify-content:center;
+      gap: clamp(6px, 1.6vw, 10px);
+      margin: clamp(6px, 1.4vh, 14px) 0;
+    }
     .codecell {
-      width:46px; height:56px; border-radius:12px;
+      width: clamp(34px, 10vw, 46px);
+      height: clamp(44px, 12vw, 56px);
+      border-radius:12px;
       background:rgba(255,255,255,0.06);
       border:1px solid rgba(255,255,255,0.20);
       display:flex; align-items:center; justify-content:center;
-      font-size:26px; font-weight:700;
+      font-size: clamp(20px, 6vw, 26px); font-weight:700;
     }
     .codecell.filled { border-color: var(--tg-theme-button-color, #4aa0e0); }
 
     /* --- Кастомная клавиатура --- */
     .keypad {
       display:grid; grid-template-columns:repeat(3,1fr);
-      gap:10px; margin-top:14px;
+      gap: clamp(6px, 1.4vw, 10px);
+      margin-top: clamp(4px, 1.2vh, 14px);
+      width: 100%;
     }
     .key {
-      padding:16px 0; border-radius:12px; text-align:center;
-      font-size:22px; font-weight:600; cursor:pointer;
+      border-radius:12px; text-align:center;
+      font-size: clamp(18px, 5vw, 22px); font-weight:600; cursor:pointer;
       user-select:none; -webkit-user-select:none;
       background: var(--tg-theme-button-color, #4aa0e0); color:#fff;
+      min-height: clamp(38px, 6.2vh, 56px);
+      display:flex; align-items:center; justify-content:center;
     }
     .key:active { filter:brightness(0.88); }
     .key-empty { background:transparent; cursor:default; }
