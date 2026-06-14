@@ -167,7 +167,8 @@ async def receive_domain(message: Message, state: FSMContext) -> None:
         f"✅ Домен <code>{html.escape(domain)}</code> привязан!\n\n"
         f"<b>NS-серверы Cloudflare</b> — пропишите их у регистратора домена:\n{ns_text}\n\n"
         "После смены NS дождитесь распространения (обычно 1–24 ч), затем "
-        "сертификат выпустится автоматически через DNS-01.",
+        "сертификат выпустится автоматически через DNS-01.\n\n"
+        "🔔 Как только SSL поднимется — пришлю сюда уведомление.",
         reply_markup=_back_kb(),
     )
     await state.clear()

@@ -56,7 +56,12 @@ async def main() -> None:
     await runtime.start_all()
     runtime.start_health()
 
-    tasks = [asyncio.create_task(dp.start_polling(bot, handle_signals=False))]
+    from ssl_watcher import ssl_watch_loop
+
+    tasks = [
+        asyncio.create_task(dp.start_polling(bot, handle_signals=False)),
+        asyncio.create_task(ssl_watch_loop(bot)),
+    ]
     if RUN_WEB:
         tasks.append(asyncio.create_task(_run_web()))
 

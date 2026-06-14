@@ -240,6 +240,10 @@ def init_db() -> None:
             _db.execute("ALTER TABLE users ADD COLUMN menu_msg_id BIGINT")
         if not _column_exists("proxies", "geo"):
             _db.execute("ALTER TABLE proxies ADD COLUMN geo TEXT")
+        if not _column_exists("user_domains", "ssl_notified"):
+            _db.execute(
+                "ALTER TABLE user_domains ADD COLUMN ssl_notified INTEGER NOT NULL DEFAULT 0"
+            )
         _db.commit()
 
 def _column_exists(table: str, column: str) -> bool:
@@ -799,3 +803,21 @@ def user_domains_list(user_id: int) -> list[dict]:
             (user_id,),
         )
     return [dict(r) for r in rows]
+
+
+def user_domains_pending_ssl() -> list[dict]:
+    """Все домены, по которым ещё не отправлено SSL-уведомление."""
+    with _lock:
+        rows = _db.all(
+            "SELECT id, user_id, domain, created_at FROM user_domains "
+            "WHERE ssl_notified=0 ORDER BY id"
+        )
+    return [dict(r) for r in rows]
+
+
+def user_domain_mark_ssl_notified(domain_id: int) -> None:
+    with _lock:
+        _db.execute(
+            "UPDATE user_domains SET ssl_notified=1 WHERE id=?", (domain_id,)
+        )
+        _db.commit()
