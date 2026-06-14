@@ -788,18 +788,17 @@
         });
 
         function tgTexture() {
+          // тёмный самолётик (без синего круга), прозрачный фон — «вытравлен» на крышке
           const s = 512, cv = document.createElement('canvas'); cv.width = cv.height = s;
           const x = cv.getContext('2d');
-          const g = x.createLinearGradient(0, 0, 0, s); g.addColorStop(0, '#2aabee'); g.addColorStop(1, '#229ed9');
-          x.fillStyle = g; x.beginPath(); x.arc(s / 2, s / 2, s / 2, 0, Math.PI * 2); x.fill();
-          const cx = s * 0.5, cy = s * 0.52, R = s * 0.30;
-          x.fillStyle = '#fff';
+          const cx = s * 0.5, cy = s * 0.52, R = s * 0.34;
+          x.fillStyle = 'rgba(22,20,28,0.92)';
           x.beginPath(); x.moveTo(cx - R * 1.05, cy + R * 0.02); x.lineTo(cx + R * 1.15, cy - R * 0.78);
           x.lineTo(cx + R * 0.30, cy + R * 0.95); x.lineTo(cx + R * 0.02, cy + R * 0.34); x.closePath(); x.fill();
-          x.fillStyle = '#cfeaff';
+          x.fillStyle = 'rgba(45,40,55,0.92)';
           x.beginPath(); x.moveTo(cx + R * 0.02, cy + R * 0.34); x.lineTo(cx + R * 0.30, cy + R * 0.95);
           x.lineTo(cx - R * 0.30, cy + R * 0.30); x.closePath(); x.fill();
-          const t = new THREE.CanvasTexture(cv); t.anisotropy = 8; return t;
+          const t = new THREE.CanvasTexture(cv); t.anisotropy = maxAniso; return t;
         }
 
         const TG_FLIP = 1; // поменять на -1, если логотип окажется на экране, а не сзади
@@ -824,12 +823,16 @@
           let ti = 0; for (let a = 1; a < 3; a++) if (sz[a] < sz[ti]) ti = a;
           const half = sz[ti] / 2;
           const others = [0, 1, 2].filter(a => a !== ti).map(a => sz[a]);
-          const logoR = 0.17 * Math.min(others[0], others[1]);
+          const logoR = 0.12 * Math.min(others[0], others[1]);
           const logo = new THREE.Mesh(
             new THREE.CircleGeometry(logoR, 64),
-            new THREE.MeshBasicMaterial({ map: tgTexture(), transparent: true })
+            new THREE.MeshStandardMaterial({
+              map: tgTexture(), transparent: true,
+              metalness: 0.5, roughness: 0.45,
+              polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2
+            })
           );
-          const d = half * 1.015 * TG_FLIP;
+          const d = half * TG_FLIP;   // строго на поверхности (без зазора)
           if (ti === 2) { logo.position.set(0, 0, d); if (TG_FLIP < 0) logo.rotation.y = Math.PI; }
           else if (ti === 0) { logo.position.set(d, 0, 0); logo.rotation.y = TG_FLIP > 0 ? Math.PI / 2 : -Math.PI / 2; }
           else { logo.position.set(0, d, 0); logo.rotation.x = TG_FLIP > 0 ? -Math.PI / 2 : Math.PI / 2; }
