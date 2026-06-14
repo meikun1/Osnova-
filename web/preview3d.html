@@ -95,18 +95,19 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(W, H);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.25;
 stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 100);
-camera.position.set(0, 0, 6.6);
+camera.position.set(0, 1.0, 6.5);   // чуть сверху — лёгкий наклон
+camera.lookAt(0, 0, 0);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-const k = new THREE.DirectionalLight(0xffffff, 1.8); k.position.set(3,5,5); scene.add(k);
-const rl = new THREE.DirectionalLight(0x9ab8ff, 1.1); rl.position.set(-5,2,-3); scene.add(rl);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const k = new THREE.DirectionalLight(0xffffff, 0.9); k.position.set(3,5,5); scene.add(k);
+const rl = new THREE.DirectionalLight(0x9ab8ff, 0.5); rl.position.set(-5,2,-3); scene.add(rl);
 
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
