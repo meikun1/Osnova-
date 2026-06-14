@@ -40,12 +40,20 @@ def append_token_to_json(api_token: str, label: str | None = None,
         if os.path.exists(path):
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    raw = json.load(f)
-                if isinstance(raw, list):
-                    data = raw
+                    text = f.read().strip()
+                if text:
+                    raw = json.loads(text)
+                    if isinstance(raw, list):
+                        data = raw
+                    elif isinstance(raw, dict):
+                        # старый формат: одиночный объект без массива
+                        data = [raw]
             except Exception as e:
-                logger.error("cf_pool: не смог прочитать %s: %s", path, e)
-                return False
+                logger.warning(
+                    "cf_pool: %s повреждён или не JSON-массив, перезапишу: %s",
+                    path, e,
+                )
+                data = []
 
         for item in data:
             if isinstance(item, dict) and (item.get("api_token") or "").strip() == api_token:
