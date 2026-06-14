@@ -753,7 +753,6 @@
       if (_initP) return _initP;
       _initP = (async () => {
         const THREE = await import('three');
-        const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
         const { ColladaLoader } = await import('three/addons/loaders/ColladaLoader.js');
         const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js');
 
@@ -772,14 +771,13 @@
         const k = new THREE.DirectionalLight(0xffffff, 1.8); k.position.set(3, 5, 5); scene.add(k);
         const rl = new THREE.DirectionalLight(0x9ab8ff, 1.1); rl.position.set(-5, 2, -3); scene.add(rl);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; controls.dampingFactor = 0.08;
-        controls.enablePan = false; controls.enableZoom = false;
-        controls.autoRotate = true; controls.autoRotateSpeed = 2.8;
-        controls.minPolarAngle = Math.PI * 0.32; controls.maxPolarAngle = Math.PI * 0.68;
+        // авто-вращение без ручного управления
+        const clock = new THREE.Clock();
+        let phoneObj = null;
+        const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
         const tl = new THREE.TextureLoader();
-        function tex(f, srgb) { const t = tl.load('/model/textures/' + f); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+        function tex(f, srgb) { const t = tl.load('/model/textures/' + f); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; return t; }
         const mat = new THREE.MeshStandardMaterial({
           map: tex('Material_albedo.jpg', true),
           normalMap: tex('Material_normal.png', false),
@@ -840,14 +838,21 @@
           const md = Math.max(size.x, size.y, size.z) || 1;
           pivot.scale.setScalar(2.6 / md);          // масштаб вокруг центра
           scene.add(pivot);
+          phoneObj = pivot;
         });
 
         let running = false, raf = 0;
-        function loop() { if (!running) return; raf = requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); }
+        function loop() {
+          if (!running) return;
+          raf = requestAnimationFrame(loop);
+          const dt = Math.min(clock.getDelta(), 0.05);
+          if (phoneObj) phoneObj.rotation.y += dt * 0.6;   // плавно, не зависит от FPS
+          renderer.render(scene, camera);
+        }
         function resize() { const el = _eng.el; if (!el) return; const w = el.clientWidth || 300, h = el.clientHeight || 240; renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); }
         _eng = {
           renderer, resize, el: null,
-          start() { if (running) return; running = true; loop(); },
+          start() { if (running) return; running = true; clock.getDelta(); loop(); },
           stop() { running = false; cancelAnimationFrame(raf); }
         };
         window.addEventListener('resize', () => { if (_eng.el) _eng.resize(); });

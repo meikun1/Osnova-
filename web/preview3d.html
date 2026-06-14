@@ -85,7 +85,6 @@ function showErr(){var e=document.getElementById('err');if(e)e.style.display='bl
 window.addEventListener('error', showErr);
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { ColladaLoader } from 'three/addons/loaders/ColladaLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
@@ -109,8 +108,9 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.35));
 const k = new THREE.DirectionalLight(0xffffff, 1.8); k.position.set(3,5,5); scene.add(k);
 const rl = new THREE.DirectionalLight(0x9ab8ff, 1.1); rl.position.set(-5,2,-3); scene.add(rl);
 
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
 const tl = new THREE.TextureLoader();
-function tex(f, srgb){ const t = tl.load('/model/textures/' + f, undefined, undefined, showErr); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+function tex(f, srgb){ const t = tl.load('/model/textures/' + f, undefined, undefined, showErr); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso; return t; }
 const mat = new THREE.MeshStandardMaterial({
   map: tex('Material_albedo.jpg', true),
   normalMap: tex('Material_normal.png', false),
@@ -120,11 +120,8 @@ const mat = new THREE.MeshStandardMaterial({
   metalness: 1, roughness: 1
 });
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; controls.dampingFactor = 0.08;
-controls.enablePan = false; controls.enableZoom = false;
-controls.autoRotate = true; controls.autoRotateSpeed = 2.8;
-controls.minPolarAngle = Math.PI*0.32; controls.maxPolarAngle = Math.PI*0.68;
+const clock = new THREE.Clock();
+let phoneObj = null;
 
 function tgTexture(){
   const s=512, cv=document.createElement('canvas'); cv.width=cv.height=s;
@@ -170,6 +167,7 @@ new ColladaLoader().load('/model/model.dae', (c) => {
   const md = Math.max(size.x, size.y, size.z) || 1;
   pivot.scale.setScalar(2.6 / md);
   scene.add(pivot);
+  phoneObj = pivot;
   const l = document.getElementById('load'); if (l) l.style.display = 'none';
 }, undefined, showErr);
 
@@ -177,7 +175,12 @@ window.addEventListener('resize', function(){
   W = stage.clientWidth; H = stage.clientHeight;
   renderer.setSize(W,H); camera.aspect = W/H; camera.updateProjectionMatrix();
 });
-(function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
+(function loop(){
+  requestAnimationFrame(loop);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (phoneObj) phoneObj.rotation.y += dt * 0.6;
+  renderer.render(scene, camera);
+})();
 </script>
 </body>
 </html>
