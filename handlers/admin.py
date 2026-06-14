@@ -19,6 +19,7 @@ from aiogram.types import (
     Message,
 )
 
+from cf_pool_loader import append_token_to_json
 from config import ADMIN_IDS
 from database import cf_pool_add, cf_pool_stats
 
@@ -110,12 +111,15 @@ async def cf_add_receive(message: Message, state: FSMContext) -> None:
     added = 0
     rejected_non_ascii = 0
     dupes = 0
+    file_synced = 0
     for token in tokens:
         if not token.isascii():
             rejected_non_ascii += 1
             continue
         if cf_pool_add(email=None, api_token=token, label=None):
             added += 1
+            if append_token_to_json(token):
+                file_synced += 1
         else:
             dupes += 1
 
@@ -124,6 +128,7 @@ async def cf_add_receive(message: Message, state: FSMContext) -> None:
     lines = [
         "✅ Готово.",
         f"• Добавлено новых: <b>{added}</b>",
+        f"• Записано в cf_pool.json: <b>{file_synced}</b>",
         f"• Пропущено дублей: <b>{dupes}</b>",
     ]
     if rejected_non_ascii:

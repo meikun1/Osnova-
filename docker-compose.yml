@@ -78,7 +78,7 @@ services:
     volumes:
       - sessions_data:/app/sessions
       - caddy_conf:/etc/caddy
-      - ./cf_pool.json:/app/cf_pool.json:ro
+      - ./cf_pool.json:/app/cf_pool.json
     expose:
       - "8080"
 
