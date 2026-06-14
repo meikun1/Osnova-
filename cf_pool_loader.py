@@ -74,6 +74,22 @@ def append_token_to_json(api_token: str, label: str | None = None,
     return True
 
 
+def sync_db_to_json() -> int:
+    """Дописывает в cf_pool.json все токены, которые есть в БД, но
+    отсутствуют в файле. Возвращает число дописанных."""
+    from database import _db, _lock  # локальный импорт — циклы не нужны
+    with _lock:
+        rows = _db.all("SELECT email, api_token, label FROM cf_accounts ORDER BY id")
+    added = 0
+    for r in rows:
+        token = (r["api_token"] or "").strip()
+        if not token or not token.isascii():
+            continue
+        if append_token_to_json(token, label=r.get("label"), email=r.get("email")):
+            added += 1
+    return added
+
+
 def import_cf_pool_from_json() -> None:
     path = config.CF_POOL_JSON_PATH
     if not path or not os.path.exists(path):
