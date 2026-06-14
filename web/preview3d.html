@@ -100,7 +100,7 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 100);
-camera.position.set(1.8, 2.0, 5.7);   // сверху-сбоку — явный наклон
+camera.position.set(0, 0, 6.6);   // смотрим прямо в экран
 camera.lookAt(0, 0, 0);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -127,7 +127,10 @@ new GLTFLoader().load('/model/model.glb', (gltf) => {
 
   const md = Math.max(size.x, size.y, size.z) || 1;
   pivot.scale.setScalar(2.6 / md);
-  scene.add(pivot);
+  const tilt = new THREE.Group();
+  tilt.rotation.x = -0.175;   // телефон наклонён экраном от зрителя на 10°
+  tilt.add(pivot);
+  scene.add(tilt);
   phoneObj = pivot;
   const l = document.getElementById('load'); if (l) l.style.display = 'none';
 }, undefined, showErr);
