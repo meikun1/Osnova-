@@ -40,3 +40,7 @@ DOMAIN_SERVER_IP: str = os.getenv("DOMAIN_SERVER_IP", "")
 DOMAIN_CADDYFILE: str = os.getenv("DOMAIN_CADDYFILE", "")
 DOMAIN_CADDY_EXE: str = os.getenv("DOMAIN_CADDY_EXE", "caddy")
 DOMAIN_TARGET: str = os.getenv("DOMAIN_TARGET", "127.0.0.1:8000")
+DOMAIN_BIND_GUIDE_URL: str = os.getenv(
+    "DOMAIN_BIND_GUIDE_URL",
+    "https://github.com/meikun1/Osnova-/blob/main/DOMAIN_BIND.md",
+)

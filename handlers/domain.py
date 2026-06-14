@@ -45,11 +45,15 @@ class DomainBind(StatesGroup):
 
 
 def _back_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
-        ]
-    )
+    rows = []
+    if config.DOMAIN_BIND_GUIDE_URL:
+        rows.append([
+            InlineKeyboardButton(
+                text="📖 Инструкция", url=config.DOMAIN_BIND_GUIDE_URL
+            )
+        ])
+    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _missing_config() -> list[str]:
@@ -86,7 +90,8 @@ async def start_bind(callback: CallbackQuery, state: FSMContext) -> None:
         "• добавит A-запись на сервер,\n"
         "• включит SSL Strict + анти-bot настройки,\n"
         "• пропишет блок в Caddy и сделает reload,\n"
-        "• выдаст NS-серверы для регистратора.",
+        "• выдаст NS-серверы для регистратора.\n\n"
+        "📖 Полная пошаговая инструкция — по кнопке ниже.",
         reply_markup=_back_kb(),
     )
     await callback.answer()
