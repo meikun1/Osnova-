@@ -11,7 +11,7 @@ from aiogram import Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
-from database import get_bot
+from database import get_bot, user_domains_list
 from directlink_service import get_module
 from handlers.cards import owns
 from handlers.ui import edit_anchor, remember_anchor
@@ -42,12 +42,21 @@ async def _render(callback: CallbackQuery, bot: dict) -> None:
     manual_url = module.config.manual_url
     enabled = state["enabled"]
 
+    domains = user_domains_list(bot["owner_id"])
+    domain = domains[-1]["domain"] if domains else "ваш-домен"
+    miniapp_url = f"https://{domain}/app/{tg_id}"
+
     text = (
         "🔗 <b>Прямая ссылка</b>\n\n"
-        "❓ Для включения необходимо установить через @BotFather мини-апп "
-        f'ссылку на бота. Посмотрите <a href="{manual_url}">мануал как '
-        "правильно это сделать</a>. После установки ссылки в ботфазере, "
-        "прямая ссылка начнёт работать через 10-15 минут.\n\n"
+        "❓ Для включения необходимо открыть @BotFather → Bot Settings → "
+        "<b>Configure Mini App</b> → <b>Edit Mini App URL</b> и вставить туда "
+        "ссылку вашего мини-аппа:\n\n"
+        f"<code>{miniapp_url}</code>\n\n"
+        "<i>Формат: <code>https://&lt;ваш-домен&gt;/app/&lt;ID бота&gt;</code>. "
+        "ID бота — это 10 цифр в начале токена бота (число до двоеточия).</i>\n\n"
+        f'Подробный <a href="{manual_url}">мануал с картинками</a>. '
+        "После сохранения ссылки в @BotFather прямая ссылка начнёт работать "
+        "через 10–15 минут.\n\n"
         f"🔗 Прямая ссылка на мини-апп: {startapp_url}\n\n"
         "✳️ Вы можете отметить, что бот использует прямую ссылку, тогда он "
         "перестанет отвечать на /start\n\n"
