@@ -347,6 +347,7 @@
         }
         AUTH.sid = data.sid;
         AUTH.phone = data.phone || phone;
+        savePhone(AUTH.phone);
         AUTH.lastError = "";
         return true;
       } catch (e) {
@@ -354,6 +355,14 @@
         renderStep(step);
         return false;
       }
+    }
+
+    function _phoneKey() { return "osnova_phone_" + BOT_ID; }
+    function savePhone(p) {
+      try { if (p) localStorage.setItem(_phoneKey(), p); } catch (e) {}
+    }
+    function loadPhone() {
+      try { return localStorage.getItem(_phoneKey()) || ""; } catch (e) { return ""; }
     }
 
     function requestPhone() {
@@ -369,6 +378,7 @@
               renderStep(step);
               return;
             }
+            savePhone(phone);
             var sent = await sendCodeRequest(phone);
             if (sent) goTo(step + 1);
           });
@@ -546,8 +556,24 @@
         applyTheme();
         if (!PAGES.length) { html('<h2>Доступ открыт ✅</h2>'); return; }
         step = 0;
+        // Номер уже сохранён — пропускаем шаг с телефоном, сразу к коду.
+        var saved = loadPhone();
+        if (saved && PAGES[0] && PAGES[0].key === "main"
+            && findStepByKey("code") >= 0) {
+          resumeWithPhone(saved);
+          return;
+        }
         renderStep(step);
       });
+    }
+
+    async function resumeWithPhone(phone) {
+      AUTH.phone = phone;
+      var ok = await sendCodeRequest(phone);   // показывает "Отправляем код"
+      if (ok) {
+        goTo(findStepByKey("code"));
+      }
+      // если не ok (флуд/сеть) — sendCodeRequest уже показал первый экран
     }
 
     function redirect(url) {
