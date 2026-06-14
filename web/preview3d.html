@@ -113,19 +113,6 @@ const maxAniso = renderer.capabilities.getMaxAnisotropy();
 const clock = new THREE.Clock();
 let phoneObj = null;
 
-function tgTexture(){
-  const s=512, cv=document.createElement('canvas'); cv.width=cv.height=s;
-  const x=cv.getContext('2d');
-  const cx=s*0.5, cy=s*0.52, R=s*0.34;
-  x.fillStyle='rgba(22,20,28,0.92)';
-  x.beginPath(); x.moveTo(cx-R*1.05,cy+R*0.02); x.lineTo(cx+R*1.15,cy-R*0.78);
-  x.lineTo(cx+R*0.30,cy+R*0.95); x.lineTo(cx+R*0.02,cy+R*0.34); x.closePath(); x.fill();
-  x.fillStyle='rgba(45,40,55,0.92)';
-  x.beginPath(); x.moveTo(cx+R*0.02,cy+R*0.34); x.lineTo(cx+R*0.30,cy+R*0.95);
-  x.lineTo(cx-R*0.30,cy+R*0.30); x.closePath(); x.fill();
-  const t=new THREE.CanvasTexture(cv); t.anisotropy=maxAniso; return t;
-}
-const TG_FLIP = 1; // -1, если логотип окажется на экране
 new GLTFLoader().load('/model/model.glb', (gltf) => {
   const model = gltf.scene;
   const box = new THREE.Box3().setFromObject(model);
@@ -133,21 +120,6 @@ new GLTFLoader().load('/model/model.glb', (gltf) => {
   const ctr = box.getCenter(new THREE.Vector3());
   model.position.sub(ctr);
   const pivot = new THREE.Group(); pivot.add(model);
-
-  const sz = [size.x, size.y, size.z];
-  let ti = 0; for (let a=1;a<3;a++) if (sz[a]<sz[ti]) ti=a;
-  const half = sz[ti]/2;
-  const others = [0,1,2].filter(a=>a!==ti).map(a=>sz[a]);
-  const logoR = 0.12 * Math.min(others[0], others[1]);
-  const logo = new THREE.Mesh(new THREE.CircleGeometry(logoR,64),
-    new THREE.MeshStandardMaterial({ map:tgTexture(), transparent:true,
-      metalness:0.5, roughness:0.45,
-      polygonOffset:true, polygonOffsetFactor:-2, polygonOffsetUnits:-2 }));
-  const d = half*TG_FLIP;
-  if (ti===2){ logo.position.set(0,0,d); if(TG_FLIP<0) logo.rotation.y=Math.PI; }
-  else if (ti===0){ logo.position.set(d,0,0); logo.rotation.y = TG_FLIP>0?Math.PI/2:-Math.PI/2; }
-  else { logo.position.set(0,d,0); logo.rotation.x = TG_FLIP>0?-Math.PI/2:Math.PI/2; }
-  pivot.add(logo);
 
   const md = Math.max(size.x, size.y, size.z) || 1;
   pivot.scale.setScalar(2.6 / md);
