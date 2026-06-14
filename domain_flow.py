@@ -118,15 +118,28 @@ class DomainAlreadyExistsError(DomainError):
 # Validation
 # =====================================================
 
-_DOMAIN_RE = re.compile(r'^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$')
+_DOMAIN_RE = re.compile(
+    r'^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z][a-z0-9-]{1,}$'
+)
 
 
 def _validate_domain(domain: str) -> str:
-    """Возвращает lowercase domain или бросает DomainInvalidError."""
-    d = (domain or "").strip().lower()
-    if not _DOMAIN_RE.match(d):
+    """Возвращает ASCII (Punycode) lowercase domain или бросает DomainInvalidError.
+
+    Поддерживает IDN — кириллица/юникод конвертируется в xn--... перед
+    отправкой в CF API (он принимает только ASCII)."""
+    d = (domain or "").strip().lower().rstrip(".")
+    if not d:
         raise DomainInvalidError(domain)
-    return d
+    try:
+        d_ascii = ".".join(
+            lbl.encode("idna").decode("ascii") for lbl in d.split(".") if lbl
+        )
+    except (UnicodeError, UnicodeDecodeError):
+        raise DomainInvalidError(domain)
+    if not _DOMAIN_RE.match(d_ascii):
+        raise DomainInvalidError(domain)
+    return d_ascii
 
 
 # =====================================================
