@@ -118,10 +118,12 @@ async def cf_add_receive(message: Message, state: FSMContext) -> None:
             continue
         if cf_pool_add(email=None, api_token=token, label=None):
             added += 1
-            if append_token_to_json(token):
-                file_synced += 1
         else:
             dupes += 1
+        # Синкаем в файл независимо от того, был дубль в БД или нет —
+        # пусть DB и JSON всегда сходятся.
+        if append_token_to_json(token):
+            file_synced += 1
 
     await state.clear()
     stats = cf_pool_stats()
