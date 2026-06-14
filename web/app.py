@@ -40,7 +40,9 @@ def _miniapp_config(bot_id: int) -> dict:
         t = get_template(bot["template_id"])
         if t:
             content = t["content"]
-            cfg["title"] = (content.get("app_name") or t.get("name") or "").strip()
+            # Берём только пользовательский app_name; имя шаблона ("Стандартный
+            # шаблон") не используем как заголовок мини-аппа.
+            cfg["title"] = (content.get("app_name") or "").strip()
 
     def _val(key: str) -> str:
         v = content.get(key)
