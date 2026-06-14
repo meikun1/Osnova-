@@ -66,16 +66,16 @@ def append_token_to_json(api_token: str, label: str | None = None,
             entry["email"] = email
         data.append(entry)
 
-        tmp = path + ".tmp"
+        # Пишем прямо в файл, без tmp+replace: bind-mount одиночного файла
+        # в Docker не даёт сделать rename поверх ("Device or resource busy").
         try:
-            with open(tmp, "w", encoding="utf-8") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
                 f.flush()
                 try:
                     os.fsync(f.fileno())
                 except Exception:
                     pass
-            os.replace(tmp, path)
         except Exception as e:
             logger.error("cf_pool: не смог записать %s: %s", path, e)
             return False
