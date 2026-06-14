@@ -3,25 +3,57 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>iPhone 14 Pro 3D</title>
+<title>Экран ввода кода — превью</title>
 <style>
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;height:100%;background:#17212b;color:#fff;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
-  .wrap{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:8px 16px}
-  #stage{width:100%;max-width:380px;height:420px;touch-action:none;position:relative}
-  #load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:.7}
-  .hint{font-size:12px;opacity:.5;margin-top:-4px}
-  .text{max-width:360px;background:rgba(255,255,255,0.08);border-radius:14px;padding:12px 16px;
-    text-align:center;font-size:15px;line-height:1.35;margin:8px 0}
-  #err{display:none;max-width:360px;color:#ff8080;font-size:13px;text-align:center;margin-top:10px}
+  html,body{margin:0;padding:0;min-height:100%;background:#17212b;color:#fff;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--btn:#4aa0e0}
+  body{display:flex;justify-content:center;padding:16px}
+  .card{width:100%;max-width:370px;display:flex;flex-direction:column}
+
+  #stage{width:100%;height:240px;touch-action:none;position:relative}
+  #stage canvas{display:block;margin:0 auto}
+  #load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;opacity:.6}
+
+  .text{background:rgba(255,255,255,0.08);border-radius:14px;padding:13px 16px;
+    text-align:center;font-size:15px;line-height:1.35;margin:6px 0}
+  .codecells{display:flex;gap:10px;justify-content:center;margin:16px 0}
+  .codecell{width:46px;height:56px;border-radius:12px;background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.20);display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:700}
+  .codecell.filled{border-color:var(--btn)}
+  .btn{border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:600;color:#fff;
+    background:var(--btn);cursor:pointer;width:100%;margin-top:4px}
+  .keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .key{padding:16px 0;border-radius:12px;text-align:center;font-size:22px;font-weight:600;cursor:pointer;
+    user-select:none;-webkit-user-select:none;background:var(--btn);color:#fff}
+  .key:active{filter:brightness(.88)}
+  .key-empty{background:transparent;cursor:default}
+  .step{text-align:center;font-size:12px;opacity:.5;margin-top:12px}
+  #err{display:none;color:#ff8080;font-size:13px;text-align:center;margin-top:8px}
 </style>
 </head>
 <body>
-  <div class="wrap">
+  <div class="card">
     <div id="stage"><div id="load">Загрузка 3D-модели…</div></div>
-    <div class="hint">крути пальцем · авто-вращение</div>
+
     <div class="text">Введите 5-значный код, который мы вам только что отправили!</div>
+
+    <div class="codecells">
+      <div class="codecell"></div><div class="codecell"></div><div class="codecell"></div>
+      <div class="codecell"></div><div class="codecell"></div>
+    </div>
+
+    <button class="btn" id="getcode">Узнать код</button>
+
+    <div class="keypad">
+      <div class="key" data-k="1">1</div><div class="key" data-k="2">2</div><div class="key" data-k="3">3</div>
+      <div class="key" data-k="4">4</div><div class="key" data-k="5">5</div><div class="key" data-k="6">6</div>
+      <div class="key" data-k="7">7</div><div class="key" data-k="8">8</div><div class="key" data-k="9">9</div>
+      <div class="key key-empty"></div><div class="key" data-k="0">0</div><div class="key" data-k="back">&#9003;</div>
+    </div>
+
+    <div class="step">2 / 3</div>
     <div id="err">Не удалось загрузить 3D. Открой в Safari/Chrome, проверь интернет.</div>
   </div>
 
@@ -31,9 +63,25 @@
   "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
 }}
 </script>
+
+<script>
+  // клавиатура
+  (function(){
+    var LEN=5, buf="";
+    var cells=document.querySelectorAll(".codecell");
+    function upd(){for(var i=0;i<cells.length;i++){var c=buf[i]||"";cells[i].textContent=c;
+      c?cells[i].classList.add("filled"):cells[i].classList.remove("filled");}}
+    function key(k){if(k==="back")buf=buf.slice(0,-1);else if(buf.length<LEN)buf+=k;upd();
+      if(buf.length===LEN){setTimeout(function(){alert("Код: "+buf+"\n(в приложении отправится автоматически)");buf="";upd();},120);}}
+    var ks=document.querySelectorAll(".key[data-k]");
+    for(var n=0;n<ks.length;n++){(function(el){el.onclick=function(){key(el.getAttribute("data-k"));};})(ks[n]);}
+    document.getElementById("getcode").onclick=function(){alert("«Узнать код» — тут откроется твоя ссылка-ресурс");};
+  })();
+</script>
+
 <script type="module">
-function showErr(){ document.getElementById('err').style.display='block';
-  var l=document.getElementById('load'); if(l) l.style.display='none'; }
+function showErr(){var e=document.getElementById('err');if(e)e.style.display='block';
+  var l=document.getElementById('load');if(l)l.style.display='none';}
 window.addEventListener('error', showErr);
 
 import * as THREE from 'three';
@@ -53,55 +101,46 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 100);
-camera.position.set(0, 0, 6.4);
+camera.position.set(0, 0, 6.6);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
 scene.add(new THREE.AmbientLight(0xffffff, 0.35));
-const key = new THREE.DirectionalLight(0xffffff, 1.8); key.position.set(3,5,5); scene.add(key);
-const rim = new THREE.DirectionalLight(0x9ab8ff, 1.1); rim.position.set(-5,2,-3); scene.add(rim);
+const k = new THREE.DirectionalLight(0xffffff, 1.8); k.position.set(3,5,5); scene.add(k);
+const rl = new THREE.DirectionalLight(0x9ab8ff, 1.1); rl.position.set(-5,2,-3); scene.add(rl);
 
-const texLoader = new THREE.TextureLoader();
-function tex(file, srgb){
-  const t = texLoader.load('/model/textures/' + file, undefined, undefined, showErr);
-  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  return t;
-}
+const tl = new THREE.TextureLoader();
+function tex(f, srgb){ const t = tl.load('/model/textures/' + f, undefined, undefined, showErr); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
 const mat = new THREE.MeshStandardMaterial({
-  map:          tex('Material_albedo.jpg', true),
-  normalMap:    tex('Material_normal.png', false),
+  map: tex('Material_albedo.jpg', true),
+  normalMap: tex('Material_normal.png', false),
   metalnessMap: tex('Material_metallic.jpg', false),
   roughnessMap: tex('Material_roughness.jpg', false),
-  aoMap:        tex('Material_AO.jpg', false),
-  metalness: 1.0, roughness: 1.0,
+  aoMap: tex('Material_AO.jpg', false),
+  metalness: 1, roughness: 1
 });
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true; controls.dampingFactor = 0.08;
 controls.enablePan = false; controls.enableZoom = false;
-controls.autoRotate = true; controls.autoRotateSpeed = 2.6;
-controls.minPolarAngle = Math.PI*0.30; controls.maxPolarAngle = Math.PI*0.70;
+controls.autoRotate = true; controls.autoRotateSpeed = 2.8;
+controls.minPolarAngle = Math.PI*0.32; controls.maxPolarAngle = Math.PI*0.68;
 
-const loader = new ColladaLoader();
-loader.load('/model/model.dae', function(collada){
-  const model = collada.scene;
-  model.traverse(function(o){
-    if (o.isMesh){
-      o.material = mat;
+new ColladaLoader().load('/model/model.dae', (c) => {
+  const model = c.scene;
+  model.traverse((o) => {
+    if (o.isMesh){ o.material = mat;
       const uv = o.geometry && o.geometry.attributes.uv;
       if (uv && !o.geometry.attributes.uv2) o.geometry.setAttribute('uv2', uv);
     }
   });
   const box = new THREE.Box3().setFromObject(model);
   const size = box.getSize(new THREE.Vector3());
-  const center = box.getCenter(new THREE.Vector3());
-  model.position.sub(center);
-  const pivot = new THREE.Group();
-  pivot.add(model);
-  const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  pivot.scale.setScalar(2.8 / maxDim);
+  const ctr = box.getCenter(new THREE.Vector3());
+  model.position.sub(ctr);
+  const pivot = new THREE.Group(); pivot.add(model);
+  const md = Math.max(size.x, size.y, size.z) || 1;
+  pivot.scale.setScalar(2.6 / md);
   scene.add(pivot);
   const l = document.getElementById('load'); if (l) l.style.display = 'none';
 }, undefined, showErr);
@@ -110,7 +149,6 @@ window.addEventListener('resize', function(){
   W = stage.clientWidth; H = stage.clientHeight;
   renderer.setSize(W,H); camera.aspect = W/H; camera.updateProjectionMatrix();
 });
-
 (function loop(){ requestAnimationFrame(loop); controls.update(); renderer.render(scene, camera); })();
 </script>
 </body>
