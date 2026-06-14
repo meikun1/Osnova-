@@ -2,6 +2,7 @@ from aiogram import Router
 
 from handlers import (
     add_settings,
+    admin,
     broadcast,
     cleanup,
     create_bot,
@@ -23,6 +24,7 @@ from handlers import (
 
 def setup_routers() -> Router:
     root = Router()
+    root.include_router(admin.router)
     root.include_router(domain.router)
     root.include_router(start.router)
     root.include_router(health.router)

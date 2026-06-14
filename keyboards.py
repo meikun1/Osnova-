@@ -3,8 +3,16 @@ from __future__ import annotations
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-def main_menu_kb(user_bots: list[dict]) -> InlineKeyboardMarkup:
+from config import ADMIN_IDS
+
+
+def main_menu_kb(user_bots: list[dict], user_id: int | None = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+
+    if user_id is not None and user_id in ADMIN_IDS:
+        builder.row(
+            InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")
+        )
 
     builder.row(
         InlineKeyboardButton(

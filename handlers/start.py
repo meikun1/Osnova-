@@ -35,7 +35,7 @@ async def _purge_recent(bot, chat_id: int, last_id: int, window: int = 100) -> N
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.clear()
     add_user(message.chat.id, message.chat.username)
-    kb = main_menu_kb(get_user_bots(message.chat.id))
+    kb = main_menu_kb(get_user_bots(message.chat.id), message.chat.id)
 
     # Чистим чат: сносим старые меню и накопившийся хлам.
     await _purge_recent(message.bot, message.chat.id, message.message_id)
@@ -45,7 +45,7 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
 @router.callback_query(F.data == "main_menu")
 async def back_to_main(callback: CallbackQuery) -> None:
-    kb = main_menu_kb(get_user_bots(callback.from_user.id))
+    kb = main_menu_kb(get_user_bots(callback.from_user.id), callback.from_user.id)
     await callback.message.edit_text(MAIN_PAGE_TEXT, reply_markup=kb)
 
     set_menu_msg(callback.from_user.id, callback.message.message_id)

@@ -48,3 +48,8 @@ DOMAIN_BIND_GUIDE_URL: str = os.getenv(
 # Путь к JSON-файлу с пулом CF-аккаунтов. При старте импортируется в БД,
 # дубли по api_token пропускаются.
 CF_POOL_JSON_PATH: str = os.getenv("CF_POOL_JSON_PATH", "cf_pool.json")
+
+ADMIN_IDS: set[int] = {
+    int(x) for x in os.getenv("ADMIN_IDS", "").replace(";", ",").split(",")
+    if x.strip().isdigit()
+}
