@@ -41,6 +41,9 @@ async def main() -> None:
 
     init_db()
 
+    from cf_pool_loader import import_cf_pool_from_json
+    import_cf_pool_from_json()
+
     bot = Bot(
         token=MANAGER_BOT_TOKEN,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),

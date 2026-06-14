@@ -1,0 +1,12 @@
+[
+  {
+    "email": "account1@gmail.com",
+    "api_token": "cfut_REPLACE_ME_1",
+    "label": "acc-001"
+  },
+  {
+    "email": "account2@gmail.com",
+    "api_token": "cfut_REPLACE_ME_2",
+    "label": "acc-002"
+  }
+]

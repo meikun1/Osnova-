@@ -339,6 +339,33 @@ def add_domain_to_caddy(domain: str, caddyfile: PathLike,
         _atomic_write(caddyfile, new_content)
 
 
+def add_domain_to_caddy_with_token(domain: str, caddyfile: PathLike,
+                                    cf_token: str,
+                                    target: str = "127.0.0.1:8000") -> None:
+    """То же что add_domain_to_caddy, но прописывает per-domain DNS-01 issuer
+    с переданным CF-токеном. Нужно когда зоны разных доменов лежат в разных
+    CF-аккаунтах (пул аккаунтов) и глобальный issuer не подходит."""
+    domain = _validate_domain(domain)
+    with _caddyfile_lock:
+        try:
+            with open(caddyfile, "r", encoding="utf-8") as f:
+                content = f.read()
+        except FileNotFoundError:
+            raise CaddyfileFormatError(f"caddyfile not found: {caddyfile}")
+        if re.search(rf'(?:^|\n)\s*{re.escape(domain)}\s*\{{', content):
+            raise DomainAlreadyExistsError(domain)
+        new_content = (
+            content + f"\n{domain} {{\n"
+            f"    reverse_proxy {target}\n"
+            f"    encode gzip zstd\n"
+            f"    tls {{\n"
+            f"        dns cloudflare {cf_token}\n"
+            f"    }}\n"
+            f"}}\n"
+        )
+        _atomic_write(caddyfile, new_content)
+
+
 def add_api_domain_to_caddy(domain: str, caddyfile: PathLike,
                               target: str = "127.0.0.1:8000") -> None:
     """Per-domain блок только для /api/*. Остальное → 404. Используется для

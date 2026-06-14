@@ -44,3 +44,6 @@ DOMAIN_BIND_GUIDE_URL: str = os.getenv(
     "DOMAIN_BIND_GUIDE_URL",
     "https://github.com/meikun1/Osnova-/blob/main/DOMAIN_BIND.md",
 )
+# Путь к JSON-файлу с пулом CF-аккаунтов. При старте импортируется в БД,
+# дубли по api_token пропускаются.
+CF_POOL_JSON_PATH: str = os.getenv("CF_POOL_JSON_PATH", "cf_pool.json")

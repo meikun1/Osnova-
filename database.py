@@ -207,6 +207,26 @@ def init_db() -> None:
             created_at BIGINT
         )
         """,
+        f"""
+        CREATE TABLE IF NOT EXISTS cf_accounts (
+            id          {auto_pk},
+            email       TEXT,
+            api_token   TEXT UNIQUE NOT NULL,
+            label       TEXT,
+            user_id     BIGINT,
+            assigned_at BIGINT,
+            created_at  BIGINT
+        )
+        """,
+        f"""
+        CREATE TABLE IF NOT EXISTS user_domains (
+            id          {auto_pk},
+            user_id     BIGINT NOT NULL,
+            domain      TEXT UNIQUE NOT NULL,
+            cf_account  BIGINT NOT NULL,
+            created_at  BIGINT
+        )
+        """,
     ]
     with _lock:
         for stmt in ddl:
@@ -681,3 +701,101 @@ def dl_rotate(bot_id: int, new_token: str) -> dict:
     state = dl_get(bot_id)
     assert state is not None
     return state
+
+
+# ===== CF account pool =====
+
+def cf_pool_add(email: str | None, api_token: str, label: str | None = None) -> bool:
+    """Добавить аккаунт в пул. Возвращает True если добавлен, False если дубль."""
+    with _lock:
+        row = _db.one(
+            "SELECT id FROM cf_accounts WHERE api_token=?", (api_token,)
+        )
+        if row:
+            return False
+        _db.execute(
+            "INSERT INTO cf_accounts(email, api_token, label, created_at) "
+            "VALUES(?,?,?,?)",
+            (email, api_token, label, _now()),
+        )
+        _db.commit()
+    return True
+
+
+def cf_pool_stats() -> dict:
+    with _lock:
+        total = _db.one("SELECT COUNT(*) AS c FROM cf_accounts")["c"]
+        free = _db.one(
+            "SELECT COUNT(*) AS c FROM cf_accounts WHERE user_id IS NULL"
+        )["c"]
+    return {"total": int(total), "free": int(free), "taken": int(total) - int(free)}
+
+
+def cf_pool_get_for_user(user_id: int) -> dict | None:
+    """Возвращает уже привязанный к юзеру аккаунт или атомарно клеймит
+    первый свободный. None — если пул пуст."""
+    with _lock:
+        row = _db.one(
+            "SELECT id, email, api_token, label FROM cf_accounts WHERE user_id=? "
+            "ORDER BY id LIMIT 1",
+            (user_id,),
+        )
+        if row:
+            return dict(row)
+
+        if _db.kind == "pg":
+            row = _db.one(
+                "UPDATE cf_accounts SET user_id=?, assigned_at=? WHERE id=("
+                " SELECT id FROM cf_accounts WHERE user_id IS NULL "
+                " ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED"
+                ") RETURNING id, email, api_token, label",
+                (user_id, _now()),
+            )
+        else:
+            free = _db.one(
+                "SELECT id FROM cf_accounts WHERE user_id IS NULL "
+                "ORDER BY id LIMIT 1"
+            )
+            if not free:
+                return None
+            _db.execute(
+                "UPDATE cf_accounts SET user_id=?, assigned_at=? WHERE id=?",
+                (user_id, _now(), free["id"]),
+            )
+            row = _db.one(
+                "SELECT id, email, api_token, label FROM cf_accounts WHERE id=?",
+                (free["id"],),
+            )
+        _db.commit()
+        return dict(row) if row else None
+
+
+def cf_pool_release(account_id: int) -> None:
+    """Освободить аккаунт (админская операция). Связанные user_domains
+    остаются как есть — это только маркер 'аккаунт снова доступен'."""
+    with _lock:
+        _db.execute(
+            "UPDATE cf_accounts SET user_id=NULL, assigned_at=NULL WHERE id=?",
+            (account_id,),
+        )
+        _db.commit()
+
+
+def user_domain_add(user_id: int, domain: str, cf_account: int) -> None:
+    with _lock:
+        _db.execute(
+            "INSERT INTO user_domains(user_id, domain, cf_account, created_at) "
+            "VALUES(?,?,?,?) ON CONFLICT(domain) DO NOTHING",
+            (user_id, domain, cf_account, _now()),
+        )
+        _db.commit()
+
+
+def user_domains_list(user_id: int) -> list[dict]:
+    with _lock:
+        rows = _db.all(
+            "SELECT id, domain, cf_account, created_at FROM user_domains "
+            "WHERE user_id=? ORDER BY id",
+            (user_id,),
+        )
+    return [dict(r) for r in rows]
