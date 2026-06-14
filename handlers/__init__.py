@@ -3,6 +3,7 @@ from aiogram import Router
 from handlers import (
     add_settings,
     broadcast,
+    cleanup,
     create_bot,
     direct_link,
     export_sessions,
@@ -37,4 +38,6 @@ def setup_routers() -> Router:
     root.include_router(token_broadcast.router)
     root.include_router(folders.router)
     root.include_router(export_sessions.router)
+    # Уборщик — строго последним: ловит только то, что не подхватили выше.
+    root.include_router(cleanup.router)
     return root
