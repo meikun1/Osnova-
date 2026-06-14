@@ -12,7 +12,7 @@ from aiogram.types import (
 )
 
 from child.runtime import get_runtime
-from database import add_bot, get_bot, token_exists, update_bot_field
+from database import add_bot, get_bot, token_exists, update_bot_field, user_has_ssl_domain
 from handlers.ui import edit_anchor, remember_anchor
 
 router = Router()
@@ -29,8 +29,30 @@ def _cancel_kb() -> InlineKeyboardMarkup:
         ]
     )
 
+def _need_domain_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🌐 Привязать свой домен", callback_data="domain_bind")],
+            [InlineKeyboardButton(text="⬅️ В главное меню", callback_data="main_menu")],
+        ]
+    )
+
+
 @router.callback_query(F.data == "create_bot")
 async def start_create(callback: CallbackQuery, state: FSMContext) -> None:
+    if not user_has_ssl_domain(callback.from_user.id):
+        await remember_anchor(callback, state)
+        await callback.message.edit_text(
+            "🔒 <b>Сначала привяжите домен</b>\n\n"
+            "Добавление бота разрешено только после того, как ваш домен "
+            "получит SSL-сертификат. Это занимает 1–24 часа после смены NS.\n\n"
+            "Если домен уже привязан — дождитесь уведомления "
+            "«SSL-сертификат выпущен» и повторите попытку.",
+            reply_markup=_need_domain_kb(),
+        )
+        await callback.answer()
+        return
+
     await state.set_state(CreateBot.waiting_for_token)
     await remember_anchor(callback, state)
     await callback.message.edit_text(
@@ -47,6 +69,17 @@ async def start_create(callback: CallbackQuery, state: FSMContext) -> None:
 async def receive_token(message: Message, state: FSMContext) -> None:
     data = await state.get_data()
     token = message.text.strip()
+
+    if not user_has_ssl_domain(message.from_user.id):
+        await edit_anchor(
+            message,
+            data,
+            "🔒 Добавление бота разрешено только после выпуска SSL "
+            "по привязанному домену. Дождитесь уведомления.",
+            _need_domain_kb(),
+        )
+        await state.clear()
+        return
 
     if not TOKEN_RE.match(token):
 

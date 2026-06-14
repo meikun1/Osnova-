@@ -815,6 +815,17 @@ def user_domains_pending_ssl() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def user_has_ssl_domain(user_id: int) -> bool:
+    """True если у юзера есть хотя бы один домен с уже выпущенным SSL."""
+    with _lock:
+        row = _db.one(
+            "SELECT 1 AS x FROM user_domains "
+            "WHERE user_id=? AND ssl_notified=1 LIMIT 1",
+            (user_id,),
+        )
+    return row is not None
+
+
 def user_domain_mark_ssl_notified(domain_id: int) -> None:
     with _lock:
         _db.execute(
