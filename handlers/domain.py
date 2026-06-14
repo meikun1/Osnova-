@@ -96,7 +96,7 @@ async def start_bind(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
-@router.message(DomainBind.waiting_domain, F.text)
+@router.message(DomainBind.waiting_domain, F.text, ~F.text.startswith("/"))
 async def receive_domain(message: Message, state: FSMContext) -> None:
     domain = (message.text or "").strip().lower()
     status = await message.answer(f"⏳ Обрабатываю <code>{html.escape(domain)}</code>…")
