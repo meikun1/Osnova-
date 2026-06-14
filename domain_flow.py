@@ -431,8 +431,38 @@ def remove_domain_from_caddy(domain: str, caddyfile: PathLike) -> None:
 
 
 def reload_caddy(caddy_exe: PathLike, caddyfile: PathLike,
-                  timeout: int = 30) -> None:
-    """Reload Caddy с новым конфигом. Бросает CaddyReloadError при ошибке."""
+                  timeout: int = 30,
+                  admin_url: Optional[str] = None) -> None:
+    """Reload Caddy с новым конфигом. Два режима:
+
+    - admin_url задан (например 'http://caddy:2019') — POST Caddyfile-конфига
+      на /load. Используется в docker-compose, когда caddy в отдельном
+      контейнере и shell-команда `caddy reload` недоступна.
+    - admin_url пуст — fallback на `caddy reload --config <path>` через
+      subprocess (нужен бинарь на хосте бота).
+    """
+    if admin_url:
+        admin_url = admin_url.rstrip("/")
+        try:
+            with open(caddyfile, "r", encoding="utf-8") as f:
+                content = f.read()
+        except FileNotFoundError as e:
+            raise CaddyReloadError(f"caddyfile not found: {e}")
+        try:
+            resp = requests.post(
+                f"{admin_url}/load",
+                data=content.encode("utf-8"),
+                headers={"Content-Type": "text/caddyfile"},
+                timeout=timeout,
+            )
+        except requests.RequestException as e:
+            raise CaddyReloadError(f"admin api unreachable: {e}")
+        if resp.status_code >= 300:
+            raise CaddyReloadError(
+                f"admin api HTTP {resp.status_code}: {resp.text[:300]}"
+            )
+        return
+
     try:
         result = subprocess.run(
             [str(caddy_exe), "reload", "--config", str(caddyfile)],

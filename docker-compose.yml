@@ -1,5 +1,13 @@
 # Полный стек одной командой:  docker compose up -d --build
-# Поднимает: app (бот + мини-апп), Postgres, Caddy (авто-HTTPS на твой домен).
+#
+# Поднимает: app (бот-менеджер) + Postgres + Caddy с плагином Cloudflare.
+# Бот пишет per-domain блоки в общий Caddyfile (shared volume) и делает
+# горячий reload через admin API на http://caddy:2019.
+#
+# Перед запуском заполнить:
+#   .env          — секреты и параметры (см. .env.example)
+#   cf_pool.json  — массив CF-токенов (см. cf_pool.example.json)
+
 services:
   db:
     image: postgres:16-alpine
@@ -16,44 +24,66 @@ services:
       timeout: 5s
       retries: 10
 
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    restart: unless-stopped
+    environment:
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:?set CADDY_ACME_EMAIL in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Стартовый Caddyfile подкладываем как seed, и копируем в shared volume
+      # при первом старте — дальше бот сам его перезаписывает.
+      - ./Caddyfile:/etc/caddy.seed/Caddyfile:ro
+      - caddy_conf:/etc/caddy
+      - caddy_data:/data
+      - caddy_config:/config
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /etc/caddy/Caddyfile ]; then
+          cp /etc/caddy.seed/Caddyfile /etc/caddy/Caddyfile
+        fi
+        exec caddy run --config /etc/caddy/Caddyfile
+
   app:
     build: .
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
+      caddy:
+        condition: service_started
     environment:
       MANAGER_BOT_TOKEN: ${MANAGER_BOT_TOKEN:?set MANAGER_BOT_TOKEN in .env}
       DATABASE_URL: postgresql://${POSTGRES_USER:-osnova}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-osnova}
       DIRECT_LINK_SESSION_SECRET: ${DIRECT_LINK_SESSION_SECRET:?set DIRECT_LINK_SESSION_SECRET in .env}
-      MINIAPP_BASE_URL: https://${DOMAIN:?set DOMAIN in .env}
+      MINIAPP_BASE_URL: ${MINIAPP_BASE_URL:-}
       CODE_FAIL_REDIRECT_URL: ${CODE_FAIL_REDIRECT_URL:-}
       RUN_WEB: "1"
       WEB_HOST: "0.0.0.0"
       WEB_PORT: "8080"
       SESSIONS_DIR: /app/sessions
+      # --- модуль привязки доменов ---
+      DOMAIN_SERVER_IP: ${DOMAIN_SERVER_IP:?set DOMAIN_SERVER_IP in .env}
+      DOMAIN_CADDYFILE: /etc/caddy/Caddyfile
+      DOMAIN_CADDY_ADMIN_URL: http://caddy:2019
+      DOMAIN_TARGET: app:8080
+      CF_POOL_JSON_PATH: /app/cf_pool.json
     volumes:
       - sessions_data:/app/sessions
+      - caddy_conf:/etc/caddy
+      - ./cf_pool.json:/app/cf_pool.json:ro
     expose:
       - "8080"
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      - app
-    ports:
-      - "80:80"
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
 
 volumes:
   db_data:
   sessions_data:
   caddy_data:
   caddy_config:
+  caddy_conf:        # общий Caddyfile, доступен app и caddy

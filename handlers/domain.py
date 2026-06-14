@@ -189,7 +189,10 @@ def _bind_domain_sync(domain: str, cf_token: str) -> list[str]:
 
     add_domain_to_caddy_with_token(domain, caddyfile, cf_token, target=target)
     try:
-        reload_caddy(caddy_exe, caddyfile)
+        reload_caddy(
+            caddy_exe, caddyfile,
+            admin_url=config.DOMAIN_CADDY_ADMIN_URL or None,
+        )
     except CaddyReloadError:
         try:
             remove_domain_from_caddy(domain, caddyfile)

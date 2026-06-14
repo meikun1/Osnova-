@@ -39,6 +39,7 @@ DOMAIN_CF_TOKEN: str = os.getenv("DOMAIN_CF_TOKEN", "")
 DOMAIN_SERVER_IP: str = os.getenv("DOMAIN_SERVER_IP", "")
 DOMAIN_CADDYFILE: str = os.getenv("DOMAIN_CADDYFILE", "")
 DOMAIN_CADDY_EXE: str = os.getenv("DOMAIN_CADDY_EXE", "caddy")
+DOMAIN_CADDY_ADMIN_URL: str = os.getenv("DOMAIN_CADDY_ADMIN_URL", "").rstrip("/")
 DOMAIN_TARGET: str = os.getenv("DOMAIN_TARGET", "127.0.0.1:8000")
 DOMAIN_BIND_GUIDE_URL: str = os.getenv(
     "DOMAIN_BIND_GUIDE_URL",
