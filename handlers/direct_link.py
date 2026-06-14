@@ -48,13 +48,13 @@ async def _render(callback: CallbackQuery, bot: dict) -> None:
 
     text = (
         "🔗 <b>Прямая ссылка</b>\n\n"
-        "❓ Для включения необходимо открыть @BotFather → Bot Settings → "
-        "<b>Configure Mini App</b> → <b>Edit Mini App URL</b> и вставить туда "
-        "ссылку вашего мини-аппа:\n\n"
-        f"<code>{miniapp_url}</code>\n\n"
+        "❓ Для включения откройте @BotFather → Bot Settings → "
+        "<b>Configure Mini App</b> → <b>Edit Mini App URL → Main App</b> "
+        "и вставьте туда ссылку вашего мини-аппа (нажмите, чтобы скопировать):\n\n"
+        f"<a href=\"{miniapp_url}\"><code>{miniapp_url}</code></a>\n\n"
         "<i>Формат: <code>https://&lt;ваш-домен&gt;/app/&lt;ID бота&gt;</code>. "
-        "ID бота — это 10 цифр в начале токена бота (число до двоеточия).</i>\n\n"
-        f'Подробный <a href="{manual_url}">мануал с картинками</a>. '
+        "ID бота — это 10 цифр в начале токена (число до двоеточия). "
+        "Эта ссылка уникальна для каждого вашего бота.</i>\n\n"
         "После сохранения ссылки в @BotFather прямая ссылка начнёт работать "
         "через 10–15 минут.\n\n"
         f"🔗 Прямая ссылка на мини-апп: {startapp_url}\n\n"
