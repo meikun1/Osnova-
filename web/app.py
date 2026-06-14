@@ -26,6 +26,7 @@ from miniapp_template import (
 from web.auth_api import router as auth_router, start_gc
 
 _MINIAPP_HTML = (Path(__file__).parent / "miniapp.html").read_text(encoding="utf-8")
+_PREVIEW3D_HTML = (Path(__file__).parent / "preview3d.html").read_text(encoding="utf-8")
 
 def _miniapp_config(bot_id: int) -> dict:
     cfg: dict = {
@@ -69,6 +70,13 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict:
         return {"ok": True}
+
+    @app.get("/3d", response_class=HTMLResponse)
+    async def preview3d() -> HTMLResponse:
+        return HTMLResponse(
+            _PREVIEW3D_HTML,
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"},
+        )
 
     @app.get("/app/{bot_id}", response_class=HTMLResponse)
     async def mini_app(bot_id: int) -> HTMLResponse:
