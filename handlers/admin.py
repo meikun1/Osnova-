@@ -108,8 +108,12 @@ async def cf_add_receive(message: Message, state: FSMContext) -> None:
         return
 
     added = 0
+    rejected_non_ascii = 0
     dupes = 0
     for token in tokens:
+        if not token.isascii():
+            rejected_non_ascii += 1
+            continue
         if cf_pool_add(email=None, api_token=token, label=None):
             added += 1
         else:
@@ -117,10 +121,19 @@ async def cf_add_receive(message: Message, state: FSMContext) -> None:
 
     await state.clear()
     stats = cf_pool_stats()
-    await message.answer(
-        f"✅ Готово.\n"
-        f"• Добавлено новых: <b>{added}</b>\n"
-        f"• Пропущено дублей: <b>{dupes}</b>\n\n"
-        f"В пуле всего: <b>{stats['total']}</b>, свободно: <b>{stats['free']}</b>.",
-        reply_markup=_panel_kb(),
+    lines = [
+        "✅ Готово.",
+        f"• Добавлено новых: <b>{added}</b>",
+        f"• Пропущено дублей: <b>{dupes}</b>",
+    ]
+    if rejected_non_ascii:
+        lines.append(
+            f"• ⚠️ Отклонено (не-ASCII символы): <b>{rejected_non_ascii}</b>\n"
+            "  Это значит, что при копировании в токен попали кириллические "
+            "буквы / неразрывные пробелы. Перевыпустите токен в Cloudflare "
+            "и скопируйте кнопкой <b>Copy</b>."
+        )
+    lines.append(
+        f"\nВ пуле всего: <b>{stats['total']}</b>, свободно: <b>{stats['free']}</b>."
     )
+    await message.answer("\n".join(lines), reply_markup=_panel_kb())

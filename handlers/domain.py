@@ -104,12 +104,22 @@ async def receive_domain(message: Message, state: FSMContext) -> None:
     account = cf_pool_get_for_user(message.from_user.id)
     if not account:
         stats = cf_pool_stats()
-        await status.edit_text(
-            "❌ В пуле нет свободных Cloudflare-аккаунтов.\n"
-            f"Всего: {stats['total']}, занято: {stats['taken']}.\n\n"
-            "Сообщите администратору — он добавит новые аккаунты в пул.",
-            reply_markup=_back_kb(),
-        )
+        if stats["total"] == 0:
+            text = (
+                "❌ <b>Cloudflare-аккаунты ещё не добавлены</b>\n\n"
+                "В пуле сейчас нет ни одного токена — пока админ его не "
+                "загрузит, привязать домен невозможно.\n\n"
+                "Если вы админ — откройте «🛠 Админ-панель» → "
+                "«➕ Добавить CF-токены» и вставьте API-токен Cloudflare."
+            )
+        else:
+            text = (
+                "❌ <b>В пуле нет свободных Cloudflare-аккаунтов</b>\n\n"
+                f"Всего токенов: {stats['total']}, "
+                f"уже занято: {stats['taken']}.\n\n"
+                "Сообщите администратору — он добавит новые аккаунты в пул."
+            )
+        await status.edit_text(text, reply_markup=_back_kb())
         await state.clear()
         return
 
