@@ -758,7 +758,7 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.35;
+        renderer.toneMappingExposure = 1.25;
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
@@ -778,8 +778,8 @@
           const e = pmrem.fromEquirectangular(t).texture; t.dispose(); return e;
         }
         scene.environment = makeEnv();
-        scene.add(new THREE.AmbientLight(0xffffff, 1.4));            // постоянный яркий ровный свет
-        scene.add(new THREE.HemisphereLight(0xffffff, 0x9095aa, 1.0));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x8f94a8, 0.6));
 
         // авто-вращение без ручного управления
         const clock = new THREE.Clock();
@@ -790,9 +790,8 @@
           const model = gltf.scene;
           model.traverse((o) => {
             if (o.isMesh && o.material) {
-              o.material.aoMapIntensity = 0.15;
-              o.material.envMapIntensity = 0.9;
-              o.material.metalness = 0.3;   // меньше металла => корпус всегда освещён
+              o.material.aoMapIntensity = 0.2;
+              o.material.envMapIntensity = 1.25;   // металлические отражения от ровного окружения
             }
           });
           const box = new THREE.Box3().setFromObject(model);

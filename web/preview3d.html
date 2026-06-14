@@ -94,7 +94,7 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(W, H);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.35;
+renderer.toneMappingExposure = 1.25;
 stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -113,8 +113,8 @@ function makeEnv(){
   const e=pmrem.fromEquirectangular(t).texture; t.dispose(); return e;
 }
 scene.environment = makeEnv();
-scene.add(new THREE.AmbientLight(0xffffff, 1.4));
-scene.add(new THREE.HemisphereLight(0xffffff, 0x9095aa, 1.0));
+scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8f94a8, 0.6));
 
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
@@ -125,9 +125,8 @@ new GLTFLoader().load('/model/model.glb', (gltf) => {
   const model = gltf.scene;
   model.traverse((o) => {
     if (o.isMesh && o.material) {
-      o.material.aoMapIntensity = 0.15;
-      o.material.envMapIntensity = 0.9;
-      o.material.metalness = 0.3;
+      o.material.aoMapIntensity = 0.2;
+      o.material.envMapIntensity = 1.25;
     }
   });
   const box = new THREE.Box3().setFromObject(model);
