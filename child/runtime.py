@@ -39,6 +39,9 @@ class BotRuntime:
         self._manager_bot: Bot | None = None
         self._banned: set[int] = set()
         self._health_task: asyncio.Task | None = None
+        # Сериализует старт/стоп/рестарт ботов, чтобы не плодить
+        # параллельные поллеры на один и тот же бот.
+        self._op_lock = asyncio.Lock()
 
     def set_manager_bot(self, bot: Bot) -> None:
         self._manager_bot = bot
@@ -79,6 +82,10 @@ class BotRuntime:
                 await self.start_bot_db(bot_db)
 
     async def start_bot_db(self, bot_db: dict) -> None:
+        async with self._op_lock:
+            await self._start(bot_db)
+
+    async def _start(self, bot_db: dict) -> None:
         token = bot_db.get("token")
         if not token:
             return
@@ -109,7 +116,7 @@ class BotRuntime:
             return
         tg_id = me.id
 
-        await self.stop_bot(tg_id)
+        await self._stop(tg_id)
         self._banned.discard(tg_id)
         self._bots[tg_id] = bot
         self._tasks[tg_id] = asyncio.create_task(self._poll(bot))
@@ -141,6 +148,10 @@ class BotRuntime:
             logger.exception("polling crashed: %s", e)
 
     async def stop_bot(self, tg_id: int) -> None:
+        async with self._op_lock:
+            await self._stop(tg_id)
+
+    async def _stop(self, tg_id: int) -> None:
         task = self._tasks.pop(tg_id, None)
         if task:
             task.cancel()
@@ -159,17 +170,19 @@ class BotRuntime:
         bot_db = get_bot(bot_id)
         if not bot_db:
             return False
-        if bot_db.get("tg_id"):
-            await self.stop_bot(bot_db["tg_id"])
-        await self.start_bot_db(bot_db)
+        async with self._op_lock:
+            if bot_db.get("tg_id"):
+                await self._stop(bot_db["tg_id"])
+            await self._start(bot_db)
         return True
 
     def is_running(self, tg_id: int | None) -> bool:
         return bool(tg_id and tg_id in self._tasks)
 
     async def shutdown(self) -> None:
-        for tg_id in list(self._tasks):
-            await self.stop_bot(tg_id)
+        async with self._op_lock:
+            for tg_id in list(self._tasks):
+                await self._stop(tg_id)
 
 _runtime: BotRuntime | None = None
 
