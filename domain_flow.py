@@ -228,7 +228,8 @@ def cf_create_or_get_zone(domain: str, token: str) -> str:
 
 def cf_add_a_record(zone_id: str, name: str, ip: str, token: str,
                      proxied: bool = True) -> None:
-    """Добавляет A-запись. proxied=True (оранжевое облако) для скрытия IP origin."""
+    """Добавляет A-запись. proxied=True (оранжевое облако) для скрытия IP origin.
+    Идемпотентна: если такая же запись уже есть — не считаем ошибкой."""
     resp = requests.post(f"{_CF_API}/zones/{zone_id}/dns_records",
                           headers=_cf_headers(token),
                           json={
@@ -239,7 +240,16 @@ def cf_add_a_record(zone_id: str, name: str, ip: str, token: str,
                               "proxied": proxied,
                           },
                           timeout=20)
-    _cf_handle(resp, f"cf_add_a_record({name})")
+    try:
+        _cf_handle(resp, f"cf_add_a_record({name})")
+    except CFUnknownError as e:
+        # 81057/81058 — запись уже существует (идентичная или с тем же именем).
+        # Для нашей логики это норма: повторная привязка не должна падать.
+        codes = {err.get("code") for err in (e.detail or {}).get("errors", [])}
+        if 81057 in codes or 81058 in codes:
+            logger.info("cf_add_a_record(%s): запись уже есть, пропуск", name)
+            return
+        raise
 
 
 def cf_set_ssl_mode(zone_id: str, mode: str, token: str) -> None:
