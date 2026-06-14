@@ -758,7 +758,7 @@
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.3;
+        renderer.toneMappingExposure = 1.35;
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
@@ -768,16 +768,18 @@
         // равномерное Y-симметричное окружение — цвет НЕ меняется при вращении
         const pmrem = new THREE.PMREMGenerator(renderer);
         function makeEnv() {
-          const c = document.createElement('canvas'); c.width = 8; c.height = 256;
+          const c = document.createElement('canvas'); c.width = 64; c.height = 256;
           const x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, 0, 256);
-          g.addColorStop(0.0, '#e9ecf3'); g.addColorStop(0.5, '#b6bccb'); g.addColorStop(1.0, '#777d8f');
-          x.fillStyle = g; x.fillRect(0, 0, 8, 256);
-          const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping;
+          g.addColorStop(0.0, '#ffffff'); g.addColorStop(0.5, '#d6dae6'); g.addColorStop(1.0, '#9aa0b2');
+          x.fillStyle = g; x.fillRect(0, 0, 64, 256);
+          const t = new THREE.CanvasTexture(c);
+          t.colorSpace = THREE.SRGBColorSpace;
+          t.mapping = THREE.EquirectangularReflectionMapping;
           const e = pmrem.fromEquirectangular(t).texture; t.dispose(); return e;
         }
         scene.environment = makeEnv();
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-        scene.add(new THREE.HemisphereLight(0xeef0f6, 0x8085a0, 1.15));
+        scene.add(new THREE.AmbientLight(0xffffff, 1.4));            // постоянный яркий ровный свет
+        scene.add(new THREE.HemisphereLight(0xffffff, 0x9095aa, 1.0));
 
         // авто-вращение без ручного управления
         const clock = new THREE.Clock();
@@ -787,7 +789,11 @@
         new GLTFLoader().load('/model/model.glb', (gltf) => {
           const model = gltf.scene;
           model.traverse((o) => {
-            if (o.isMesh && o.material) { o.material.aoMapIntensity = 0.15; o.material.envMapIntensity = 1.2; }
+            if (o.isMesh && o.material) {
+              o.material.aoMapIntensity = 0.15;
+              o.material.envMapIntensity = 0.9;
+              o.material.metalness = 0.3;   // меньше металла => корпус всегда освещён
+            }
           });
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
@@ -799,7 +805,7 @@
           const md = Math.max(size.x, size.y, size.z) || 1;
           pivot.scale.setScalar(2.6 / md);          // масштаб вокруг центра
           const tilt = new THREE.Group();
-          tilt.rotation.x = -0.10;                  // наклон экраном от зрителя ~5.7°
+          tilt.rotation.x = -0.12;                  // наклон экраном от зрителя ~7°
           tilt.add(pivot);
           scene.add(tilt);
           phoneObj = pivot;                         // вращается вокруг своей (наклонённой) оси
