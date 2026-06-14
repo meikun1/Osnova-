@@ -70,3 +70,75 @@ NS обновляются у провайдеров от **1 до 24 часов*
 | ❌ Cloudflare API: … | Временный сбой | Подождать минуту и попробовать снова |
 
 Если ничего не помогло — напишите в поддержку.
+
+---
+
+# Для администратора бота
+
+Раздел **только для того, кто разворачивает бота**. Обычному пользователю
+читать не нужно — для него всё кончается на шаге 3 выше.
+
+## Где создаётся Cloudflare API Token
+
+1. Зарегистрируйтесь или войдите: <https://dash.cloudflare.com/login>.
+2. Правый верхний угол → иконка профиля → **My Profile**
+   (прямая ссылка: <https://dash.cloudflare.com/profile/api-tokens>).
+3. Вкладка **API Tokens** → кнопка **Create Token**.
+4. Выберите шаблон **«Edit zone DNS»** → **Use template**.
+5. Настройте права:
+   - **Permissions**:
+     - `Zone` · `DNS` · `Edit`
+     - `Zone` · `Zone` · `Read`
+   - **Zone Resources**: `Include` · `All zones`
+   - **TTL**: можно оставить без срока.
+6. **Continue to summary** → **Create Token**.
+7. **Скопируйте показанное значение** — оно показывается **один раз**.
+   Формат: `cfut_...` (новый) или 40-символьная строка (старый).
+
+## Куда вставить токен и остальные настройки
+
+Токен и параметры задаются переменными окружения (Railway → Variables
+или `.env` локально):
+
+| Переменная | Что вписать |
+|---|---|
+| `DOMAIN_CF_TOKEN` | Токен, скопированный на шаге 7 |
+| `DOMAIN_SERVER_IP` | Публичный IPv4 сервера, на который указывают домены |
+| `DOMAIN_CADDYFILE` | Абсолютный путь к Caddyfile (напр. `/etc/caddy/Caddyfile`) |
+| `DOMAIN_CADDY_EXE` | Путь к бинарю Caddy (напр. `/usr/local/bin/caddy`) |
+| `DOMAIN_TARGET` | Куда reverse_proxy шлёт трафик (по умолчанию `127.0.0.1:8000`) |
+| `DOMAIN_BIND_GUIDE_URL` | URL этой инструкции (необязательно) |
+
+## Caddy
+
+Нужен билд с DNS-модулем Cloudflare (для DNS-01 challenge):
+
+```bash
+go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+xcaddy build --with github.com/caddy-dns/cloudflare
+```
+
+Глобальный блок Caddyfile (тот же токен из `DOMAIN_CF_TOKEN`):
+
+```caddy
+{
+    email YOUR_EMAIL@gmail.com
+    cert_issuer acme {
+        dns cloudflare {
+            api_token YOUR_CF_API_TOKEN
+        }
+    }
+}
+
+:80 {
+    redir https://{host}{uri} 301
+}
+```
+
+Запуск:
+
+```bash
+caddy run --config /etc/caddy/Caddyfile
+```
+
+Дальше per-domain блоки бот дописывает сам при каждой привязке.
