@@ -53,7 +53,7 @@ def _back_kb() -> InlineKeyboardMarkup:
                 text="📖 Инструкция", url=config.DOMAIN_BIND_GUIDE_URL
             )
         ])
-    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")])
+    rows.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="create_bot")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

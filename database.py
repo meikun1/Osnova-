@@ -227,6 +227,15 @@ def init_db() -> None:
             created_at  BIGINT
         )
         """,
+        f"""
+        CREATE TABLE IF NOT EXISTS pending_bots (
+            user_id    BIGINT PRIMARY KEY,
+            token      TEXT NOT NULL,
+            username   TEXT,
+            tg_id      BIGINT,
+            created_at BIGINT
+        )
+        """,
     ]
     with _lock:
         for stmt in ddl:
@@ -813,6 +822,33 @@ def user_domains_pending_ssl() -> list[dict]:
             "WHERE ssl_notified=0 ORDER BY id"
         )
     return [dict(r) for r in rows]
+
+
+def pending_bot_set(user_id: int, token: str, username: str | None, tg_id: int | None) -> None:
+    with _lock:
+        _db.execute(
+            "INSERT INTO pending_bots(user_id, token, username, tg_id, created_at) "
+            "VALUES(?,?,?,?,?) "
+            "ON CONFLICT(user_id) DO UPDATE SET "
+            "token=excluded.token, username=excluded.username, tg_id=excluded.tg_id",
+            (user_id, token, username, tg_id, _now()),
+        )
+        _db.commit()
+
+
+def pending_bot_get(user_id: int) -> dict | None:
+    with _lock:
+        row = _db.one(
+            "SELECT token, username, tg_id FROM pending_bots WHERE user_id=?",
+            (user_id,),
+        )
+    return dict(row) if row else None
+
+
+def pending_bot_clear(user_id: int) -> None:
+    with _lock:
+        _db.execute("DELETE FROM pending_bots WHERE user_id=?", (user_id,))
+        _db.commit()
 
 
 def user_has_ssl_domain(user_id: int) -> bool:

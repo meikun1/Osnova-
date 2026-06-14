@@ -14,12 +14,6 @@ def main_menu_kb(user_bots: list[dict], user_id: int | None = None) -> InlineKey
             InlineKeyboardButton(text="🛠 Админ-панель", callback_data="admin_panel")
         )
 
-    builder.row(
-        InlineKeyboardButton(
-            text="🌐 Привязать свой домен", callback_data="domain_bind"
-        )
-    )
-
     for bot in user_bots:
         builder.row(
             InlineKeyboardButton(
