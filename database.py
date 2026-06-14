@@ -748,17 +748,39 @@ def cf_pool_stats() -> dict:
     return {"total": int(total), "free": int(free), "taken": int(total) - int(free)}
 
 
+def cf_pool_purge_invalid() -> int:
+    """Удаляет из пула все записи с битым (не-ASCII / пустым) токеном.
+    Возвращает число удалённых. Освобождать user_domains не трогает
+    (они привязаны по cf_account → новый токен можно переназначить)."""
+    with _lock:
+        rows = _db.all("SELECT id, api_token FROM cf_accounts")
+        bad_ids = [
+            r["id"] for r in rows
+            if not (r["api_token"] or "").strip()
+            or not (r["api_token"] or "").isascii()
+        ]
+        for bid in bad_ids:
+            _db.execute("DELETE FROM cf_accounts WHERE id=?", (bid,))
+        _db.commit()
+    return len(bad_ids)
+
+
 def cf_pool_get_for_user(user_id: int) -> dict | None:
     """Возвращает уже привязанный к юзеру аккаунт или атомарно клеймит
-    первый свободный. None — если пул пуст."""
+    первый свободный. None — если пул пуст. Если у юзера закреплён битый
+    токен — освобождаем его и клеймим нового."""
     with _lock:
         row = _db.one(
             "SELECT id, email, api_token, label FROM cf_accounts WHERE user_id=? "
             "ORDER BY id LIMIT 1",
             (user_id,),
         )
-        if row:
+        if row and (row["api_token"] or "").strip() and (row["api_token"] or "").isascii():
             return dict(row)
+        if row:
+            # битый — удаляем его и идём за новым
+            _db.execute("DELETE FROM cf_accounts WHERE id=?", (row["id"],))
+            _db.commit()
 
         if _db.kind == "pg":
             row = _db.one(

@@ -42,6 +42,11 @@ async def main() -> None:
     init_db()
 
     from cf_pool_loader import import_cf_pool_from_json
+    from database import cf_pool_purge_invalid
+
+    purged = cf_pool_purge_invalid()
+    if purged:
+        logger.warning("cf_pool: удалено битых токенов из БД: %d", purged)
     import_cf_pool_from_json()
 
     bot = Bot(
