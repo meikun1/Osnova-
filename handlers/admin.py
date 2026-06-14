@@ -9,7 +9,10 @@ from __future__ import annotations
 import html
 import re
 
+from contextlib import suppress
+
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
@@ -21,7 +24,7 @@ from aiogram.types import (
 
 from cf_pool_loader import append_token_to_json
 from config import ADMIN_IDS
-from database import cf_pool_add, cf_pool_stats
+from database import cf_pool_add, cf_pool_purge_all, cf_pool_stats
 
 router = Router()
 
@@ -52,6 +55,7 @@ def _panel_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="➕ Добавить CF-токены", callback_data="admin_cf_add")],
+            [InlineKeyboardButton(text="🧹 Очистить пул", callback_data="admin_cf_wipe")],
             [InlineKeyboardButton(text="🔄 Обновить", callback_data="admin_panel")],
             [InlineKeyboardButton(text="⬅️ В главное меню", callback_data="main_menu")],
         ]
@@ -72,8 +76,36 @@ async def open_panel(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer("Недоступно", show_alert=True)
         return
     await state.clear()
-    await callback.message.edit_text(_panel_text(), reply_markup=_panel_kb())
-    await callback.answer()
+    # edit_text может ругнуться "message is not modified", если статы те же.
+    with suppress(TelegramBadRequest):
+        await callback.message.edit_text(_panel_text(), reply_markup=_panel_kb())
+    await callback.answer("Обновлено")
+
+
+@router.callback_query(F.data == "admin_cf_wipe")
+async def cf_wipe(callback: CallbackQuery, state: FSMContext) -> None:
+    if not _is_admin(callback.from_user.id):
+        await callback.answer("Недоступно", show_alert=True)
+        return
+    await state.clear()
+    removed = cf_pool_purge_all()
+    # cf_pool.json чистим тоже — переписываем пустым массивом
+    try:
+        import config
+        import os
+        path = config.CF_POOL_JSON_PATH
+        if path and os.path.exists(path):
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("[]\n")
+    except Exception:
+        pass
+    with suppress(TelegramBadRequest):
+        await callback.message.edit_text(
+            f"🧹 Пул очищен. Удалено токенов: <b>{removed}</b>.\n\n"
+            + _panel_text(),
+            reply_markup=_panel_kb(),
+        )
+    await callback.answer("Очищено")
 
 
 @router.callback_query(F.data == "admin_cf_add")

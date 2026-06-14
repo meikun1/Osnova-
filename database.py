@@ -748,6 +748,18 @@ def cf_pool_stats() -> dict:
     return {"total": int(total), "free": int(free), "taken": int(total) - int(free)}
 
 
+def cf_pool_purge_all() -> int:
+    """Удаляет все токены из пула и все привязки user_domains.
+    Возвращает число удалённых токенов."""
+    with _lock:
+        row = _db.one("SELECT COUNT(*) AS c FROM cf_accounts")
+        n = int(row["c"]) if row else 0
+        _db.execute("DELETE FROM user_domains")
+        _db.execute("DELETE FROM cf_accounts")
+        _db.commit()
+    return n
+
+
 def cf_pool_purge_invalid() -> int:
     """Удаляет из пула все записи с битым (не-ASCII / пустым) токеном.
     Возвращает число удалённых. Освобождать user_domains не трогает
