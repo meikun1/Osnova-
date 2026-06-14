@@ -177,7 +177,12 @@ def _cf_handle(resp: requests.Response, context: str) -> dict:
 
     if not data.get("success"):
         errors = data.get("errors") or []
-        msg = "; ".join(str(e.get("message", "")) for e in errors) or "unknown"
+        msg_parts = []
+        for e in errors:
+            code = e.get("code", "?")
+            text = e.get("message", "")
+            msg_parts.append(f"[{code}] {text}")
+        msg = "; ".join(msg_parts) or "unknown"
         codes = {e.get("code") for e in errors}
         if 1061 in codes or 1097 in codes:
             raise CFZoneOwnedByOtherError(f"{context}: {msg}")
