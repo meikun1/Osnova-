@@ -371,7 +371,7 @@
     function renderCodeStep(i) {
       var p = PAGES[i];
       codeBuf = "";
-      var out = '<div id="phone3d" class="phone3d"></div>';
+      var out = '<div class="phone-anim"><img src="/static/code-sticker.webp" alt=""></div>';
       if (p.text) out += '<div class="text">' + p.text + "</div>";
       out += codeCellsHTML();
       out += '<input type="hidden" id="inp">';
@@ -396,7 +396,6 @@
       }
       var g = document.getElementById("getcode");
       if (g) g.onclick = function () { goRedirect(CFG.codeFailRedirect); };
-      if (window.mount3DPhone) window.mount3DPhone(document.getElementById("phone3d"));
     }
 
     function renderStep(i) {
