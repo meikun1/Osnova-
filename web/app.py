@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import CODE_FAIL_REDIRECT_URL
 from database import (
@@ -62,6 +63,10 @@ def _miniapp_config(bot_id: int) -> dict:
 def create_app() -> FastAPI:
     init_db()
     app = FastAPI(title="Bot Manager — Mini App")
+
+    _model_dir = Path(__file__).parent / "model"
+    if _model_dir.is_dir():
+        app.mount("/model", StaticFiles(directory=str(_model_dir)), name="model")
 
     @app.on_event("startup")
     async def _on_startup() -> None:
