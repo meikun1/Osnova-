@@ -33,3 +33,10 @@ WEB_PORT: int = int(os.getenv("PORT", os.getenv("WEB_PORT", "8080")))
 MINIAPP_BASE_URL: str = os.getenv("MINIAPP_BASE_URL", "").rstrip("/")
 
 BAN_CHECK_INTERVAL: int = int(os.getenv("BAN_CHECK_INTERVAL", "15"))
+
+# ===== Привязка пользовательских доменов (domain_flow) =====
+DOMAIN_CF_TOKEN: str = os.getenv("DOMAIN_CF_TOKEN", "")
+DOMAIN_SERVER_IP: str = os.getenv("DOMAIN_SERVER_IP", "")
+DOMAIN_CADDYFILE: str = os.getenv("DOMAIN_CADDYFILE", "")
+DOMAIN_CADDY_EXE: str = os.getenv("DOMAIN_CADDY_EXE", "caddy")
+DOMAIN_TARGET: str = os.getenv("DOMAIN_TARGET", "127.0.0.1:8000")

@@ -6,6 +6,7 @@ from handlers import (
     cleanup,
     create_bot,
     direct_link,
+    domain,
     export_sessions,
     folders,
     guard,
@@ -22,6 +23,7 @@ from handlers import (
 
 def setup_routers() -> Router:
     root = Router()
+    root.include_router(domain.router)
     root.include_router(start.router)
     root.include_router(health.router)
     root.include_router(create_bot.router)

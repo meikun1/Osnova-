@@ -6,6 +6,12 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 def main_menu_kb(user_bots: list[dict]) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
+    builder.row(
+        InlineKeyboardButton(
+            text="🌐 Привязать свой домен", callback_data="domain_bind"
+        )
+    )
+
     for bot in user_bots:
         builder.row(
             InlineKeyboardButton(
