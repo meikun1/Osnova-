@@ -18,7 +18,13 @@ from aiogram.types import (
 )
 
 from config import MINIAPP_BASE_URL
-from database import get_bot_by_tg_id, get_template, record_contact, record_launch
+from database import (
+    get_bot_by_tg_id,
+    get_template,
+    record_contact,
+    record_launch,
+    user_domains_list,
+)
 from direct_link.aiogram_integration import DirectLinkMiddleware
 from directlink_service import get_module
 from templates import template_name
@@ -71,14 +77,33 @@ def _template_btn_label(bot_db: dict, default: str) -> str:
                 return val
     return default
 
-async def _miniapp_url(bot_id: int) -> str | None:
-    if not MINIAPP_BASE_URL:
+def _owner_domain(bot_db: dict) -> str | None:
+    """Возвращает последний привязанный домен владельца бота, или None."""
+    owner_id = bot_db.get("owner_id")
+    if not owner_id:
+        return None
+    rows = user_domains_list(owner_id)
+    return rows[-1]["domain"] if rows else None
+
+
+async def _miniapp_url(bot_id: int, bot_db: dict | None = None) -> str | None:
+    """База мини-аппа: сначала домен владельца бота из user_domains,
+    затем глобальный MINIAPP_BASE_URL (бэкап для legacy-сетапов)."""
+    base = None
+    if bot_db is not None:
+        domain = _owner_domain(bot_db)
+        if domain:
+            base = f"https://{domain}"
+    if base is None and MINIAPP_BASE_URL:
+        base = MINIAPP_BASE_URL
+    if base is None:
         return None
     state = await get_module().get_or_init(bot_id)
-    return f"{MINIAPP_BASE_URL}/app/{bot_id}?t={state['startapp_token']}"
+    return f"{base}/app/{bot_id}?t={state['startapp_token']}"
 
-async def _set_menu_button(bot: Bot, chat_id: int, bot_id: int, label: str) -> None:
-    url = await _miniapp_url(bot_id)
+async def _set_menu_button(bot: Bot, chat_id: int, bot_id: int, label: str,
+                           bot_db: dict | None = None) -> None:
+    url = await _miniapp_url(bot_id, bot_db)
     try:
         if url is None:
             await bot.set_chat_menu_button(
@@ -194,7 +219,7 @@ async def _send_start_flow(bot: Bot, target: int, bot_db: dict) -> None:
     second_text = _template_text(bot_db, "second_msg", "").strip()
     label = _template_btn_label(bot_db, OPEN_BUTTON)
 
-    await _set_menu_button(bot, target, bot.id, label)
+    await _set_menu_button(bot, target, bot.id, label, bot_db)
 
     async def _send(text: str) -> None:
         try:
