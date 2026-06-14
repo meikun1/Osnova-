@@ -172,12 +172,19 @@ async def receive_domain(message: Message, state: FSMContext) -> None:
 
     user_domain_add(message.from_user.id, domain, account["id"])
 
-    ns_text = "\n".join(f"• <code>{html.escape(ns)}</code>" for ns in ns_servers)
     await status.edit_text(
         f"✅ Домен <code>{html.escape(domain)}</code> привязан!\n\n"
-        f"<b>NS-серверы Cloudflare</b> — пропишите их у регистратора домена:\n{ns_text}\n\n"
+        f"<b>NS-серверы Cloudflare</b> — пропишите их у регистратора домена "
+        "(нажмите на каждую строку, чтобы скопировать):",
+        reply_markup=_back_kb(),
+    )
+    # Каждый NS — отдельным сообщением, чтобы по тапу копировался ровно он,
+    # без посторонних символов.
+    for ns in ns_servers:
+        await message.answer(f"<code>{html.escape(ns)}</code>")
+    await message.answer(
         "После смены NS дождитесь распространения (обычно 1–24 ч), затем "
-        "сертификат выпустится автоматически через DNS-01.\n\n"
+        "сертификат выпустится автоматически.\n\n"
         "🔔 Как только SSL поднимется — пришлю сюда уведомление.",
         reply_markup=_back_kb(),
     )
