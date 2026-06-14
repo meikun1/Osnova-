@@ -764,7 +764,7 @@
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-        camera.position.set(0, 0, 6.2);
+        camera.position.set(0, 0, 6.6);
 
         const pmrem = new THREE.PMREMGenerator(renderer);
         scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -801,10 +801,12 @@
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           const ctr = box.getCenter(new THREE.Vector3());
-          model.position.sub(ctr);
+          model.position.sub(ctr);                 // центрируем контент в пивоте
+          const pivot = new THREE.Group();
+          pivot.add(model);
           const md = Math.max(size.x, size.y, size.z) || 1;
-          model.scale.setScalar(3.4 / md);
-          scene.add(model);
+          pivot.scale.setScalar(2.6 / md);          // масштаб вокруг центра
+          scene.add(pivot);
         });
 
         let running = false, raf = 0;

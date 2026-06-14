@@ -98,9 +98,11 @@ loader.load('/model/model.dae', function(collada){
   const size = box.getSize(new THREE.Vector3());
   const center = box.getCenter(new THREE.Vector3());
   model.position.sub(center);
+  const pivot = new THREE.Group();
+  pivot.add(model);
   const maxDim = Math.max(size.x, size.y, size.z) || 1;
-  model.scale.setScalar(3.4 / maxDim);
-  scene.add(model);
+  pivot.scale.setScalar(2.8 / maxDim);
+  scene.add(pivot);
   const l = document.getElementById('load'); if (l) l.style.display = 'none';
 }, undefined, showErr);
 
