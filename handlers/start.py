@@ -1,12 +1,11 @@
 from contextlib import suppress
 
 from aiogram import F, Router
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-from database import add_user, get_menu_msg, get_user_bots, set_menu_msg
+from database import add_user, get_user_bots, set_menu_msg
 from keyboards import main_menu_kb
 
 router = Router()
@@ -18,25 +17,28 @@ MAIN_PAGE_TEXT = (
     "📋 <b>Ваши боты:</b>"
 )
 
+async def _purge_recent(bot, chat_id: int, last_id: int, window: int = 100) -> None:
+    """Сносит недавние сообщения в чате (старые меню, промпты, мусор).
+    Пачкой через delete_messages, с фолбэком на поштучное удаление."""
+    start_id = max(1, last_id - window)
+    ids = list(range(start_id, last_id + 1))
+    for i in range(0, len(ids), 100):
+        chunk = ids[i:i + 100]
+        try:
+            await bot.delete_messages(chat_id, chunk)
+        except Exception:
+            for mid in chunk:
+                with suppress(Exception):
+                    await bot.delete_message(chat_id, mid)
+
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext) -> None:
     await state.clear()
     add_user(message.chat.id, message.chat.username)
     kb = main_menu_kb(get_user_bots(message.chat.id))
 
-    with suppress(Exception):
-        await message.delete()
-
-    anchor = get_menu_msg(message.chat.id)
-    if anchor:
-        with suppress(TelegramBadRequest):
-            await message.bot.edit_message_text(
-                MAIN_PAGE_TEXT,
-                chat_id=message.chat.id,
-                message_id=anchor,
-                reply_markup=kb,
-            )
-            return
+    # Чистим чат: сносим старые меню и накопившийся хлам.
+    await _purge_recent(message.bot, message.chat.id, message.message_id)
 
     sent = await message.answer(MAIN_PAGE_TEXT, reply_markup=kb)
     set_menu_msg(message.chat.id, sent.message_id)
