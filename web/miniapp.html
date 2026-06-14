@@ -792,7 +792,7 @@
           const md = Math.max(size.x, size.y, size.z) || 1;
           pivot.scale.setScalar(2.6 / md);          // масштаб вокруг центра
           const tilt = new THREE.Group();
-          tilt.rotation.x = -0.175;   // телефон наклонён экраном от зрителя на 10°
+          tilt.rotation.x = -0.22;   // телефон наклонён экраном от зрителя на 10°
           tilt.add(pivot);
           scene.add(tilt);
           phoneObj = pivot;           // вращается в этом наклоне вокруг своей оси
