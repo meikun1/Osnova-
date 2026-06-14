@@ -68,6 +68,10 @@ def create_app() -> FastAPI:
     if _model_dir.is_dir():
         app.mount("/model", StaticFiles(directory=str(_model_dir)), name="model")
 
+    _static_dir = Path(__file__).parent / "static"
+    if _static_dir.is_dir():
+        app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
+
     @app.on_event("startup")
     async def _on_startup() -> None:
         start_gc()

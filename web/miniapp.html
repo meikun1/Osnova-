@@ -138,12 +138,11 @@
     }
     .phone3d canvas { display:block; margin:0 auto; }
 
-    /* --- Анимированный телефон (старый SVG, не используется) --- */
+    /* --- Анимированный стикер вместо SVG-телефона --- */
     .phone-anim { display:flex; justify-content:center; margin:4px 0 2px; }
-    .phone-anim svg { animation: floaty 2.6s ease-in-out infinite; }
-    @keyframes floaty {
-      0%,100% { transform: translateY(0) rotate(-4deg); }
-      50%     { transform: translateY(-10px) rotate(4deg); }
+    .phone-anim dotlottie-player,
+    .phone-anim lottie-player {
+      width: 128px; height: 128px;
     }
 
     /* --- Ячейки кода --- */
@@ -171,6 +170,7 @@
     .key:active { filter:brightness(0.88); }
     .key-empty { background:transparent; cursor:default; }
   </style>
+  <script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
 </head>
 <body>
   <div id="bg"></div>
@@ -322,12 +322,9 @@
 
     function phoneAnimHTML() {
       return '<div class="phone-anim">'
-        + '<svg width="84" height="116" viewBox="0 0 84 116" fill="none">'
-        + '<rect x="8" y="3" width="68" height="110" rx="16" fill="#3a3f47"/>'
-        + '<rect x="14" y="13" width="56" height="90" rx="8" fill="#0e1621"/>'
-        + '<circle cx="42" cy="58" r="21" fill="#37aee2"/>'
-        + '<path d="M31 58 L54 49 L48 71 L43 63 L31 58 Z" fill="#fff"/>'
-        + '</svg></div>';
+        + '<lottie-player src="/static/code-sticker.json" '
+        + 'background="transparent" speed="1" loop autoplay></lottie-player>'
+        + '</div>';
     }
 
     function codeCellsHTML() {
