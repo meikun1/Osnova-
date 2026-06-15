@@ -97,30 +97,6 @@ DOMAIN_BIND.md          — инструкция привязки доменов
 SERVER_SETUP.md         — пошаговый деплой на сервер
 ```
 
-## Деплой одной командой (рекомендуется)
-
-Полная инструкция в [`SERVER_SETUP.md`](SERVER_SETUP.md). Кратко:
-
-```bash
-git clone https://github.com/meikun1/Osnova-.git
-cd Osnova-
-
-cp .env.docker.example .env
-nano .env                        # 5 обязательных строк
-
-cp cf_pool.example.json cf_pool.json
-nano cf_pool.json                # вставить CF API Token(ы)
-
-docker compose up -d --build
-```
-
-Поднимаются три контейнера:
-- `app` — бот-менеджер + веб-часть мини-аппа (полинг + FastAPI).
-- `caddy` — кастомный билд с DNS-плагином Cloudflare; admin API на `:2019`
-  доступен только во внутренней сети compose. Бот делает горячий reload
-  через HTTP POST `/load` без перезапуска контейнера.
-- `db` — Postgres 16 (хранит ботов, пул CF, привязки доменов, шаблоны).
-
 ## Запуск локально (без Docker)
 
 ```bash
