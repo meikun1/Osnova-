@@ -119,7 +119,7 @@ docker compose up -d --build
 - `caddy` — кастомный билд с DNS-плагином Cloudflare; admin API на `:2019`
   доступен только во внутренней сети compose. Бот делает горячий reload
   через HTTP POST `/load` без перезапуска контейнера.
-- `db` — Postgres 16 (можно заменить на Neon — задать `DATABASE_URL`).
+- `db` — Postgres 16 (хранит ботов, пул CF, привязки доменов, шаблоны).
 
 ## Запуск локально (без Docker)
 
@@ -151,7 +151,6 @@ python bot.py
 
 | Переменная | Дефолт | Что |
 |---|---|---|
-| `DATABASE_URL` | — | Внешний Postgres (Neon). Без него — SQLite. |
 | `CF_POOL_JSON_PATH` | `cf_pool.json` | Путь к пулу CF-токенов |
 | `DOMAIN_CADDYFILE` | `/etc/caddy/Caddyfile` | Caddyfile для прописывания доменов |
 | `DOMAIN_CADDY_ADMIN_URL` | `http://caddy:2019` | Admin API caddy для reload |
@@ -164,9 +163,10 @@ python bot.py
 
 ## Заметки
 
-- **БД** — Postgres (если задан `DATABASE_URL`) или SQLite. `database.py` —
-  единый синхронный API над обоими бэкендами. Все таблицы и миграции
-  создаются автоматически при `init_db()`.
+- **БД** — встроенный Postgres в docker-compose (контейнер `db`).
+  `database.py` — единый синхронный API. Все таблицы и миграции создаются
+  автоматически при `init_db()`. Данные в volume `db_data` — переживают
+  `docker compose down` без `-v`.
 - **Гео** в статистике берётся из `language_code` пользователя.
 - **Стикер** на странице ввода кода — `web/static/code-sticker.gif`,
   отдаётся через `app.mount("/static", ...)`.
