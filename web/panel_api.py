@@ -594,6 +594,129 @@ async def get_template_full(
     return t
 
 
+# ===== Builder templates (новый конструктор шаблонов) =====
+
+def _bt_owned(template_id: str, user_id: int) -> dict:
+    from database import builder_template_get
+    t = builder_template_get(template_id)
+    if not t or t["owner_id"] != user_id:
+        raise HTTPException(404, "builder template not found")
+    return t
+
+
+@router.get("/builder/templates")
+async def bt_list(user: dict = Depends(verify_panel_user)) -> list[dict]:
+    from database import builder_template_list
+    return builder_template_list(user["id"])
+
+
+@router.get("/builder/templates/{template_id}")
+async def bt_get(template_id: str, user: dict = Depends(verify_panel_user)) -> dict:
+    return _bt_owned(template_id, user["id"])
+
+
+@router.post("/builder/templates")
+async def bt_create(
+    payload: dict = Body(default={}),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    """Создаёт новый шаблон. Slug либо берётся из payload.slug, либо
+    генерится: «template_<timestamp>»."""
+    import re as _re
+    from database import builder_template_create, builder_template_get, _now
+    slug = (payload.get("slug") or "").strip().lower()
+    name = (payload.get("name") or "").strip()
+    if not slug:
+        slug = f"template_{_now()}"
+    if not _re.match(r"^[a-z0-9_-]{1,40}$", slug):
+        raise HTTPException(400, "slug must be a-z0-9_- only, ≤40 chars")
+    if builder_template_get(slug):
+        raise HTTPException(409, "template with this slug already exists")
+    return builder_template_create(user["id"], slug, name or slug)
+
+
+@router.patch("/builder/templates/{template_id}")
+async def bt_patch(
+    template_id: str,
+    payload: dict = Body(...),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    """Частичное обновление. Поддерживаем 3 формы payload:
+       - {"name": "new"} → переименовать
+       - {"step_key": "code", "patch": {"title": "..."}} → патч одного шага
+       - {"data": {...}} → перезаписать весь JSON
+    """
+    from database import (
+        builder_template_rename, builder_template_update_data, builder_template_get,
+    )
+    t = _bt_owned(template_id, user["id"])
+
+    if "name" in payload:
+        nm = (payload.get("name") or "").strip()
+        if not nm:
+            raise HTTPException(400, "empty name")
+        builder_template_rename(template_id, nm)
+
+    data = dict(t["data"]) if isinstance(t.get("data"), dict) else {}
+
+    if "data" in payload and isinstance(payload["data"], dict):
+        data = payload["data"]
+        builder_template_update_data(template_id, data)
+    elif "step_key" in payload and isinstance(payload.get("patch"), dict):
+        sk = payload["step_key"]
+        steps = data.get("steps") or []
+        for i, st in enumerate(steps):
+            if st.get("key") == sk:
+                # deep-merge top-level keys; для вложенных dict — merge тоже
+                for k, v in payload["patch"].items():
+                    if isinstance(v, dict) and isinstance(st.get(k), dict):
+                        st[k] = {**st[k], **v}
+                    else:
+                        st[k] = v
+                steps[i] = st
+                break
+        data["steps"] = steps
+        builder_template_update_data(template_id, data)
+
+    return builder_template_get(template_id)
+
+
+@router.put("/builder/templates/{template_id}/publish")
+async def bt_publish(template_id: str, user: dict = Depends(verify_panel_user)) -> dict:
+    from database import builder_template_publish
+    _bt_owned(template_id, user["id"])
+    new_version = builder_template_publish(template_id)
+    return {"ok": True, "version": new_version}
+
+
+@router.delete("/builder/templates/{template_id}")
+async def bt_delete(template_id: str, user: dict = Depends(verify_panel_user)) -> dict:
+    from database import builder_template_delete
+    _bt_owned(template_id, user["id"])
+    builder_template_delete(template_id)
+    return {"ok": True}
+
+
+@router.get("/builder/stickers")
+async def bt_stickers() -> list[dict]:
+    """Коллекция готовых стикеров. Сейчас — фиксированный список;
+    позже подгружается из web/static/stickers/."""
+    return [
+        {"ref": "duck-wave",    "emoji": "👋", "title": "Привет"},
+        {"ref": "duck-key",     "emoji": "🔐", "title": "Ключ"},
+        {"ref": "duck-shield",  "emoji": "🛡", "title": "Щит"},
+        {"ref": "duck-party",   "emoji": "🎉", "title": "Праздник"},
+        {"ref": "duck-rocket",  "emoji": "🚀", "title": "Ракета"},
+        {"ref": "duck-heart",   "emoji": "💛", "title": "Сердце"},
+        {"ref": "duck-eyes",    "emoji": "👀", "title": "Глаза"},
+        {"ref": "duck-clock",   "emoji": "⏳", "title": "Часы"},
+        {"ref": "duck-check",   "emoji": "✅", "title": "Готово"},
+        {"ref": "duck-cross",   "emoji": "❌", "title": "Ошибка"},
+        {"ref": "duck-star",    "emoji": "⭐", "title": "Звезда"},
+        {"ref": "duck-fire",    "emoji": "🔥", "title": "Огонь"},
+    ]
+
+
 # ===== domains =====
 
 @router.get("/domains")

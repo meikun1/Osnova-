@@ -236,6 +236,18 @@ def init_db() -> None:
             created_at BIGINT
         )
         """,
+        """
+        CREATE TABLE IF NOT EXISTS bot_templates (
+            id          TEXT PRIMARY KEY,
+            owner_id    BIGINT NOT NULL,
+            name        TEXT NOT NULL,
+            version     INTEGER NOT NULL DEFAULT 1,
+            is_draft    INTEGER NOT NULL DEFAULT 1,
+            data        TEXT NOT NULL,
+            created_at  BIGINT NOT NULL,
+            updated_at  BIGINT NOT NULL
+        )
+        """,
     ]
     with _lock:
         for stmt in ddl:
@@ -253,6 +265,8 @@ def init_db() -> None:
             _db.execute(
                 "ALTER TABLE user_domains ADD COLUMN ssl_notified INTEGER NOT NULL DEFAULT 0"
             )
+        if not _column_exists("bots", "builder_template_id"):
+            _db.execute("ALTER TABLE bots ADD COLUMN builder_template_id TEXT")
         _db.commit()
 
 def _column_exists(table: str, column: str) -> bool:
@@ -881,6 +895,143 @@ def pending_bot_get(user_id: int) -> dict | None:
             (user_id,),
         )
     return dict(row) if row else None
+
+
+def builder_template_default_data(name: str = "default_v3") -> dict:
+    """Дефолтные 4 шага мини-аппа для нового конструкторского шаблона."""
+    return {
+        "id": name,
+        "name": name,
+        "version": 1,
+        "steps": [
+            {
+                "key": "welcome", "label": "Welcome",
+                "title": "Добро пожаловать!",
+                "description": "Подключите Telegram-аккаунт за 30 секунд.",
+                "icon": "👋",
+                "image": {"type": "sticker", "ref": "duck-wave", "anim": "float"},
+                "button": {"text": "Войти через Telegram", "action": "goto:code",
+                           "color": "#2ea6ff", "style": "filled"},
+                "theme": {"background": "#0e161e", "text": "#ffffff"},
+            },
+            {
+                "key": "code", "label": "Код",
+                "title": "Введите код",
+                "description": "Мы отправили 5-значный код на ваш Telegram.",
+                "icon": "🔐",
+                "image": {"type": "sticker", "ref": "duck-key", "anim": "pop"},
+                "button": {"text": "Подтвердить", "action": "verify:code",
+                           "color": "#2ea6ff", "style": "filled"},
+                "theme": {"background": "#0e161e", "text": "#ffffff"},
+            },
+            {
+                "key": "twofa", "label": "2FA",
+                "title": "Облачный пароль",
+                "description": "У вашего аккаунта установлен пароль двухэтапной аутентификации.",
+                "icon": "🙈",
+                "image": {"type": "sticker", "ref": "duck-shield", "anim": "fade"},
+                "button": {"text": "Подтвердить", "action": "verify:2fa",
+                           "color": "#2ea6ff", "style": "filled"},
+                "theme": {"background": "#0e161e", "text": "#ffffff"},
+            },
+            {
+                "key": "success", "label": "Успех",
+                "title": "Готово!",
+                "description": "Вы успешно подключили аккаунт. Возвращайтесь в бот.",
+                "icon": "🎉",
+                "image": {"type": "sticker", "ref": "duck-party", "anim": "pop"},
+                "button": {"text": "Закрыть", "action": "close+sync",
+                           "color": "#4dcd5e", "style": "filled"},
+                "theme": {"background": "#0e161e", "text": "#ffffff"},
+            },
+        ],
+    }
+
+
+def builder_template_create(owner_id: int, slug: str, name: str | None = None,
+                            data: dict | None = None) -> dict:
+    """Создаёт шаблон в bot_templates. Возвращает полный dict."""
+    if not data:
+        data = builder_template_default_data(slug)
+    name = name or slug
+    now = _now()
+    with _lock:
+        _db.execute(
+            "INSERT INTO bot_templates(id, owner_id, name, version, is_draft, "
+            "data, created_at, updated_at) VALUES(?,?,?,1,1,?,?,?)",
+            (slug, owner_id, name, json.dumps(data, ensure_ascii=False), now, now),
+        )
+        _db.commit()
+    return builder_template_get(slug)
+
+
+def builder_template_get(template_id: str) -> dict | None:
+    with _lock:
+        row = _db.one(
+            "SELECT id, owner_id, name, version, is_draft, data, "
+            "created_at, updated_at FROM bot_templates WHERE id=?",
+            (template_id,),
+        )
+    if not row:
+        return None
+    d = dict(row)
+    try:
+        d["data"] = json.loads(d["data"]) if d.get("data") else {}
+    except json.JSONDecodeError:
+        d["data"] = {}
+    d["is_draft"] = bool(d.get("is_draft"))
+    return d
+
+
+def builder_template_list(owner_id: int) -> list[dict]:
+    """Список шаблонов юзера (без поля data — только meta)."""
+    with _lock:
+        rows = _db.all(
+            "SELECT id, name, version, is_draft, created_at, updated_at "
+            "FROM bot_templates WHERE owner_id=? ORDER BY updated_at DESC",
+            (owner_id,),
+        )
+    return [
+        {**dict(r), "is_draft": bool(r["is_draft"])}
+        for r in rows
+    ]
+
+
+def builder_template_update_data(template_id: str, data: dict) -> None:
+    with _lock:
+        _db.execute(
+            "UPDATE bot_templates SET data=?, updated_at=? WHERE id=?",
+            (json.dumps(data, ensure_ascii=False), _now(), template_id),
+        )
+        _db.commit()
+
+
+def builder_template_rename(template_id: str, name: str) -> None:
+    with _lock:
+        _db.execute(
+            "UPDATE bot_templates SET name=?, updated_at=? WHERE id=?",
+            (name, _now(), template_id),
+        )
+        _db.commit()
+
+
+def builder_template_publish(template_id: str) -> int:
+    """Снимает draft, инкрементит version. Возвращает новую версию."""
+    with _lock:
+        _db.execute(
+            "UPDATE bot_templates SET is_draft=0, version=version+1, "
+            "updated_at=? WHERE id=?",
+            (_now(), template_id),
+        )
+        row = _db.one("SELECT version FROM bot_templates WHERE id=?", (template_id,))
+        _db.commit()
+    return int(row["version"]) if row else 0
+
+
+def builder_template_delete(template_id: str) -> None:
+    with _lock:
+        _db.execute("DELETE FROM bot_templates WHERE id=?", (template_id,))
+        _db.commit()
 
 
 def pending_bot_clear(user_id: int) -> None:
