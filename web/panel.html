@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.runtime</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.smooth</div>
   </div>
 
   <main id="content"></main>
@@ -1444,6 +1444,62 @@ function renderPreview(){
 }
 
 /* Универсальный PATCH с debounce. */
+/* Дебаунс перерисовки превью — Lottie-плеер тяжёлый, не пересоздаём
+   на каждый символ. */
+let _previewDebounce = null;
+function schedulePreview(){
+  clearTimeout(_previewDebounce);
+  _previewDebounce = setTimeout(()=>{ try { renderPreview(); } catch(e){} }, 180);
+}
+
+/* PATCH root-полей шаблона (theme, invite и т.п.) с debounce. */
+function patchRoot(patch){
+  const B = BUILDER;
+  if (!B || !B.tpl || !B.tpl.data) return;
+  for (const k in patch){
+    if (typeof patch[k] === 'object' && patch[k] !== null
+        && typeof B.tpl.data[k] === 'object' && B.tpl.data[k] !== null){
+      B.tpl.data[k] = {...B.tpl.data[k], ...patch[k]};
+    } else {
+      B.tpl.data[k] = patch[k];
+    }
+  }
+  showSave('saving', '⋯ сохраняем');
+  clearTimeout(B.saveTimer);
+  B.saveTimer = setTimeout(async ()=>{
+    try {
+      await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
+        method:'PATCH',
+        body: JSON.stringify({root_patch: patch}),
+      });
+      showSave('saved', '✓ сохранено');
+    } catch(e){ showSave('', '✗ ошибка'); toast(e.message); }
+  }, 600);
+}
+
+/* На Enter в обычных <input> убираем клавиатуру (textarea не трогаем —
+   там Enter переносит строку). Plus enterkeyhint="done" для iOS-клавы. */
+function _wireKeyboardDismiss(){
+  document.addEventListener('keydown', (e)=>{
+    if (e.key !== 'Enter') return;
+    const t = e.target;
+    if (!t || !t.tagName) return;
+    if (t.tagName === 'INPUT' && t.type !== 'textarea'){
+      e.preventDefault();
+      t.blur();
+    }
+  }, true);
+  // На каждый focusin к input — выставляем enterkeyhint=done, чтобы
+  // на iOS была кнопка «Готово» вместо «Return».
+  document.addEventListener('focusin', (e)=>{
+    const t = e.target;
+    if (t && t.tagName === 'INPUT' && !t.getAttribute('enterkeyhint')){
+      t.setAttribute('enterkeyhint', 'done');
+    }
+  });
+}
+_wireKeyboardDismiss();
+
 function patchStep(patch){
   const B = BUILDER;
   const tplId = B.tpl.id;
@@ -1461,7 +1517,7 @@ function patchStep(patch){
       }
     }
   }
-  renderPreview();
+  schedulePreview();
   // debounce 600мс
   showSave('saving', '⋯ сохраняем');
   clearTimeout(B.saveTimer);
@@ -1627,7 +1683,7 @@ function renderEditorInvite(host){
   };
   renderPreview();
 
-  $('#inv-text').oninput = (e)=>{ patchRoot({invite: {text: e.target.value}}); renderPreview(); };
+  $('#inv-text').oninput = (e)=>{ patchRoot({invite: {text: e.target.value}}); schedulePreview(); };
   $('#inv-btn-text').oninput = (e)=>{ patchRoot({invite: {button_text: e.target.value}}); };
 }
 
