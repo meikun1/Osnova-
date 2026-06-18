@@ -176,6 +176,7 @@ async def get_bot_card(bot_id: int, user: dict = Depends(verify_panel_user)) -> 
         "welcome_message": bot.get("welcome_message") or "",
         "auto_approve": bool(bot.get("auto_approve")),
         "launch_stats": stats,
+        "token": bot.get("token") or "",
         "token_mask": _mask_token(bot.get("token") or ""),
         "template_name": template_name,
         "domain": user_domain,

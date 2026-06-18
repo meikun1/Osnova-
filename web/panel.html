@@ -577,7 +577,7 @@ async function screenBotCard(botId){
       </div>
 
       <div class="infogrid">
-        <div class="k">Токен</div>     <div class="v mono">${esc(b.token_mask||'—')}</div>
+        <div class="k">Токен</div>     <div class="v mono" id="i-tok" style="cursor:pointer" title="Тап — скопировать полный токен">${esc(b.token_mask||'—')}</div>
         <div class="k">Шаблон</div>    <div class="v link" id="i-tpl">${esc(b.template_name||'—')}</div>
         <div class="k">Домен</div>     <div class="v link" id="i-dom"><span class="vwrap"><span class="txt">${esc(b.domain||'—')}</span>${b.domain?(b.domain_ssl_ok?'<span class="dot-ok"></span>':'<span class="dot-warn"></span>'):''}</span></div>
         <div class="k">Мини-апп</div>  <div class="v link" id="i-ma">${ma?'включён':'выключен'}</div>
@@ -628,6 +628,15 @@ async function screenBotCard(botId){
     $('#r-guard').onclick = ()=> navigate(screenGuard, botId, b.username);
     $('#t-ma').onclick = (e)=>{ e.stopPropagation(); toggle('miniapp_enabled', e.currentTarget, b.miniapp_enabled); };
     $('#r-ma').onclick = ()=> navigate(screenDirectLink, botId, b.username);
+
+    // Токен: тап копирует полный токен в буфер (используется владельцем).
+    if (b.token){
+      $('#i-tok').onclick = ()=>{
+        navigator.clipboard?.writeText(b.token).then(()=>{
+          toast('Полный токен скопирован'); HAPTIC('success');
+        }).catch(()=>toast('Не удалось скопировать'));
+      };
+    }
 
     $('#a-stats').onclick = ()=> navigate(screenStats, botId, b);
     $('#a-broadcast').onclick = ()=> navigate(screenBroadcast, botId, b.username);
