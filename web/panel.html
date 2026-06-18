@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.smooth</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.smooth2</div>
   </div>
 
   <main id="content"></main>
@@ -1447,9 +1447,16 @@ function renderPreview(){
 /* Дебаунс перерисовки превью — Lottie-плеер тяжёлый, не пересоздаём
    на каждый символ. */
 let _previewDebounce = null;
+let _previewIdleQueued = false;
 function schedulePreview(){
   clearTimeout(_previewDebounce);
-  _previewDebounce = setTimeout(()=>{ try { renderPreview(); } catch(e){} }, 180);
+  _previewDebounce = setTimeout(()=>{
+    if (_previewIdleQueued) return;
+    _previewIdleQueued = true;
+    const cb = ()=>{ _previewIdleQueued = false; try { renderPreview(); } catch(e){} };
+    if (window.requestIdleCallback) requestIdleCallback(cb, {timeout: 400});
+    else requestAnimationFrame(cb);
+  }, 500);   // увеличили до 500мс — пока юзер печатает, не дёргаем
 }
 
 /* PATCH root-полей шаблона (theme, invite и т.п.) с debounce. */
@@ -1478,24 +1485,23 @@ function patchRoot(patch){
 }
 
 /* На Enter в обычных <input> убираем клавиатуру (textarea не трогаем —
-   там Enter переносит строку). Plus enterkeyhint="done" для iOS-клавы. */
+   там Enter переносит строку). */
 function _wireKeyboardDismiss(){
-  document.addEventListener('keydown', (e)=>{
-    if (e.key !== 'Enter') return;
-    const t = e.target;
-    if (!t || !t.tagName) return;
-    if (t.tagName === 'INPUT' && t.type !== 'textarea'){
-      e.preventDefault();
-      t.blur();
-    }
-  }, true);
-  // На каждый focusin к input — выставляем enterkeyhint=done, чтобы
-  // на iOS была кнопка «Готово» вместо «Return».
+  // На focus к input — выставляем enterkeyhint=done (для iOS) и
+  // навешиваем обработчик Enter → blur через setTimeout.
   document.addEventListener('focusin', (e)=>{
     const t = e.target;
-    if (t && t.tagName === 'INPUT' && !t.getAttribute('enterkeyhint')){
-      t.setAttribute('enterkeyhint', 'done');
-    }
+    if (!t || t.tagName !== 'INPUT') return;
+    if (!t.getAttribute('enterkeyhint')) t.setAttribute('enterkeyhint', 'done');
+    if (t._enterBound) return;
+    t._enterBound = true;
+    t.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter' || ev.keyCode === 13){
+        ev.preventDefault();
+        // setTimeout 0 — чтобы клавиатура успела обработать Enter и закрыться
+        setTimeout(()=> t.blur(), 0);
+      }
+    });
   });
 }
 _wireKeyboardDismiss();
