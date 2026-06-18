@@ -196,8 +196,9 @@
     border-radius:14px;font-size:13px;margin-bottom:10px;}
   .infogrid > *{min-width:0;}
   .infogrid .k{color:var(--label);font-weight:500;line-height:1.3;white-space:nowrap;}
-  .infogrid .v{font-weight:700;color:var(--text);line-height:1.3;text-align:right;
-    white-space:nowrap;overflow:hidden;}
+  .infogrid .v{font-weight:700;color:var(--text);line-height:1.3;
+    display:flex;justify-content:flex-end;align-items:center;
+    white-space:nowrap;overflow:hidden;min-width:0;text-align:right;}
   .infogrid .v.link{color:var(--accent);}
   .infogrid .v.mono{font-family:'JetBrains Mono',monospace;font-size:12.5px;}
   /* Контейнер «текст+точка», чтобы они гарантированно были на одной строке */
