@@ -963,10 +963,11 @@ async def bt_patch(
     payload: dict = Body(...),
     user: dict = Depends(verify_panel_user),
 ) -> dict:
-    """Частичное обновление. Поддерживаем 3 формы payload:
+    """Частичное обновление. Поддерживаем 4 формы payload:
        - {"name": "new"} → переименовать
        - {"step_key": "code", "patch": {"title": "..."}} → патч одного шага
        - {"data": {...}} → перезаписать весь JSON
+       - {"root_patch": {"invite": {"text": "..."}}} → патч полей data.<key>
     """
     from database import (
         builder_template_rename, builder_template_update_data, builder_template_get,
@@ -983,6 +984,13 @@ async def bt_patch(
 
     if "data" in payload and isinstance(payload["data"], dict):
         data = payload["data"]
+        builder_template_update_data(template_id, data)
+    elif "root_patch" in payload and isinstance(payload["root_patch"], dict):
+        for k, v in payload["root_patch"].items():
+            if isinstance(v, dict) and isinstance(data.get(k), dict):
+                data[k] = {**data[k], **v}
+            else:
+                data[k] = v
         builder_template_update_data(template_id, data)
     elif "step_key" in payload and isinstance(payload.get("patch"), dict):
         sk = payload["step_key"]

@@ -975,7 +975,19 @@ def builder_template_default_data(name: str = "default_v3",
                 "theme": {"background": "#0e161e", "text": "#ffffff"},
             },
         ]
-    return {"id": name, "name": name, "version": 1, "kind": kind, "steps": steps}
+    # Стандартное сообщение-приглашение: показывается ботом в личке,
+    # когда пользователь жмёт invite-ссылку в закрытую группу.
+    invite = {
+        "text": (
+            "👋 Здравствуйте!\n"
+            "Чтобы получить доступ к группе — нажмите кнопку ниже."
+        ),
+        "button_text": "🚀 Открыть приложение",
+        "button_action": "open_miniapp",   # open_miniapp | open_url | none
+        "button_url": "",
+    }
+    return {"id": name, "name": name, "version": 1, "kind": kind,
+            "invite": invite, "steps": steps}
 
 
 def builder_template_create(owner_id: int, slug: str, name: str | None = None,

@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.migrate</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.invite</div>
   </div>
 
   <main id="content"></main>
@@ -1353,6 +1353,7 @@ function renderBuilder(){
     </div>
 
     <div class="editor-tabs">
+      <div class="editor-tab ${B.currentTab==='invite'?'active':''}"  data-tab="invite">📨 Приглашение</div>
       <div class="editor-tab ${B.currentTab==='texts'?'active':''}"   data-tab="texts">Тексты</div>
       <div class="editor-tab ${B.currentTab==='button'?'active':''}"  data-tab="button">Кнопки</div>
       <div class="editor-tab ${B.currentTab==='image'?'active':''}"   data-tab="image">Картинка</div>
@@ -1459,6 +1460,7 @@ function renderEditorBody(){
   const host = $('#editor-body');
   if (!step){ host.innerHTML = ''; return; }
 
+  if (B.currentTab === 'invite') return renderEditorInvite(host);
   if (B.currentTab === 'texts') return renderEditorTexts(host, step);
   if (B.currentTab === 'button') return renderEditorButton(host, step);
   if (B.currentTab === 'image') return renderEditorImage(host, step);
@@ -1468,6 +1470,103 @@ function renderEditorBody(){
 }
 
 const ICON_PRESETS = ['🚀','✨','🔐','⚡','🎁','💎','🔥','🎉','💛','⭐','🛡','👀','⏳','✅','❌','👋','🌟','💫','🎯','📩'];
+
+/* Универсальный PATCH root-полей шаблона с debounce. */
+function patchRoot(patch){
+  const B = BUILDER;
+  // Локальный апдейт для превью/состояний
+  for (const k in patch){
+    if (typeof patch[k] === 'object' && patch[k] !== null
+        && typeof B.tpl.data[k] === 'object' && B.tpl.data[k] !== null){
+      B.tpl.data[k] = {...B.tpl.data[k], ...patch[k]};
+    } else {
+      B.tpl.data[k] = patch[k];
+    }
+  }
+  showSave('saving', '⋯ сохраняем');
+  clearTimeout(B.saveTimer);
+  B.saveTimer = setTimeout(async ()=>{
+    try {
+      await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
+        method:'PATCH',
+        body: JSON.stringify({root_patch: patch}),
+      });
+      showSave('saved', '✓ сохранено');
+    } catch(e){ showSave('', '✗ ошибка'); toast(e.message); }
+  }, 600);
+}
+
+function renderEditorInvite(host){
+  const inv = BUILDER.tpl.data.invite || {
+    text: '', button_text: '', button_action: 'open_miniapp', button_url: ''
+  };
+  host.innerHTML = `
+    <div class="field-hint" style="margin-bottom:12px;line-height:1.55">
+      Это сообщение бот пришлёт в личку пользователя, когда тот <b>нажмёт invite-ссылку</b>
+      в закрытую группу. Кнопка под сообщением открывает мини-апп или внешний URL.
+    </div>
+
+    <div class="field-row">
+      <div class="lbl">Текст сообщения</div>
+      <textarea class="textarea" id="inv-text" rows="5" placeholder="👋 Здравствуйте! Чтобы получить доступ к группе…">${esc(inv.text||'')}</textarea>
+      <div class="field-hint" style="margin-top:5px">Поддерживается HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.</div>
+    </div>
+
+    <div class="field-row">
+      <div class="lbl">Текст кнопки</div>
+      <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение">
+    </div>
+
+    <div class="field-row">
+      <div class="lbl">Действие при тапе</div>
+      <select class="input" id="inv-action">
+        <option value="open_miniapp" ${inv.button_action==='open_miniapp'?'selected':''}>Открыть мини-апп этого бота</option>
+        <option value="open_url"     ${inv.button_action==='open_url'?'selected':''}>Открыть внешнюю ссылку</option>
+        <option value="none"         ${inv.button_action==='none'?'selected':''}>Без кнопки</option>
+      </select>
+    </div>
+
+    <div class="field-row" id="inv-url-row" style="${inv.button_action==='open_url'?'':'display:none'}">
+      <div class="lbl">URL ссылки</div>
+      <input class="input mono" id="inv-url" value="${esc(inv.button_url||'')}" placeholder="https://example.com/landing">
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="uppercase" style="margin-bottom:8px">Превью сообщения</div>
+      <div id="inv-preview"></div>
+    </div>
+  `;
+
+  const renderPreview = ()=>{
+    const i = BUILDER.tpl.data.invite || {};
+    const txt = (i.text || '').trim() || '<i style="color:var(--muted)">пустой текст</i>';
+    let btnHTML = '';
+    if (i.button_action !== 'none' && (i.button_text||'').trim()){
+      const where = i.button_action === 'open_miniapp' ? 'мини-апп' : (i.button_url || 'URL');
+      btnHTML = `<div style="margin-top:10px;background:var(--accent);color:#fff;
+        padding:9px 14px;border-radius:10px;font-weight:700;text-align:center;
+        font-size:13px;cursor:default">
+        ${esc(i.button_text)}
+        <div style="font-size:10px;font-weight:500;opacity:.8;margin-top:3px">→ ${esc(where)}</div>
+      </div>`;
+    }
+    $('#inv-preview').innerHTML = `
+      <div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
+        font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${txt}</div>
+      ${btnHTML}`;
+  };
+  renderPreview();
+
+  $('#inv-text').oninput = (e)=>{ patchRoot({invite: {text: e.target.value}}); renderPreview(); };
+  $('#inv-btn-text').oninput = (e)=>{ patchRoot({invite: {button_text: e.target.value}}); renderPreview(); };
+  $('#inv-url').oninput = (e)=>{ patchRoot({invite: {button_url: e.target.value}}); renderPreview(); };
+  $('#inv-action').onchange = (e)=>{
+    const v = e.target.value;
+    patchRoot({invite: {button_action: v}});
+    $('#inv-url-row').style.display = v === 'open_url' ? '' : 'none';
+    renderPreview();
+  };
+}
 
 function renderEditorTexts(host, step){
   const curIcon = step.icon || '';
