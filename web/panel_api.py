@@ -498,7 +498,12 @@ async def recheck_ssl(user: dict = Depends(verify_panel_user)) -> dict:
     for d in domains:
         if d.get("ssl_notified"):
             continue
-        ok = await asyncio.to_thread(_probe_ssl, d["domain"])
+        try:
+            ok = await asyncio.to_thread(_probe_ssl, d["domain"])
+        except Exception as e:
+            logger.warning("recheck %s: probe raised %s", d["domain"], e)
+            ok = False
+        logger.info("recheck %s: ok=%s", d["domain"], ok)
         if ok:
             user_domain_mark_ssl_notified(d["id"])
             changed += 1

@@ -1096,7 +1096,9 @@ function openAddBotSheet(data){
 
 async function screenMyDomains(){
   setTitle('Мои домены', '');
-  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div><div class="ttl">Проверяем SSL…</div></div>`;
+  // Ждём проверку — иначе будут стоять «Ждём NS», хотя сертификат уже выпущен.
+  await api('/domains/recheck', {method:'POST'}).catch(()=>{});
   try {
     const doms = await api('/domains');
     if (!doms.length){
@@ -1108,13 +1110,26 @@ async function screenMyDomains(){
         </div>`;
       return;
     }
-    root.innerHTML = doms.map(d => `
+    let html = doms.map(d => `
       <div class="card tight">
         <div class="row between">
           <div class="mono" style="font-size:13.5px">${esc(d.domain)}</div>
           <span class="pill ${d.ssl_notified?'ok':'warn'} dot">${d.ssl_notified?'SSL':'Ждём NS'}</span>
         </div>
       </div>`).join('');
+    html += `<button class="btn ghost" id="b-recheck" style="margin-top:10px">♻️ Перепроверить SSL</button>`;
+    root.innerHTML = html;
+    $('#b-recheck').onclick = async ()=>{
+      HAPTIC('light');
+      $('#b-recheck').textContent = 'Проверяем…';
+      $('#b-recheck').disabled = true;
+      try {
+        const r = await api('/domains/recheck', {method:'POST'});
+        toast(`Проверено: ${r.checked}, готовых: ${r.marked_ok}`);
+        if (r.marked_ok > 0) HAPTIC('success');
+        screenMyDomains();
+      } catch(e){ toast(e.message); HAPTIC('error'); $('#b-recheck').disabled = false; $('#b-recheck').textContent = '♻️ Перепроверить SSL'; }
+    };
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
 
