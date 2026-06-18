@@ -1071,12 +1071,24 @@ def _scan_stickers_folder() -> list[dict]:
     return items
 
 
+def _load_stickers_meta() -> dict:
+    """Читает stickers-meta.json (категории, pinned, читаемые имена)."""
+    import json as _json
+    from pathlib import Path
+    p = Path(__file__).parent / "static" / "stickers-meta.json"
+    if not p.exists():
+        return {}
+    try:
+        with open(p, "r", encoding="utf-8") as f:
+            return _json.load(f) or {}
+    except Exception as e:
+        logger.warning("stickers-meta.json read failed: %s", e)
+        return {}
+
+
 def _load_stickers() -> dict:
     """Читает stickers.json + сливает с авто-сканом web/static/stickers/.
-
-    Если у файла из папки тот же ref, что у emoji-записи из JSON —
-    к файловому ref добавляется суффикс `-anim`, чтобы оба варианта
-    оказались в каталоге."""
+    Прикладывает категории и pinned из stickers-meta.json."""
     import json as _json
     data: dict = {"main": []}
     try:
@@ -1092,7 +1104,6 @@ def _load_stickers() -> dict:
     existing_refs = {s.get("ref") for s in main}
     for s in _scan_stickers_folder():
         ref = s["ref"]
-        # При коллизии — добавляем суффикс, оба варианта будут в каталоге.
         if ref in existing_refs:
             suffixed = f"{ref}-anim"
             i = 2
@@ -1104,7 +1115,33 @@ def _load_stickers() -> dict:
             ref = suffixed
         main.append(s)
         existing_refs.add(ref)
+
+    # Применяем мета: категории + читаемые имена + pinned
+    meta = _load_stickers_meta()
+    mapping = meta.get("mapping") or {}
+    names = meta.get("names") or {}
+    pinned_set = set(meta.get("pinned") or [])
+
+    for s in main:
+        ref = s.get("ref")
+        if ref in mapping:
+            s["category"] = mapping[ref]
+        else:
+            s.setdefault("category", "other")
+        if ref in names and names[ref]:
+            s["title"] = names[ref]
+        s["pinned"] = ref in pinned_set
+
+    # Сортировка: сначала pinned, потом по категории, потом по ref
+    cat_order = {c["key"]: i for i, c in enumerate(meta.get("categories") or [])}
+    main.sort(key=lambda x: (
+        0 if x.get("pinned") else 1,
+        cat_order.get(x.get("category"), 999),
+        x.get("ref") or "",
+    ))
+
     data["main"] = main
+    data["categories"] = meta.get("categories") or []
     return data
 
 

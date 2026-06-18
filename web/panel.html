@@ -1639,10 +1639,27 @@ function renderEditorImage(host, step){
   if (isUpload){
     renderUploadSection($('#img-body'), step, 'image');
   } else {
+    const categories = (BUILDER.stickers && BUILDER.stickers.categories) || [];
+    // Подсчёт по категориям
+    const counts = {pinned: 0};
+    for (const s of stickers){
+      if (s.pinned) counts.pinned++;
+      const c = s.category || 'other';
+      counts[c] = (counts[c]||0) + 1;
+    }
+    // Чипы категорий, без пустых
+    let chipsHTML = '<div class="chip active" data-cat="">Все <span class="n">' + stickers.length + '</span></div>';
+    for (const c of categories){
+      const n = counts[c.key] || 0;
+      if (!n && c.key !== 'pinned') continue;
+      chipsHTML += `<div class="chip" data-cat="${esc(c.key)}">${esc(c.label)} <span class="n">${n}</span></div>`;
+    }
+
     $('#img-body').innerHTML = `
       <div class="field-row">
         <div class="lbl">Стикеры · ${stickers.length}</div>
         <input class="input" id="f-sticker-search" placeholder="Поиск по имени…" style="margin-bottom:8px">
+        <div class="chips" id="f-cat-chips" style="margin-bottom:10px">${chipsHTML}</div>
         <div class="sticker-grid" id="f-sticker"></div>
         <div style="text-align:center;margin-top:10px">
           <button class="btn ghost small" id="f-sticker-more" style="width:auto;display:none">Показать ещё</button>
@@ -1657,7 +1674,21 @@ function renderEditorImage(host, step){
 
     let renderedCount = 0;
     const PAGE = 24;
+    let activeCategory = '';
+    let searchQ = '';
     let filtered = stickers;
+
+    const applyFilter = ()=>{
+      filtered = stickers.filter(s => {
+        if (activeCategory === 'pinned' && !s.pinned) return false;
+        if (activeCategory && activeCategory !== 'pinned' && s.category !== activeCategory) return false;
+        if (searchQ){
+          const hay = (s.ref + ' ' + (s.title||'')).toLowerCase();
+          if (!hay.includes(searchQ)) return false;
+        }
+        return true;
+      });
+    };
 
     const renderChunk = (reset)=>{
       if (reset){
@@ -1669,7 +1700,6 @@ function renderEditorImage(host, step){
       $('#f-sticker').insertAdjacentHTML('beforeend', html);
       renderedCount += next.length;
       $('#f-sticker-more').style.display = renderedCount < filtered.length ? '' : 'none';
-      // Привязываем клик к новым плиткам
       $('#f-sticker').querySelectorAll('[data-ref]:not([data-bound])').forEach(el=>{
         el.setAttribute('data-bound', '1');
         el.addEventListener('click', ()=>{
@@ -1681,6 +1711,7 @@ function renderEditorImage(host, step){
       });
     };
 
+    applyFilter();
     renderChunk(true);
 
     $('#f-sticker-more').onclick = ()=>{
@@ -1689,12 +1720,22 @@ function renderEditorImage(host, step){
     };
 
     $('#f-sticker-search').oninput = (e)=>{
-      const q = e.target.value.trim().toLowerCase();
-      filtered = q
-        ? stickers.filter(s => (s.ref + ' ' + (s.title||'')).toLowerCase().includes(q))
-        : stickers;
+      searchQ = e.target.value.trim().toLowerCase();
+      applyFilter();
       renderChunk(true);
     };
+
+    $('#f-cat-chips').querySelectorAll('[data-cat]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        HAPTIC('light');
+        activeCategory = el.dataset.cat;
+        $('#f-cat-chips').querySelectorAll('[data-cat]').forEach(x=>{
+          x.classList.toggle('active', x===el);
+        });
+        applyFilter();
+        renderChunk(true);
+      });
+    });
   }
 }
 
