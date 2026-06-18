@@ -915,7 +915,6 @@ def _stickers_path():
 
 _STICKER_EXTS = {
     ".json": "lottie",
-    ".tgs":  "lottie",   # формально нужно gunzip; lottie-player сам не умеет
     ".gif":  "image",
     ".png":  "image",
     ".webp": "image",
@@ -924,22 +923,56 @@ _STICKER_EXTS = {
 }
 
 
+def _ensure_tgs_unpacked(tgs_path) -> "Path | None":
+    """Распаковывает .tgs (gzip Lottie JSON) в .json рядом. Возвращает путь
+    к получившемуся .json. Если уже распакован — возвращает существующий."""
+    import gzip
+    from pathlib import Path
+    json_path = tgs_path.with_suffix(".json")
+    if json_path.exists() and json_path.stat().st_mtime >= tgs_path.stat().st_mtime:
+        return json_path
+    try:
+        with gzip.open(tgs_path, "rb") as f:
+            data = f.read()
+        with open(json_path, "wb") as f:
+            f.write(data)
+        return json_path
+    except Exception as e:
+        logger.warning("tgs unpack failed for %s: %s", tgs_path.name, e)
+        return None
+
+
 def _scan_stickers_folder() -> list[dict]:
     """Сканирует web/static/stickers/ и собирает все картинки/lottie оттуда.
-    ref = имя файла без расширения. title = ref. Тип угадывается по extension."""
+
+    Дополнительно: для каждого .tgs файла автоматически распаковывает
+    рядом .json (если ещё не распакован). lottie-player понимает только
+    распакованный JSON."""
     from pathlib import Path
     folder = Path(__file__).parent / "static" / "stickers"
     if not folder.is_dir():
         return []
+
+    # Сначала распакуем все .tgs.
+    for p in folder.iterdir():
+        if p.is_file() and p.suffix.lower() == ".tgs":
+            _ensure_tgs_unpacked(p)
+
     items: list[dict] = []
+    seen_stems: set[str] = set()
     for p in sorted(folder.iterdir()):
         if not p.is_file():
             continue
         ext = p.suffix.lower()
+        if ext == ".tgs":
+            continue  # уже отражён через распакованный .json
         t = _STICKER_EXTS.get(ext)
         if not t:
             continue
         ref = p.stem
+        if ref in seen_stems:
+            continue
+        seen_stems.add(ref)
         items.append({
             "ref": ref,
             "type": t,
