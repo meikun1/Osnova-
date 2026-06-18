@@ -373,6 +373,26 @@ async def delete_proxy_endpoint(
     return {"ok": True}
 
 
+@router.post("/bots/{bot_id}/miniapp/rotate")
+async def rotate_startapp_token(
+    bot_id: int, user: dict = Depends(verify_panel_user)
+) -> dict:
+    """Перегенерирует startapp_token (6 символов A-Za-z0-9). Возвращает новый
+    URL прямой ссылки."""
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    if not tg_id:
+        raise HTTPException(400, "bot has no tg_id")
+    from database import dl_rotate
+    from directlink_service import get_module
+    module = get_module()
+    new_token = module._gen_token(6)
+    dl_rotate(tg_id, new_token)
+    username = (bot.get("username") or "").lstrip("@")
+    url = f"https://t.me/{username}?startapp={new_token}" if username else ""
+    return {"new_token": new_token, "startapp_url": url}
+
+
 @router.get("/bots/{bot_id}/miniapp")
 async def get_miniapp_info(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
     """Инфо для экрана «Прямая ссылка»: персональный URL, startapp-ссылка,

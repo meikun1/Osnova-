@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.always-on</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.rotate</div>
   </div>
 
   <main id="content"></main>
@@ -956,6 +956,9 @@ async function screenDirectLink(botId, botName){
       <div class="card">
         <div class="uppercase" style="margin-bottom:6px">Прямая ссылка на мини-апп</div>
         <div class="codeblock" id="dl-start">${esc(d.startapp_url || '(не настроена)')}</div>
+        <div style="height:8px"></div>
+        <button class="btn small ghost" id="b-rotate-link" style="width:auto">♻️ Обновить ссылку</button>
+        <div class="field-hint" style="margin-top:6px">Сгенерирует новый 6-значный код. Старая ссылка перестанет работать.</div>
       </div>
 
       <div class="togrow" id="r-toggle">
@@ -979,6 +982,18 @@ async function screenDirectLink(botId, botName){
     };
     $('#dl-mini').onclick = ()=> copy('#dl-mini');
     $('#dl-start').onclick = ()=> copy('#dl-start');
+
+    $('#b-rotate-link').onclick = async ()=>{
+      HAPTIC('warning');
+      const btn = $('#b-rotate-link');
+      btn.disabled = true; btn.textContent = '⏳ Обновляю…';
+      try {
+        const r = await api(`/bots/${botId}/miniapp/rotate`, {method:'POST'});
+        $('#dl-start').textContent = r.startapp_url || '(ошибка)';
+        toast('Новая ссылка: ' + r.new_token); HAPTIC('success');
+      } catch(e){ toast(e.message); HAPTIC('error'); }
+      finally { btn.disabled = false; btn.textContent = '♻️ Обновить ссылку'; }
+    };
 
     $('#t-d').onclick = async (e)=>{
       e.stopPropagation();
