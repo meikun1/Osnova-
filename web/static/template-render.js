@@ -105,20 +105,6 @@
     return node;
   }
 
-  function renderTopSticker(topSticker, stickers) {
-    if (!topSticker || !topSticker.ref) return null;
-    const anim = ANIM_KEYS.has(topSticker.anim) ? topSticker.anim : 'float';
-    const wrap = el('div', {
-      class: 'tr-top',
-      style: {
-        position: 'absolute', top: '8px', right: '12px', zIndex: '3',
-        pointerEvents: 'none',
-        animation: anim === 'none' ? 'none' : `${anim} 2.4s ease-in-out infinite`,
-      },
-    });
-    wrap.appendChild(renderSticker(topSticker.ref, stickers, 40));
-    return wrap;
-  }
 
   function renderButton(btn, onAction) {
     if (!btn || !btn.text) return null;
@@ -160,9 +146,6 @@
         fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       },
     });
-
-    const top = renderTopSticker(step.topSticker, opts.stickers);
-    if (top) root.appendChild(top);
 
     const img = renderImage(step.image, opts.stickers);
     if (img) root.appendChild(img);

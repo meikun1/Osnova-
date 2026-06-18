@@ -1257,7 +1257,6 @@ function renderBuilder(){
       <div class="editor-tab ${B.currentTab==='texts'?'active':''}"   data-tab="texts">Тексты</div>
       <div class="editor-tab ${B.currentTab==='button'?'active':''}"  data-tab="button">Кнопки</div>
       <div class="editor-tab ${B.currentTab==='image'?'active':''}"   data-tab="image">Картинка</div>
-      <div class="editor-tab ${B.currentTab==='top'?'active':''}"     data-tab="top">Сверху</div>
       <div class="editor-tab ${B.currentTab==='colors'?'active':''}"  data-tab="colors">Цвета</div>
       <div class="editor-tab ${B.currentTab==='steps'?'active':''}"   data-tab="steps">Шаги</div>
     </div>
@@ -1360,7 +1359,6 @@ function renderEditorBody(){
   if (B.currentTab === 'texts') return renderEditorTexts(host, step);
   if (B.currentTab === 'button') return renderEditorButton(host, step);
   if (B.currentTab === 'image') return renderEditorImage(host, step);
-  if (B.currentTab === 'top') return renderEditorTop(host, step);
   if (B.currentTab === 'colors') return renderEditorColors(host, step);
   if (B.currentTab === 'steps') return renderEditorSteps(host);
   host.innerHTML = '';
@@ -1571,46 +1569,6 @@ function renderUploadSection(host, step, field){
   };
 }
 
-function renderEditorTop(host, step){
-  const ts = step.topSticker || {};
-  const top = (BUILDER.stickers && BUILDER.stickers.top) || [];
-  host.innerHTML = `
-    <div class="field-row">
-      <div class="lbl">Стикер сверху</div>
-      <div class="field-hint" style="margin-bottom:8px">Декоративный анимированный стикер в правом верхнем углу шага. Lottie/png/emoji.</div>
-      <div class="row gap-s" style="margin-bottom:8px">
-        <button class="btn small ghost" id="ts-clear" style="width:auto">Убрать</button>
-      </div>
-      <div class="sticker-grid" id="ts-grid"></div>
-      <div class="field-hint" style="margin-top:6px">Каталог редактируется в <code>web/static/stickers.json</code> (раздел <code>top</code>).</div>
-    </div>
-    <div class="field-row">
-      <div class="lbl">Анимация</div>
-      <select class="input" id="ts-anim">
-        ${['none','fade','slide','pop','float','spin'].map(a=>
-          `<option value="${a}" ${a===(ts.anim||'float')?'selected':''}>${a}</option>`
-        ).join('')}
-      </select>
-    </div>
-  `;
-  $('#ts-grid').innerHTML = top.length
-    ? top.map(s => _stickerTileHTML(s, s.ref === ts.ref)).join('')
-    : `<div class="field-hint" style="grid-column:1/-1;text-align:center;padding:14px">Пока нет верхних стикеров. Допиши в stickers.json раздел "top".</div>`;
-  $('#ts-grid').querySelectorAll('[data-ref]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      HAPTIC('light');
-      patchStep({topSticker: {ref: el.dataset.ref, anim: ts.anim || 'float'}});
-      renderEditorBody();
-    });
-  });
-  $('#ts-clear').onclick = ()=>{
-    HAPTIC('light');
-    patchStep({topSticker: null});
-    renderEditorBody();
-  };
-  $('#ts-anim').onchange = (e)=> patchStep({topSticker: {...(step.topSticker||{}), anim: e.target.value}});
-}
-
 function renderEditorColors(host, step){
   const t = step.theme || {};
   host.innerHTML = `
@@ -1646,18 +1604,35 @@ function renderEditorSteps(host){
   const B = BUILDER;
   const steps = B.tpl.data?.steps || [];
   host.innerHTML = `
-    <div class="field-hint" style="margin-bottom:10px">Перетаскивать пока нельзя — порядок задаётся при создании. Можно удалить.</div>
+    <button class="btn ghost" id="b-add-step-in-list" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
+      <svg class="ico-svg" style="width:16px;height:16px"><use href="#ic-plus"/></svg>
+      Добавить шаг
+    </button>
+    <div class="field-hint" style="margin-bottom:10px">Тап по шагу — перейти на него. Крестик — удалить.</div>
     ${steps.map((s,i)=>`
-      <div class="bot-item">
+      <div class="bot-item" data-goto-step="${esc(s.key)}">
         <div class="avatar" style="background:#2a2238;color:#c79bff">${i+1}</div>
-        <div class="v" style="flex:1"><div class="bot-name">${esc(s.label||s.key)}</div>
-        <div class="bot-meta">${esc(s.key)}</div></div>
+        <div class="v" style="flex:1;min-width:0">
+          <div class="bot-name">${esc(s.label||s.key)}</div>
+          <div class="bot-meta mono">${esc(s.key)}</div>
+        </div>
+        ${s.key===B.currentStepKey ? '<span class="pill ok" style="margin-right:6px">текущий</span>' : ''}
         ${steps.length>1 ? `<button type="button" class="iconbtn" data-del-step="${esc(s.key)}" title="Удалить">✕</button>` : ''}
       </div>
     `).join('')}
   `;
+  $('#b-add-step-in-list').onclick = ()=> openAddStepSheet();
+  host.querySelectorAll('[data-goto-step]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if (e.target.dataset.delStep) return;
+      HAPTIC('light');
+      B.currentStepKey = el.dataset.gotoStep;
+      renderBuilder();
+    });
+  });
   host.querySelectorAll('[data-del-step]').forEach(el=>{
-    el.addEventListener('click', async ()=>{
+    el.addEventListener('click', async (e)=>{
+      e.stopPropagation();
       HAPTIC('warning');
       const sk = el.dataset.delStep;
       const newSteps = B.tpl.data.steps.filter(s=>s.key !== sk);

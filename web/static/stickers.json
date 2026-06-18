@@ -13,9 +13,5 @@
     {"ref": "duck-cross",   "type": "emoji", "emoji": "❌", "title": "Ошибка"},
     {"ref": "duck-star",    "type": "emoji", "emoji": "⭐", "title": "Звезда"},
     {"ref": "duck-fire",    "type": "emoji", "emoji": "🔥", "title": "Огонь"}
-  ],
-  "top": [
-    {"ref": "top-pulse",   "type": "emoji", "emoji": "💫", "title": "Пульс"},
-    {"ref": "top-sparkle", "type": "emoji", "emoji": "✨", "title": "Искры"}
   ]
 }
