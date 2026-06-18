@@ -28,7 +28,7 @@ from web.auth_api import router as auth_router, start_gc
 
 _MINIAPP_HTML = (Path(__file__).parent / "miniapp.html").read_text(encoding="utf-8")
 _PREVIEW3D_HTML = (Path(__file__).parent / "preview3d.html").read_text(encoding="utf-8")
-_PANEL_HTML = (Path(__file__).parent / "panel.html").read_text(encoding="utf-8")
+_PANEL_PATH = Path(__file__).parent / "panel.html"
 
 def _miniapp_config(bot_id: int) -> dict:
     cfg: dict = {
@@ -118,11 +118,19 @@ def create_app() -> FastAPI:
 
     @app.get("/panel", response_class=HTMLResponse)
     async def panel_page() -> HTMLResponse:
+        # Читаем файл при каждом запросе — изменения подхватываются мгновенно
+        # без рестарта контейнера. Плюс отдаём mtime как версию.
+        import os
+        html = _PANEL_PATH.read_text(encoding="utf-8")
+        mtime = int(os.path.getmtime(_PANEL_PATH))
         return HTMLResponse(
-            _PANEL_HTML,
+            html,
             headers={
                 "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
                 "Pragma": "no-cache",
+                "Expires": "0",
+                "ETag": f'"{mtime}"',
+                "X-Panel-Build": str(mtime),
             },
         )
 
