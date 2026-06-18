@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.guard+launches</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.iconfix</div>
   </div>
 
   <main id="content"></main>
@@ -1557,6 +1557,8 @@ function renderEditorInvite(host){
     renderPreview();
   };
 }
+
+const ICON_PRESETS = ['🚀','✨','🔐','⚡','🎁','💎','🔥','🎉','💛','⭐','🛡','👀','⏳','✅','❌','👋','🌟','💫','🎯','📩'];
 
 function renderEditorTexts(host, step){
   const curIcon = step.icon || '';
