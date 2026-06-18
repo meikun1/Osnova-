@@ -181,6 +181,62 @@
   .ma-pill.off::before{content:""}
   .botrow .cnt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text-soft)}
 
+  /* ===== Builder (Template Builder) ===== */
+  .builder-steps{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px;
+    scrollbar-width:none;-ms-overflow-style:none;}
+  .builder-steps::-webkit-scrollbar{display:none}
+  .builder-step{display:inline-flex;flex-direction:column;align-items:flex-start;
+    flex-shrink:0;padding:8px 12px;border-radius:10px;cursor:pointer;
+    background:var(--card);border:1px solid var(--card-border);min-width:88px;}
+  .builder-step.active{background:var(--accent-soft);border-color:var(--accent)}
+  .builder-step .num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+  .builder-step.active .num{color:var(--accent)}
+  .builder-step .lbl{font-size:13px;font-weight:700;color:var(--text);margin-top:2px;}
+  .builder-step.addbtn{align-items:center;justify-content:center;color:var(--accent);font-size:18px;min-width:36px;padding:8px 10px;}
+
+  /* Live preview обёртка */
+  .preview-frame{background:#1a1f2e;border:1px solid var(--card-border);
+    border-radius:14px;padding:8px;position:relative;margin-bottom:10px;
+    min-height:240px;}
+  .preview-chip{position:absolute;top:14px;right:14px;font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.08em;color:var(--accent);
+    background:#0e161e;border:1px solid #1e2832;padding:3px 8px;border-radius:8px;
+    z-index:2;}
+
+  /* Editor tabs (Тексты/Кнопки/Картинка/Цвета/Шаги) */
+  .editor-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;
+    border-bottom:1px solid var(--hairline);margin-bottom:12px;
+    scrollbar-width:none;}
+  .editor-tabs::-webkit-scrollbar{display:none}
+  .editor-tab{padding:7px 13px;border-radius:10px;font-size:13px;font-weight:600;
+    color:var(--muted);cursor:pointer;flex-shrink:0;}
+  .editor-tab.active{background:var(--accent-soft);color:var(--accent);}
+
+  /* поля редактора */
+  .field-row{margin-bottom:14px}
+  .field-row .lbl{font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.04em;color:var(--label);margin-bottom:6px;}
+
+  /* палитра цветов */
+  .palette{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:6px;}
+  .palette-cell{aspect-ratio:1;border-radius:10px;cursor:pointer;border:2px solid transparent;}
+  .palette-cell.active{border-color:var(--accent)}
+
+  /* стикеры grid */
+  .sticker-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .sticker-tile{aspect-ratio:1;border-radius:12px;background:var(--input-bg);
+    border:1px solid var(--input-border);cursor:pointer;display:flex;
+    align-items:center;justify-content:center;font-size:32px;}
+  .sticker-tile.active{border-color:var(--accent);background:var(--accent-soft)}
+
+  /* save-status */
+  .save-status{position:absolute;top:14px;left:14px;font-size:10.5px;font-weight:600;
+    color:var(--muted);z-index:2;background:#0e161e;border:1px solid #1e2832;
+    padding:3px 8px;border-radius:8px;display:none;}
+  .save-status.shown{display:inline-block}
+  .save-status.saving{color:var(--warn)}
+  .save-status.saved{color:var(--ok)}
+
   /* шапка бота — компактная */
   .bothead{display:flex;align-items:center;gap:10px;padding:10px 11px;background:var(--card);
     border:1px solid var(--card-border);border-radius:14px;margin-bottom:6px;}
@@ -1070,37 +1126,491 @@ async function screenBroadcast(botId, botName){
 }
 
 async function screenTemplate(botId, templateId){
-  setTitle('Шаблон', '');
+  setTitle('Шаблоны', '');
   root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
   try {
-    const tpls = await api('/templates');
-    let html = `<div class="section-label">Текущий шаблон</div>`;
-    if (!templateId || !tpls.length){
-      html += `<div class="empty"><div class="ico">📋</div><div class="ttl">Шаблон не выбран</div><div class="sub">Редактирование шаблонов — из Telegram-чата.</div></div>`;
+    const tpls = await api('/builder/templates');
+    let html = `
+      <button class="btn" id="b-new-tpl" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg class="ico-svg" style="width:16px;height:16px"><use href="#ic-plus"/></svg>
+        Создать шаблон
+      </button>
+      <div class="section-label">Шаблоны юзера</div>
+    `;
+    if (!tpls.length){
+      html += `<div class="empty"><div class="ico">📋</div><div class="ttl">Шаблонов пока нет</div><div class="sub">Создай первый кнопкой выше.</div></div>`;
     } else {
-      const t = tpls.find(x => x.id === templateId) || tpls[0];
-      html += `<div class="card"><div style="font-weight:600">${esc(t.name)}</div><div class="field-hint" style="margin-top:4px">Тип: ${esc(t.kind)}</div></div>`;
-    }
-    html += `<div class="section-label">Все шаблоны</div>`;
-    for (const t of tpls){
-      const cur = t.id === templateId;
-      html += `<div class="bot-item" data-tpl="${t.id}">
-        <div class="avatar" style="background:#2a2238;color:#c79bff">${esc(t.name.substring(0,1).toUpperCase())}</div>
-        <div class="v" style="flex:1"><div class="bot-name">${esc(t.name)}</div>
-        <div class="bot-meta">${esc(t.kind)} · ${cur?'<b style="color:var(--accent)">текущий</b>':'свободный'}</div></div>
-      </div>`;
+      for (const t of tpls){
+        const dt = new Date(t.updated_at * 1000);
+        const ds = dt.toLocaleString('ru', {dateStyle:'short', timeStyle:'short'});
+        const draft = t.is_draft;
+        html += `
+          <div class="bot-item" data-tpl="${esc(t.id)}">
+            <div class="avatar" style="background:#2a2238;color:#c79bff">${esc(t.name.substring(0,1).toUpperCase())}</div>
+            <div class="v" style="flex:1;min-width:0">
+              <div class="bot-name">${esc(t.name)}</div>
+              <div class="bot-meta">v${t.version} · ${ds}</div>
+            </div>
+            ${draft?'<span class="pill warn" style="margin-right:6px">draft</span>':'<span class="pill ok" style="margin-right:6px">опубл.</span>'}
+            <button type="button" class="iconbtn" data-del-tpl="${esc(t.id)}" title="Удалить">✕</button>
+          </div>`;
+      }
     }
     root.innerHTML = html;
+
+    $('#b-new-tpl').onclick = ()=>{
+      openSheet(`
+        <div class="sheet-title">Новый шаблон</div>
+        <div class="field-hint" style="margin-bottom:10px">Дам стартовые 4 шага (Welcome / Код / 2FA / Успех), потом отредактируешь.</div>
+        <div class="uppercase" style="margin-bottom:5px">Имя шаблона</div>
+        <input class="input" id="tpl-name" placeholder="Например: мой_первый" maxlength="40">
+        <div style="height:14px"></div>
+        <button class="btn" id="tpl-save">Создать и открыть</button>
+      `);
+      $('#tpl-save').onclick = async ()=>{
+        const nm = $('#tpl-name').value.trim();
+        if (!nm) return toast('Введите имя');
+        // slug = транслит-простой: оставляем латиницу/цифры/-_, остальное в _
+        const slug = nm.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g,'').slice(0,40)
+                     || ('tpl_' + Date.now());
+        try {
+          const t = await api('/builder/templates', {method:'POST', body: JSON.stringify({slug, name: nm})});
+          closeSheet(); HAPTIC('success');
+          navigate(screenBuilder, t.id);
+        } catch(e){ toast(e.message); HAPTIC('error'); }
+      };
+    };
+
     root.querySelectorAll('[data-tpl]').forEach(el=>{
-      el.addEventListener('click', async ()=>{
+      el.addEventListener('click', (e)=>{
+        if (e.target.dataset.delTpl) return;
         HAPTIC('light');
-        const tid = parseInt(el.dataset.tpl,10);
-        try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({template_id: tid})}); toast('Шаблон выбран'); HAPTIC('success'); back(); }
-        catch(e){ toast(e.message); }
+        navigate(screenBuilder, el.dataset.tpl);
+      });
+    });
+    root.querySelectorAll('[data-del-tpl]').forEach(el=>{
+      el.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        HAPTIC('warning');
+        if (!confirm('Удалить шаблон?')) return;
+        try {
+          await api(`/builder/templates/${encodeURIComponent(el.dataset.delTpl)}`, {method:'DELETE'});
+          toast('Удалён'); HAPTIC('success'); screenTemplate(botId, templateId);
+        } catch(err){ toast(err.message); HAPTIC('error'); }
       });
     });
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
+
+/* =====================================================
+   ЭКРАН: Конструктор шаблонов (Template Builder)
+   ===================================================== */
+let BUILDER = null;   // { tpl, currentStepKey, currentTab, stickers, saveTimer }
+
+async function screenBuilder(templateId){
+  setTitle('Конструктор', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const [tpl, stickers] = await Promise.all([
+      api(`/builder/templates/${encodeURIComponent(templateId)}`),
+      api('/builder/stickers'),
+    ]);
+    BUILDER = {
+      tpl,
+      currentStepKey: tpl.data?.steps?.[0]?.key || 'welcome',
+      currentTab: 'texts',
+      stickers,
+      saveTimer: null,
+    };
+    setTitle('Конструктор', tpl.name);
+    renderBuilder();
+    setMain('Опубликовать', publishBuilder);
+  } catch(e){
+    root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function renderBuilder(){
+  const B = BUILDER;
+  const steps = B.tpl.data?.steps || [];
+  const currentStep = steps.find(s => s.key === B.currentStepKey) || steps[0];
+
+  let html = `
+    <div class="builder-steps">
+      ${steps.map((s, i)=>`
+        <div class="builder-step ${s.key===B.currentStepKey?'active':''}" data-step="${esc(s.key)}">
+          <div class="num">0${i+1}</div>
+          <div class="lbl">${esc(s.label || s.key)}</div>
+        </div>
+      `).join('')}
+      <div class="builder-step addbtn" id="b-add-step" title="Добавить шаг">+</div>
+    </div>
+
+    <div class="preview-frame" id="preview-frame">
+      <span class="save-status" id="save-status"></span>
+      <span class="preview-chip">live</span>
+      <div id="preview-body"></div>
+    </div>
+
+    <div class="editor-tabs">
+      <div class="editor-tab ${B.currentTab==='texts'?'active':''}"   data-tab="texts">Тексты</div>
+      <div class="editor-tab ${B.currentTab==='button'?'active':''}"  data-tab="button">Кнопки</div>
+      <div class="editor-tab ${B.currentTab==='image'?'active':''}"   data-tab="image">Картинка</div>
+      <div class="editor-tab ${B.currentTab==='colors'?'active':''}"  data-tab="colors">Цвета</div>
+      <div class="editor-tab ${B.currentTab==='steps'?'active':''}"   data-tab="steps">Шаги</div>
+    </div>
+
+    <div id="editor-body"></div>
+  `;
+  root.innerHTML = html;
+
+  // Step tabs
+  root.querySelectorAll('[data-step]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      B.currentStepKey = el.dataset.step;
+      renderBuilder();
+    });
+  });
+  $('#b-add-step').onclick = ()=> openAddStepSheet();
+
+  // Editor tabs
+  root.querySelectorAll('[data-tab]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      B.currentTab = el.dataset.tab;
+      renderEditorBody();
+    });
+  });
+
+  // Initial preview + editor
+  renderPreview();
+  renderEditorBody();
+}
+
+function renderPreview(){
+  const B = BUILDER;
+  const steps = B.tpl.data?.steps || [];
+  const step = steps.find(s => s.key === B.currentStepKey) || steps[0];
+  if (!step){ $('#preview-body').innerHTML = '<div class="empty"><div class="sub">Нет шагов</div></div>'; return; }
+  const node = window.TemplateRender.renderStep(step, {
+    stickers: B.stickers,
+    onAction: (action)=>{ toast(`action: ${action}`); HAPTIC('light'); },
+  });
+  const host = $('#preview-body');
+  host.innerHTML = '';
+  host.appendChild(node);
+}
+
+/* Универсальный PATCH с debounce. */
+function patchStep(patch){
+  const B = BUILDER;
+  const tplId = B.tpl.id;
+  const sk = B.currentStepKey;
+  // Локальный апдейт сразу для live-preview
+  const steps = B.tpl.data.steps || [];
+  for (const s of steps){
+    if (s.key === sk){
+      for (const k in patch){
+        if (typeof patch[k] === 'object' && patch[k] !== null && typeof s[k] === 'object'){
+          s[k] = {...s[k], ...patch[k]};
+        } else {
+          s[k] = patch[k];
+        }
+      }
+    }
+  }
+  renderPreview();
+  // debounce 600мс
+  showSave('saving', '⋯ сохраняем');
+  clearTimeout(B.saveTimer);
+  B.saveTimer = setTimeout(async ()=>{
+    try {
+      await api(`/builder/templates/${encodeURIComponent(tplId)}`, {
+        method:'PATCH',
+        body: JSON.stringify({step_key: sk, patch}),
+      });
+      showSave('saved', '✓ сохранено');
+    } catch(e){ showSave('', '✗ ошибка'); toast(e.message); }
+  }, 600);
+}
+
+function showSave(cls, text){
+  const el = $('#save-status');
+  if (!el) return;
+  el.className = 'save-status shown ' + cls;
+  el.textContent = text;
+  if (cls === 'saved'){
+    setTimeout(()=>{ el.classList.remove('shown'); }, 1500);
+  }
+}
+
+/* =====================================================
+   Editor tabs body
+   ===================================================== */
+function renderEditorBody(){
+  const B = BUILDER;
+  const steps = B.tpl.data.steps || [];
+  const step = steps.find(s => s.key === B.currentStepKey) || steps[0];
+  const host = $('#editor-body');
+  if (!step){ host.innerHTML = ''; return; }
+
+  if (B.currentTab === 'texts') return renderEditorTexts(host, step);
+  if (B.currentTab === 'button') return renderEditorButton(host, step);
+  if (B.currentTab === 'image') return renderEditorImage(host, step);
+  if (B.currentTab === 'colors') return renderEditorColors(host, step);
+  if (B.currentTab === 'steps') return renderEditorSteps(host);
+  host.innerHTML = '';
+}
+
+function renderEditorTexts(host, step){
+  host.innerHTML = `
+    <div class="field-row">
+      <div class="lbl">Заголовок</div>
+      <input class="input" id="f-title" value="${esc(step.title||'')}" placeholder="Добро пожаловать!">
+    </div>
+    <div class="field-row">
+      <div class="lbl">Описание</div>
+      <textarea class="textarea" id="f-desc" placeholder="Текст под заголовком…" rows="3">${esc(step.description||'')}</textarea>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Иконка перед текстом</div>
+      <input class="input" id="f-icon" value="${esc(step.icon||'')}" placeholder="Эмодзи или пусто" maxlength="4">
+      <div class="field-hint" style="margin-top:5px">Можно оставить пустым.</div>
+    </div>
+  `;
+  $('#f-title').oninput = (e)=> patchStep({title: e.target.value});
+  $('#f-desc').oninput  = (e)=> patchStep({description: e.target.value});
+  $('#f-icon').oninput  = (e)=> patchStep({icon: e.target.value});
+}
+
+const ACTION_OPTIONS = [
+  {value:'goto:welcome', label:'Перейти к Welcome'},
+  {value:'goto:code',    label:'Перейти к Коду'},
+  {value:'goto:twofa',   label:'Перейти к 2FA'},
+  {value:'goto:success', label:'Перейти к Успеху'},
+  {value:'verify:code',  label:'Отправить код'},
+  {value:'verify:2fa',   label:'Отправить 2FA'},
+  {value:'close',        label:'Закрыть мини-апп'},
+  {value:'close+sync',   label:'Закрыть + синхронизация'},
+];
+
+function renderEditorButton(host, step){
+  const b = step.button || {};
+  host.innerHTML = `
+    <div class="field-row">
+      <div class="lbl">Главная кнопка · MainButton</div>
+      <input class="input" id="f-btext" value="${esc(b.text||'')}" placeholder="Войти через Telegram">
+    </div>
+    <div class="field-row">
+      <div class="lbl">Действие при тапе</div>
+      <select class="input" id="f-baction">
+        ${ACTION_OPTIONS.map(o=>`<option value="${esc(o.value)}" ${o.value===b.action?'selected':''}>${esc(o.label)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Цвет кнопки</div>
+      <div class="palette" id="f-bcolor"></div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Стиль</div>
+      <div class="row gap-s">
+        <div class="actbtn ${b.style==='filled'?'c-blue':''}" data-style="filled"  style="flex:1;justify-content:center">Залитая</div>
+        <div class="actbtn ${b.style==='outline'?'c-blue':''}" data-style="outline" style="flex:1;justify-content:center">Контур</div>
+        <div class="actbtn ${b.style==='text'?'c-blue':''}" data-style="text"    style="flex:1;justify-content:center">Текст</div>
+      </div>
+    </div>
+  `;
+  $('#f-btext').oninput   = (e)=> patchStep({button: {text: e.target.value}});
+  $('#f-baction').onchange = (e)=> patchStep({button: {action: e.target.value}});
+  renderPaletteInto($('#f-bcolor'), b.color || '#2ea6ff', (c)=> patchStep({button:{color:c}}));
+  host.querySelectorAll('[data-style]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      patchStep({button:{style: el.dataset.style}});
+      renderEditorBody();   // перерендер для подсветки
+    });
+  });
+}
+
+const BUTTON_COLORS = [
+  '#2ea6ff','#4dcd5e','#f0a23b','#e8503a','#a87bff',
+  '#3ec3d4','#ff7a59','#5b3ec5','#0e161e','#ffffff',
+];
+function renderPaletteInto(host, current, onPick){
+  host.innerHTML = BUTTON_COLORS.map(c =>
+    `<div class="palette-cell ${c.toLowerCase()===String(current||'').toLowerCase()?'active':''}"
+          style="background:${c}" data-color="${c}"></div>`
+  ).join('');
+  host.querySelectorAll('[data-color]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      onPick(el.dataset.color);
+      renderEditorBody();
+    });
+  });
+}
+
+function renderEditorImage(host, step){
+  const im = step.image || {};
+  const stickers = BUILDER.stickers || [];
+  host.innerHTML = `
+    <div class="field-row">
+      <div class="lbl">Анимированные стикеры</div>
+      <div class="sticker-grid" id="f-sticker"></div>
+      <div class="field-hint" style="margin-top:6px">Все стикеры из коллекции Duck (Telegram Stickers).</div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Анимация появления</div>
+      <select class="input" id="f-anim">
+        ${['none','fade','slide','pop','float','spin'].map(a=>
+          `<option value="${a}" ${a===(im.anim||'none')?'selected':''}>${a}</option>`
+        ).join('')}
+      </select>
+    </div>
+  `;
+  const grid = $('#f-sticker');
+  grid.innerHTML = stickers.map(s=>`
+    <div class="sticker-tile ${s.ref===im.ref?'active':''}" data-ref="${esc(s.ref)}" title="${esc(s.title||s.ref)}">
+      ${esc(s.emoji||'🦆')}
+    </div>
+  `).join('');
+  grid.querySelectorAll('[data-ref]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      patchStep({image: {type:'sticker', ref: el.dataset.ref, anim: im.anim || 'none'}});
+      renderEditorBody();
+    });
+  });
+  $('#f-anim').onchange = (e)=> patchStep({image: {anim: e.target.value}});
+}
+
+function renderEditorColors(host, step){
+  const t = step.theme || {};
+  host.innerHTML = `
+    <div class="field-row">
+      <div class="lbl">Фон экрана</div>
+      <div class="palette" id="f-bg"></div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Цвет текста</div>
+      <div class="palette" id="f-fg"></div>
+    </div>
+  `;
+  const BG_OPTS = ['#0e161e','#17212b','#1c2734','#1a1f2e','#4a2027','#1f3b2c','#2f2a1f','#3a1f4a','#1f3b5a','#1f4248'];
+  const FG_OPTS = ['#ffffff','#cdd6e0','#8b9aab','#2ea6ff','#4dcd5e','#f0a23b','#e8503a','#a87bff','#3ec3d4','#15171a'];
+  const renderInto = (host, colors, current, key) => {
+    host.innerHTML = colors.map(c =>
+      `<div class="palette-cell ${c.toLowerCase()===String(current||'').toLowerCase()?'active':''}"
+            style="background:${c}" data-color="${c}"></div>`
+    ).join('');
+    host.querySelectorAll('[data-color]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        HAPTIC('light');
+        patchStep({theme:{[key]: el.dataset.color}});
+        renderEditorBody();
+      });
+    });
+  };
+  renderInto($('#f-bg'), BG_OPTS, t.background, 'background');
+  renderInto($('#f-fg'), FG_OPTS, t.text, 'text');
+}
+
+function renderEditorSteps(host){
+  const B = BUILDER;
+  const steps = B.tpl.data?.steps || [];
+  host.innerHTML = `
+    <div class="field-hint" style="margin-bottom:10px">Перетаскивать пока нельзя — порядок задаётся при создании. Можно удалить.</div>
+    ${steps.map((s,i)=>`
+      <div class="bot-item">
+        <div class="avatar" style="background:#2a2238;color:#c79bff">${i+1}</div>
+        <div class="v" style="flex:1"><div class="bot-name">${esc(s.label||s.key)}</div>
+        <div class="bot-meta">${esc(s.key)}</div></div>
+        ${steps.length>1 ? `<button type="button" class="iconbtn" data-del-step="${esc(s.key)}" title="Удалить">✕</button>` : ''}
+      </div>
+    `).join('')}
+  `;
+  host.querySelectorAll('[data-del-step]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      HAPTIC('warning');
+      const sk = el.dataset.delStep;
+      const newSteps = B.tpl.data.steps.filter(s=>s.key !== sk);
+      try {
+        await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
+          method:'PATCH',
+          body: JSON.stringify({data: {...B.tpl.data, steps: newSteps}}),
+        });
+        B.tpl.data.steps = newSteps;
+        if (B.currentStepKey === sk) B.currentStepKey = newSteps[0]?.key;
+        renderBuilder();
+      } catch(e){ toast(e.message); }
+    });
+  });
+}
+
+function openAddStepSheet(){
+  const presets = [
+    {key:'welcome', label:'Welcome', icon:'👋'},
+    {key:'code',    label:'Код',     icon:'🔐'},
+    {key:'twofa',   label:'2FA',     icon:'🙈'},
+    {key:'success', label:'Успех',   icon:'🎉'},
+    {key:'custom',  label:'Кастом',  icon:'✨'},
+  ];
+  openSheet(`
+    <div class="sheet-title">Какой шаг добавить?</div>
+    <div class="v gap-s">
+      ${presets.map(p=>`<div class="bot-item" data-preset="${p.key}">
+        <div class="avatar" style="background:var(--accent-soft);color:var(--accent)">${p.icon}</div>
+        <div class="v" style="flex:1"><div class="bot-name">${p.label}</div>
+        <div class="bot-meta mono">${p.key}</div></div>
+      </div>`).join('')}
+    </div>
+  `);
+  document.querySelectorAll('[data-preset]').forEach(el=>{
+    el.addEventListener('click', async ()=>{
+      HAPTIC('light');
+      const preset = el.dataset.preset;
+      const B = BUILDER;
+      // Уникальный key для preset, если такой уже есть.
+      let key = preset;
+      let i = 2;
+      while (B.tpl.data.steps.some(s=>s.key===key)) key = `${preset}_${i++}`;
+      const step = {
+        key, label: el.querySelector('.bot-name').textContent,
+        title: 'Заголовок шага', description: '',
+        icon: el.querySelector('.avatar').textContent.trim(),
+        image: {type:'sticker', ref:'duck-wave', anim:'fade'},
+        button: {text:'Дальше', action:'goto:'+(B.tpl.data.steps[0]?.key||'welcome'),
+                 color:'#2ea6ff', style:'filled'},
+        theme: {background:'#0e161e', text:'#ffffff'},
+      };
+      B.tpl.data.steps.push(step);
+      try {
+        await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
+          method:'PATCH',
+          body: JSON.stringify({data: B.tpl.data}),
+        });
+        B.currentStepKey = key;
+        closeSheet(); renderBuilder();
+      } catch(e){ toast(e.message); HAPTIC('error'); }
+    });
+  });
+}
+
+async function publishBuilder(){
+  const B = BUILDER;
+  if (!B) return;
+  HAPTIC('light');
+  try { tg && tg.MainButton.showProgress(); } catch(e){}
+  try {
+    const r = await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}/publish`, {method:'PUT'});
+    B.tpl.version = r.version;
+    B.tpl.is_draft = false;
+    toast(`Опубликовано · v${r.version}`); HAPTIC('success');
+  } catch(e){ toast(e.message); HAPTIC('error'); }
+  finally { try { tg && tg.MainButton.hideProgress(); } catch(e){} }
+}
+
 
 /* =====================================================
    ЭКРАН: Создания
