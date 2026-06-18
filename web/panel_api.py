@@ -56,11 +56,15 @@ async def me(user: dict = Depends(verify_panel_user)) -> dict:
 # ===== bots =====
 
 def _funnel(tg_id: int | None) -> dict:
-    """4 счётчика воронки. Берём из существующих таблиц без миграций."""
+    """4 счётчика воронки. Берём из существующих таблиц без миграций.
+    `opens` — общее число запусков (то же, что показывает старая Telegram-
+    карточка как «Запусков»). `auths` — событие auth_ok из bot_auth_events."""
     if not tg_id:
         return {"opens": 0, "code_sent": 0, "twofa_sent": 0, "auths": 0}
-    opens = get_miniapp_launch_count(tg_id)
+    launches = get_launch_stats(tg_id)
     events = get_auth_event_counts(tg_id)
+    # Бэкап: если launches пуст, но есть miniapp_launches — используем их.
+    opens = int(launches.get("total") or 0) or get_miniapp_launch_count(tg_id)
     return {
         "opens": opens,
         "code_sent": events.get("code_sent", 0),
@@ -166,7 +170,9 @@ async def get_bot_card(bot_id: int, user: dict = Depends(verify_panel_user)) -> 
             template_name = t.get("name") or ""
 
     domains = user_domains_list(user["id"])
-    user_domain = domains[-1]["domain"] if domains else ""
+    last_dom = domains[-1] if domains else None
+    user_domain = last_dom["domain"] if last_dom else ""
+    domain_ssl_ok = bool(last_dom and last_dom.get("ssl_notified"))
 
     return {
         **_bot_brief(bot),
@@ -176,6 +182,7 @@ async def get_bot_card(bot_id: int, user: dict = Depends(verify_panel_user)) -> 
         "token_mask": _mask_token(bot.get("token") or ""),
         "template_name": template_name,
         "domain": user_domain,
+        "domain_ssl_ok": domain_ssl_ok,
         "proxy_id": bot.get("proxy_id"),
     }
 
@@ -446,6 +453,25 @@ async def get_template_full(
 @router.get("/domains")
 async def list_my_domains(user: dict = Depends(verify_panel_user)) -> list[dict]:
     return user_domains_list(user["id"])
+
+
+@router.post("/domains/recheck")
+async def recheck_ssl(user: dict = Depends(verify_panel_user)) -> dict:
+    """Принудительно перепроверяет SSL у всех доменов юзера (без ожидания
+    периода воркера). Помечает ssl_notified=1 если сертификат живой."""
+    from database import user_domain_mark_ssl_notified
+    from ssl_watcher import _probe_ssl
+
+    domains = user_domains_list(user["id"])
+    changed = 0
+    for d in domains:
+        if d.get("ssl_notified"):
+            continue
+        ok = await asyncio.to_thread(_probe_ssl, d["domain"])
+        if ok:
+            user_domain_mark_ssl_notified(d["id"])
+            changed += 1
+    return {"checked": len(domains), "marked_ok": changed}
 
 
 @router.post("/domains")
