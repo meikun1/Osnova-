@@ -799,7 +799,10 @@ def _scan_stickers_folder() -> list[dict]:
 
 def _load_stickers() -> dict:
     """Читает stickers.json + сливает с авто-сканом web/static/stickers/.
-    JSON имеет приоритет: если ref уже описан в файле — он выигрывает."""
+
+    Если у файла из папки тот же ref, что у emoji-записи из JSON —
+    к файловому ref добавляется суффикс `-anim`, чтобы оба варианта
+    оказались в каталоге."""
     import json as _json
     data: dict = {"main": []}
     try:
@@ -811,12 +814,23 @@ def _load_stickers() -> dict:
     except Exception as e:
         logger.warning("stickers.json read failed: %s", e)
 
-    # Сливаем с автосканом, не перезаписывая существующие ref.
-    existing_refs = {s.get("ref") for s in data.get("main") or []}
+    main = data.get("main") or []
+    existing_refs = {s.get("ref") for s in main}
     for s in _scan_stickers_folder():
-        if s["ref"] not in existing_refs:
-            data["main"].append(s)
-            existing_refs.add(s["ref"])
+        ref = s["ref"]
+        # При коллизии — добавляем суффикс, оба варианта будут в каталоге.
+        if ref in existing_refs:
+            suffixed = f"{ref}-anim"
+            i = 2
+            while suffixed in existing_refs:
+                suffixed = f"{ref}-anim-{i}"
+                i += 1
+            s = {**s, "ref": suffixed,
+                 "title": (s.get("title") or ref) + " (анимация)"}
+            ref = suffixed
+        main.append(s)
+        existing_refs.add(ref)
+    data["main"] = main
     return data
 
 

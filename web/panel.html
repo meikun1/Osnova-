@@ -1606,9 +1606,16 @@ function renderEditorImage(host, step){
   } else {
     $('#img-body').innerHTML = `
       <div class="field-row">
-        <div class="lbl">Анимированные стикеры</div>
+        <div class="lbl">Стикеры</div>
         <div class="sticker-grid" id="f-sticker"></div>
-        <div class="field-hint" style="margin-top:6px">Файл с каталогом — <code>web/static/stickers.json</code>, можно дописать руками.</div>
+        <div class="field-hint" style="margin-top:8px;line-height:1.5">
+          Чтобы добавить Lottie / gif / png — просто положите файл в
+          <code>web/static/stickers/</code>. Он появится здесь сразу,
+          без рестарта.
+          <br>
+          Поддерживаются <code>.json</code> / <code>.tgs</code> (Lottie),
+          <code>.gif</code>, <code>.png</code>, <code>.webp</code>, <code>.jpg</code>.
+        </div>
       </div>
     `;
     $('#f-sticker').innerHTML = stickers.map(s => _stickerTileHTML(s, s.ref === im.ref)).join('');
