@@ -1370,6 +1370,10 @@ function renderBuilder(){
     el.addEventListener('click', ()=>{
       HAPTIC('light');
       B.currentTab = el.dataset.tab;
+      // Переключаем .active на самих табах + перерисовываем содержимое
+      root.querySelectorAll('[data-tab]').forEach(x=>{
+        x.classList.toggle('active', x.dataset.tab === B.currentTab);
+      });
       renderEditorBody();
     });
   });
