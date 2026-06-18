@@ -757,8 +757,13 @@ async function screenSettings(botId, b){
   $('#b-add-proxy').onclick = ()=>{
     openSheet(`
       <div class="sheet-title">Добавить прокси</div>
-      <div class="field-hint" style="margin-bottom:10px">Поддерживаются socks5 / http / socks4. Формат с логином:
-        <code>socks5://user:pass@host:port</code></div>
+      <div class="field-hint" style="margin-bottom:10px;line-height:1.55">Подходят любые форматы:<br>
+        • <code>user:pass@host:port</code><br>
+        • <code>host:port:user:pass</code><br>
+        • <code>host:port</code><br>
+        • <code>socks5://user:pass@host:port</code> (с явной схемой)<br>
+        Без схемы добавится как <code>http://</code>.
+      </div>
 
       <div class="uppercase" style="margin-bottom:5px">URL прокси</div>
       <input class="input mono" id="px-url" placeholder="socks5://user:pass@1.2.3.4:1080">

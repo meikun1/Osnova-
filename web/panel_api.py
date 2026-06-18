@@ -231,13 +231,16 @@ async def add_proxy_endpoint(
     user: dict = Depends(verify_panel_user),
 ) -> dict:
     from database import add_proxy
-    url = (payload.get("url") or "").strip()
+    from handlers.proxy import _normalize
+    raw = (payload.get("url") or "").strip()
     label = (payload.get("label") or "").strip() or None
-    if not url:
+    if not raw:
         raise HTTPException(400, "url required")
-    # Минимальная проверка формата
-    if "://" not in url:
-        raise HTTPException(400, "url must be like socks5://user:pass@host:port")
+    # Поддерживаем форматы: с схемой, user:pass@host:port, host:port,
+    # host:port:user:pass (точно как в старом Telegram-хендлере).
+    url = _normalize(raw)
+    if not url:
+        raise HTTPException(400, "invalid format. Use host:port, user:pass@host:port, host:port:user:pass, or full URL")
     pid = add_proxy(user["id"], url, label)
     return {"id": pid, "url": url, "label": label}
 
