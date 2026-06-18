@@ -1,0 +1,21 @@
+{
+  "_comment": "Каталог стикеров для конструктора. Редактируется руками. Поля: ref (уникальный ключ), type ('emoji' | 'lottie' | 'image'), emoji/url, title.",
+  "main": [
+    {"ref": "duck-wave",    "type": "emoji", "emoji": "👋", "title": "Привет"},
+    {"ref": "duck-key",     "type": "emoji", "emoji": "🔐", "title": "Ключ"},
+    {"ref": "duck-shield",  "type": "emoji", "emoji": "🛡", "title": "Щит"},
+    {"ref": "duck-party",   "type": "emoji", "emoji": "🎉", "title": "Праздник"},
+    {"ref": "duck-rocket",  "type": "emoji", "emoji": "🚀", "title": "Ракета"},
+    {"ref": "duck-heart",   "type": "emoji", "emoji": "💛", "title": "Сердце"},
+    {"ref": "duck-eyes",    "type": "emoji", "emoji": "👀", "title": "Глаза"},
+    {"ref": "duck-clock",   "type": "emoji", "emoji": "⏳", "title": "Часы"},
+    {"ref": "duck-check",   "type": "emoji", "emoji": "✅", "title": "Готово"},
+    {"ref": "duck-cross",   "type": "emoji", "emoji": "❌", "title": "Ошибка"},
+    {"ref": "duck-star",    "type": "emoji", "emoji": "⭐", "title": "Звезда"},
+    {"ref": "duck-fire",    "type": "emoji", "emoji": "🔥", "title": "Огонь"}
+  ],
+  "top": [
+    {"ref": "top-pulse",   "type": "emoji", "emoji": "💫", "title": "Пульс"},
+    {"ref": "top-sparkle", "type": "emoji", "emoji": "✨", "title": "Искры"}
+  ]
+}

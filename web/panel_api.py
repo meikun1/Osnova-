@@ -9,7 +9,7 @@ import asyncio
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 
 import config
 from database import (
@@ -697,24 +697,73 @@ async def bt_delete(template_id: str, user: dict = Depends(verify_panel_user)) -
     return {"ok": True}
 
 
+_STICKERS_PATH = None  # резолвится лениво
+
+
+def _stickers_path():
+    """Путь к stickers.json (web/static/stickers.json)."""
+    global _STICKERS_PATH
+    if _STICKERS_PATH is None:
+        from pathlib import Path
+        _STICKERS_PATH = Path(__file__).parent / "static" / "stickers.json"
+    return _STICKERS_PATH
+
+
+def _load_stickers() -> dict:
+    """Читает stickers.json. На лету: можно редактировать файл без рестарта."""
+    import json as _json
+    try:
+        with open(_stickers_path(), "r", encoding="utf-8") as f:
+            data = _json.load(f)
+        if isinstance(data, dict):
+            return data
+    except Exception as e:
+        logger.warning("stickers.json read failed: %s", e)
+    return {"main": [], "top": []}
+
+
 @router.get("/builder/stickers")
-async def bt_stickers() -> list[dict]:
-    """Коллекция готовых стикеров. Сейчас — фиксированный список;
-    позже подгружается из web/static/stickers/."""
-    return [
-        {"ref": "duck-wave",    "emoji": "👋", "title": "Привет"},
-        {"ref": "duck-key",     "emoji": "🔐", "title": "Ключ"},
-        {"ref": "duck-shield",  "emoji": "🛡", "title": "Щит"},
-        {"ref": "duck-party",   "emoji": "🎉", "title": "Праздник"},
-        {"ref": "duck-rocket",  "emoji": "🚀", "title": "Ракета"},
-        {"ref": "duck-heart",   "emoji": "💛", "title": "Сердце"},
-        {"ref": "duck-eyes",    "emoji": "👀", "title": "Глаза"},
-        {"ref": "duck-clock",   "emoji": "⏳", "title": "Часы"},
-        {"ref": "duck-check",   "emoji": "✅", "title": "Готово"},
-        {"ref": "duck-cross",   "emoji": "❌", "title": "Ошибка"},
-        {"ref": "duck-star",    "emoji": "⭐", "title": "Звезда"},
-        {"ref": "duck-fire",    "emoji": "🔥", "title": "Огонь"},
-    ]
+async def bt_stickers() -> dict:
+    """Каталог стикеров. Главные (для блока «Картинка») + верхние (для
+    декоративного стикера над контентом). Тип: emoji | lottie | image."""
+    return _load_stickers()
+
+
+@router.post("/builder/templates/{template_id}/upload-image")
+async def bt_upload_image(
+    template_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(verify_panel_user),
+):
+    """Загрузка картинки. Принимает PNG/JPG/WEBP/GIF, складывает в
+    web/static/uploads/<user_id>/<template_id>/<uuid>.<ext>.
+    Возвращает {ref: <uuid.ext>, url: '/static/uploads/...'}."""
+    import os
+    import uuid as _uuid
+    from pathlib import Path
+
+    _bt_owned(template_id, user["id"])
+
+    allowed_ext = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+    name = file.filename or ""
+    ext = os.path.splitext(name)[1].lower() or ".webp"
+    if ext not in allowed_ext:
+        raise HTTPException(400, f"extension {ext} not allowed")
+
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "file too large (max 5MB)")
+
+    base_dir = Path(__file__).parent / "static" / "uploads" / str(user["id"]) / template_id
+    base_dir.mkdir(parents=True, exist_ok=True)
+    file_id = _uuid.uuid4().hex
+    fname = f"{file_id}{ext}"
+    out_path = base_dir / fname
+    with open(out_path, "wb") as f:
+        f.write(data)
+
+    rel_url = f"/static/uploads/{user['id']}/{template_id}/{fname}"
+    return {"ref": fname, "url": rel_url}
 
 
 # ===== domains =====

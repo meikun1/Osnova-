@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Панель управления</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://unpkg.com/@lottiefiles/lottie-player@2.0.8/dist/lottie-player.js"></script>
 <script src="/static/template-render.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1256,6 +1257,7 @@ function renderBuilder(){
       <div class="editor-tab ${B.currentTab==='texts'?'active':''}"   data-tab="texts">Тексты</div>
       <div class="editor-tab ${B.currentTab==='button'?'active':''}"  data-tab="button">Кнопки</div>
       <div class="editor-tab ${B.currentTab==='image'?'active':''}"   data-tab="image">Картинка</div>
+      <div class="editor-tab ${B.currentTab==='top'?'active':''}"     data-tab="top">Сверху</div>
       <div class="editor-tab ${B.currentTab==='colors'?'active':''}"  data-tab="colors">Цвета</div>
       <div class="editor-tab ${B.currentTab==='steps'?'active':''}"   data-tab="steps">Шаги</div>
     </div>
@@ -1358,6 +1360,7 @@ function renderEditorBody(){
   if (B.currentTab === 'texts') return renderEditorTexts(host, step);
   if (B.currentTab === 'button') return renderEditorButton(host, step);
   if (B.currentTab === 'image') return renderEditorImage(host, step);
+  if (B.currentTab === 'top') return renderEditorTop(host, step);
   if (B.currentTab === 'colors') return renderEditorColors(host, step);
   if (B.currentTab === 'steps') return renderEditorSteps(host);
   host.innerHTML = '';
@@ -1451,16 +1454,36 @@ function renderPaletteInto(host, current, onPick){
   });
 }
 
+function _stickerTileHTML(s, active){
+  if (s.type === 'lottie' && s.url){
+    return `<div class="sticker-tile ${active?'active':''}" data-ref="${esc(s.ref)}" title="${esc(s.title||s.ref)}">
+      <lottie-player src="${esc(s.url)}" background="transparent" speed="1" loop autoplay style="width:54px;height:54px"></lottie-player>
+    </div>`;
+  }
+  if (s.type === 'image' && s.url){
+    return `<div class="sticker-tile ${active?'active':''}" data-ref="${esc(s.ref)}" title="${esc(s.title||s.ref)}">
+      <img src="${esc(s.url)}" alt="" style="max-width:54px;max-height:54px;object-fit:contain">
+    </div>`;
+  }
+  return `<div class="sticker-tile ${active?'active':''}" data-ref="${esc(s.ref)}" title="${esc(s.title||s.ref)}">
+    ${esc(s.emoji||'🦆')}
+  </div>`;
+}
+
 function renderEditorImage(host, step){
   const im = step.image || {};
-  const stickers = BUILDER.stickers || [];
+  const stickers = (BUILDER.stickers && BUILDER.stickers.main) || [];
+  const isUpload = im.type === 'upload';
   host.innerHTML = `
     <div class="field-row">
-      <div class="lbl">Анимированные стикеры</div>
-      <div class="sticker-grid" id="f-sticker"></div>
-      <div class="field-hint" style="margin-top:6px">Все стикеры из коллекции Duck (Telegram Stickers).</div>
+      <div class="lbl">Источник</div>
+      <div class="row gap-s">
+        <div class="actbtn ${!isUpload?'c-blue':''}" data-src="sticker" style="flex:1;justify-content:center">Стикеры</div>
+        <div class="actbtn ${isUpload?'c-blue':''}"  data-src="upload"  style="flex:1;justify-content:center">Загрузить</div>
+      </div>
     </div>
-    <div class="field-row">
+    <div id="img-body"></div>
+    <div class="field-row" style="margin-top:14px">
       <div class="lbl">Анимация появления</div>
       <select class="input" id="f-anim">
         ${['none','fade','slide','pop','float','spin'].map(a=>
@@ -1469,20 +1492,123 @@ function renderEditorImage(host, step){
       </select>
     </div>
   `;
-  const grid = $('#f-sticker');
-  grid.innerHTML = stickers.map(s=>`
-    <div class="sticker-tile ${s.ref===im.ref?'active':''}" data-ref="${esc(s.ref)}" title="${esc(s.title||s.ref)}">
-      ${esc(s.emoji||'🦆')}
-    </div>
-  `).join('');
-  grid.querySelectorAll('[data-ref]').forEach(el=>{
+  host.querySelectorAll('[data-src]').forEach(el=>{
     el.addEventListener('click', ()=>{
       HAPTIC('light');
-      patchStep({image: {type:'sticker', ref: el.dataset.ref, anim: im.anim || 'none'}});
+      const src = el.dataset.src;
+      if (src === 'sticker'){
+        patchStep({image: {type:'sticker', ref: im.ref || stickers[0]?.ref || 'duck-wave',
+                           anim: im.anim || 'none', url: undefined}});
+      } else {
+        patchStep({image: {type:'upload', ref: im.ref, url: im.url, anim: im.anim || 'fade'}});
+      }
       renderEditorBody();
     });
   });
   $('#f-anim').onchange = (e)=> patchStep({image: {anim: e.target.value}});
+
+  if (isUpload){
+    renderUploadSection($('#img-body'), step, 'image');
+  } else {
+    $('#img-body').innerHTML = `
+      <div class="field-row">
+        <div class="lbl">Анимированные стикеры</div>
+        <div class="sticker-grid" id="f-sticker"></div>
+        <div class="field-hint" style="margin-top:6px">Файл с каталогом — <code>web/static/stickers.json</code>, можно дописать руками.</div>
+      </div>
+    `;
+    $('#f-sticker').innerHTML = stickers.map(s => _stickerTileHTML(s, s.ref === im.ref)).join('');
+    $('#f-sticker').querySelectorAll('[data-ref]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        HAPTIC('light');
+        patchStep({image: {type:'sticker', ref: el.dataset.ref, anim: im.anim || 'none', url: undefined}});
+        renderEditorBody();
+      });
+    });
+  }
+}
+
+function renderUploadSection(host, step, field){
+  // field: 'image' (нижняя картинка) - для других можно расширить
+  const im = step[field] || {};
+  host.innerHTML = `
+    <div class="field-row">
+      <div class="lbl">Загруженный файл</div>
+      ${im.url ? `<div class="codeblock" style="word-break:break-all">${esc(im.url)}</div>` : '<div class="field-hint">Файл не выбран</div>'}
+      <div style="height:8px"></div>
+      <input type="file" id="f-upload" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">
+      <button class="btn small" id="b-pick" style="width:auto">Выбрать файл…</button>
+      <div class="field-hint" style="margin-top:6px">PNG, JPG, WEBP, GIF до 5 МБ</div>
+    </div>
+  `;
+  $('#b-pick').onclick = ()=> $('#f-upload').click();
+  $('#f-upload').onchange = async (e)=>{
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5*1024*1024){ toast('Файл больше 5 МБ'); return; }
+    $('#b-pick').disabled = true;
+    $('#b-pick').textContent = 'Загрузка…';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const resp = await fetch(`${ApiBase}/builder/templates/${encodeURIComponent(BUILDER.tpl.id)}/upload-image`, {
+        method:'POST', headers: { 'X-Telegram-Init-Data': INIT_DATA },
+        body: fd,
+      });
+      if (!resp.ok){
+        const j = await resp.json().catch(()=>({}));
+        throw new Error(j.detail || `HTTP ${resp.status}`);
+      }
+      const r = await resp.json();
+      patchStep({[field]: {type:'upload', ref: r.ref, url: r.url, anim: (step[field]||{}).anim || 'fade'}});
+      toast('Загружено'); HAPTIC('success');
+      renderEditorBody();
+    } catch(err){ toast(err.message); HAPTIC('error'); }
+    finally {
+      $('#b-pick').disabled = false;
+      $('#b-pick').textContent = 'Выбрать файл…';
+    }
+  };
+}
+
+function renderEditorTop(host, step){
+  const ts = step.topSticker || {};
+  const top = (BUILDER.stickers && BUILDER.stickers.top) || [];
+  host.innerHTML = `
+    <div class="field-row">
+      <div class="lbl">Стикер сверху</div>
+      <div class="field-hint" style="margin-bottom:8px">Декоративный анимированный стикер в правом верхнем углу шага. Lottie/png/emoji.</div>
+      <div class="row gap-s" style="margin-bottom:8px">
+        <button class="btn small ghost" id="ts-clear" style="width:auto">Убрать</button>
+      </div>
+      <div class="sticker-grid" id="ts-grid"></div>
+      <div class="field-hint" style="margin-top:6px">Каталог редактируется в <code>web/static/stickers.json</code> (раздел <code>top</code>).</div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Анимация</div>
+      <select class="input" id="ts-anim">
+        ${['none','fade','slide','pop','float','spin'].map(a=>
+          `<option value="${a}" ${a===(ts.anim||'float')?'selected':''}>${a}</option>`
+        ).join('')}
+      </select>
+    </div>
+  `;
+  $('#ts-grid').innerHTML = top.length
+    ? top.map(s => _stickerTileHTML(s, s.ref === ts.ref)).join('')
+    : `<div class="field-hint" style="grid-column:1/-1;text-align:center;padding:14px">Пока нет верхних стикеров. Допиши в stickers.json раздел "top".</div>`;
+  $('#ts-grid').querySelectorAll('[data-ref]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      patchStep({topSticker: {ref: el.dataset.ref, anim: ts.anim || 'float'}});
+      renderEditorBody();
+    });
+  });
+  $('#ts-clear').onclick = ()=>{
+    HAPTIC('light');
+    patchStep({topSticker: null});
+    renderEditorBody();
+  };
+  $('#ts-anim').onchange = (e)=> patchStep({topSticker: {...(step.topSticker||{}), anim: e.target.value}});
 }
 
 function renderEditorColors(host, step){

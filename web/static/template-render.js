@@ -38,11 +38,47 @@
     return e;
   }
 
-  /** Превратить ссылку на стикер в Emoji (пока заглушка — будут .tgs). */
-  function stickerEmoji(ref, stickers) {
-    if (!stickers) return '🦆';
-    const s = stickers.find((x) => x.ref === ref);
-    return s ? s.emoji : '🦆';
+  /** Найти стикер по ref в массивах main/top. */
+  function findSticker(ref, stickers) {
+    if (!ref) return null;
+    const list = (stickers && stickers.main) || stickers || [];
+    let s = list.find((x) => x.ref === ref);
+    if (s) return s;
+    if (stickers && stickers.top) {
+      s = stickers.top.find((x) => x.ref === ref);
+      if (s) return s;
+    }
+    return null;
+  }
+
+  function renderSticker(ref, stickers, sizePx) {
+    const sticker = findSticker(ref, stickers);
+    const size = sizePx || 64;
+    if (!sticker) {
+      const def = el('div', { style: { fontSize: size + 'px', lineHeight: '1' } }, '🦆');
+      return def;
+    }
+    if (sticker.type === 'lottie' && sticker.url) {
+      // lottie-player должен быть подключён в panel.html (CDN @lottiefiles)
+      const lp = document.createElement('lottie-player');
+      lp.setAttribute('src', sticker.url);
+      lp.setAttribute('background', 'transparent');
+      lp.setAttribute('speed', '1');
+      lp.setAttribute('loop', '');
+      lp.setAttribute('autoplay', '');
+      lp.style.width = size + 'px';
+      lp.style.height = size + 'px';
+      return lp;
+    }
+    if (sticker.type === 'image' && sticker.url) {
+      const img = el('img', { src: sticker.url, alt: '' });
+      img.style.width = size + 'px';
+      img.style.height = size + 'px';
+      img.style.objectFit = 'contain';
+      return img;
+    }
+    // emoji по умолчанию
+    return el('div', { style: { fontSize: size + 'px', lineHeight: '1' } }, sticker.emoji || '🦆');
   }
 
   function renderImage(image, stickers) {
@@ -52,24 +88,36 @@
       class: 'tr-image',
       style: {
         animation: anim === 'none' ? 'none' : `${anim} 1.8s ease-out infinite`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       },
     });
     if (image.type === 'sticker') {
-      node.textContent = stickerEmoji(image.ref, stickers);
-      node.style.fontSize = '64px';
-      node.style.lineHeight = '1';
-    } else if (image.type === 'upload' && image.ref) {
-      // Загруженные картинки лежат под /static/uploads/.../<ref>.webp
-      const img = el('img', { src: image.ref, alt: '' });
+      node.appendChild(renderSticker(image.ref, stickers, 80));
+    } else if (image.type === 'upload' && image.url) {
+      const img = el('img', { src: image.url, alt: '' });
       img.style.maxWidth = '160px';
       img.style.maxHeight = '160px';
       img.style.objectFit = 'contain';
       node.appendChild(img);
     } else {
-      node.textContent = '🦆';
-      node.style.fontSize = '64px';
+      node.appendChild(el('div', { style: { fontSize: '64px' } }, '🦆'));
     }
     return node;
+  }
+
+  function renderTopSticker(topSticker, stickers) {
+    if (!topSticker || !topSticker.ref) return null;
+    const anim = ANIM_KEYS.has(topSticker.anim) ? topSticker.anim : 'float';
+    const wrap = el('div', {
+      class: 'tr-top',
+      style: {
+        position: 'absolute', top: '8px', right: '12px', zIndex: '3',
+        pointerEvents: 'none',
+        animation: anim === 'none' ? 'none' : `${anim} 2.4s ease-in-out infinite`,
+      },
+    });
+    wrap.appendChild(renderSticker(topSticker.ref, stickers, 40));
+    return wrap;
   }
 
   function renderButton(btn, onAction) {
@@ -100,6 +148,7 @@
     const root = el('div', {
       class: 'tr-step',
       style: {
+        position: 'relative',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', textAlign: 'center',
         padding: '24px 20px',
@@ -111,6 +160,9 @@
         fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
       },
     });
+
+    const top = renderTopSticker(step.topSticker, opts.stickers);
+    if (top) root.appendChild(top);
 
     const img = renderImage(step.image, opts.stickers);
     if (img) root.appendChild(img);
