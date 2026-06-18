@@ -626,13 +626,16 @@ async def bt_create(
     from database import builder_template_create, builder_template_get, _now
     slug = (payload.get("slug") or "").strip().lower()
     name = (payload.get("name") or "").strip()
+    kind = (payload.get("kind") or "standard").strip().lower()
+    if kind not in ("standard", "welcome", "text"):
+        kind = "standard"
     if not slug:
         slug = f"template_{_now()}"
     if not _re.match(r"^[a-z0-9_-]{1,40}$", slug):
         raise HTTPException(400, "slug must be a-z0-9_- only, ≤40 chars")
     if builder_template_get(slug):
         raise HTTPException(409, "template with this slug already exists")
-    return builder_template_create(user["id"], slug, name or slug)
+    return builder_template_create(user["id"], slug, name or slug, kind=kind)
 
 
 @router.patch("/builder/templates/{template_id}")
@@ -709,23 +712,69 @@ def _stickers_path():
     return _STICKERS_PATH
 
 
+_STICKER_EXTS = {
+    ".json": "lottie",
+    ".tgs":  "lottie",   # формально нужно gunzip; lottie-player сам не умеет
+    ".gif":  "image",
+    ".png":  "image",
+    ".webp": "image",
+    ".jpg":  "image",
+    ".jpeg": "image",
+}
+
+
+def _scan_stickers_folder() -> list[dict]:
+    """Сканирует web/static/stickers/ и собирает все картинки/lottie оттуда.
+    ref = имя файла без расширения. title = ref. Тип угадывается по extension."""
+    from pathlib import Path
+    folder = Path(__file__).parent / "static" / "stickers"
+    if not folder.is_dir():
+        return []
+    items: list[dict] = []
+    for p in sorted(folder.iterdir()):
+        if not p.is_file():
+            continue
+        ext = p.suffix.lower()
+        t = _STICKER_EXTS.get(ext)
+        if not t:
+            continue
+        ref = p.stem
+        items.append({
+            "ref": ref,
+            "type": t,
+            "url": f"/static/stickers/{p.name}",
+            "title": ref.replace("-", " ").replace("_", " "),
+        })
+    return items
+
+
 def _load_stickers() -> dict:
-    """Читает stickers.json. На лету: можно редактировать файл без рестарта."""
+    """Читает stickers.json + сливает с авто-сканом web/static/stickers/.
+    JSON имеет приоритет: если ref уже описан в файле — он выигрывает."""
     import json as _json
+    data: dict = {"main": []}
     try:
         with open(_stickers_path(), "r", encoding="utf-8") as f:
-            data = _json.load(f)
-        if isinstance(data, dict):
-            return data
+            raw = _json.load(f)
+        if isinstance(raw, dict):
+            data = raw
+            data.setdefault("main", [])
     except Exception as e:
         logger.warning("stickers.json read failed: %s", e)
-    return {"main": [], "top": []}
+
+    # Сливаем с автосканом, не перезаписывая существующие ref.
+    existing_refs = {s.get("ref") for s in data.get("main") or []}
+    for s in _scan_stickers_folder():
+        if s["ref"] not in existing_refs:
+            data["main"].append(s)
+            existing_refs.add(s["ref"])
+    return data
 
 
 @router.get("/builder/stickers")
 async def bt_stickers() -> dict:
-    """Каталог стикеров. Главные (для блока «Картинка») + верхние (для
-    декоративного стикера над контентом). Тип: emoji | lottie | image."""
+    """Каталог стикеров (main). Тип: emoji | lottie | image.
+    Источники: stickers.json + автоскан web/static/stickers/."""
     return _load_stickers()
 
 

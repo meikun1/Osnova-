@@ -1169,20 +1169,47 @@ async function screenTemplate(botId, templateId){
     $('#b-new-tpl').onclick = ()=>{
       openSheet(`
         <div class="sheet-title">Новый шаблон</div>
-        <div class="field-hint" style="margin-bottom:10px">Дам стартовые 4 шага (Welcome / Код / 2FA / Успех), потом отредактируешь.</div>
+
+        <div class="uppercase" style="margin-bottom:5px">На основе</div>
+        <div class="row gap-s" style="margin-bottom:14px">
+          <div class="actbtn c-blue active" data-kind="standard" style="flex:1;justify-content:center;border-color:var(--accent)">Стандарт</div>
+          <div class="actbtn c-orange" data-kind="welcome" style="flex:1;justify-content:center">Welcome</div>
+          <div class="actbtn c-gray"   data-kind="text"    style="flex:1;justify-content:center">Текст</div>
+        </div>
+        <div class="field-hint" id="tpl-hint" style="margin-bottom:14px">Стандарт: 4 шага (Welcome → Код → 2FA → Успех) — для авторизации через мини-апп.</div>
+
         <div class="uppercase" style="margin-bottom:5px">Имя шаблона</div>
         <input class="input" id="tpl-name" placeholder="Например: мой_первый" maxlength="40">
         <div style="height:14px"></div>
         <button class="btn" id="tpl-save">Создать и открыть</button>
       `);
+      let chosenKind = 'standard';
+      const HINTS = {
+        standard: 'Стандарт: 4 шага (Welcome → Код → 2FA → Успех) — для авторизации через мини-апп.',
+        welcome:  'Welcome: 1 шаг приветствия — без авторизации.',
+        text:     'Текст: 1 шаг с длинным текстом и кнопкой действия.',
+      };
+      document.querySelectorAll('[data-kind]').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          chosenKind = el.dataset.kind;
+          document.querySelectorAll('[data-kind]').forEach(x=>{
+            x.classList.toggle('c-blue', x===el);
+            x.classList.toggle('c-gray', x!==el && x.dataset.kind==='text');
+            x.classList.toggle('c-orange', x!==el && x.dataset.kind==='welcome');
+            x.style.borderColor = (x===el) ? 'var(--accent)' : 'var(--card-border)';
+          });
+          $('#tpl-hint').textContent = HINTS[chosenKind] || '';
+          HAPTIC('light');
+        });
+      });
       $('#tpl-save').onclick = async ()=>{
         const nm = $('#tpl-name').value.trim();
         if (!nm) return toast('Введите имя');
-        // slug = транслит-простой: оставляем латиницу/цифры/-_, остальное в _
         const slug = nm.toLowerCase().replace(/[^a-z0-9_-]+/g, '_').replace(/^_+|_+$/g,'').slice(0,40)
                      || ('tpl_' + Date.now());
         try {
-          const t = await api('/builder/templates', {method:'POST', body: JSON.stringify({slug, name: nm})});
+          const t = await api('/builder/templates', {method:'POST',
+            body: JSON.stringify({slug, name: nm, kind: chosenKind})});
           closeSheet(); HAPTIC('success');
           navigate(screenBuilder, t.id);
         } catch(e){ toast(e.message); HAPTIC('error'); }

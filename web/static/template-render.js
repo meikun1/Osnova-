@@ -71,10 +71,12 @@
       return lp;
     }
     if (sticker.type === 'image' && sticker.url) {
+      // gif/png/webp/jpg — обычный <img>, gif анимируется нативно
       const img = el('img', { src: sticker.url, alt: '' });
       img.style.width = size + 'px';
       img.style.height = size + 'px';
       img.style.objectFit = 'contain';
+      img.style.imageRendering = '-webkit-optimize-contrast';
       return img;
     }
     // emoji по умолчанию
@@ -150,15 +152,27 @@
     const img = renderImage(step.image, opts.stickers);
     if (img) root.appendChild(img);
 
-    if (step.icon) {
-      const ic = el('div', { class: 'tr-icon', style: {fontSize:'28px',lineHeight:'1'}}, step.icon);
-      root.appendChild(ic);
-    }
-    if (step.title) {
-      root.appendChild(el('div', {
-        class: 'tr-title',
-        style: { fontSize: '20px', fontWeight: '800', lineHeight: '1.2' },
-      }, step.title));
+    if (step.title || step.icon) {
+      const titleRow = el('div', {
+        class: 'tr-title-row',
+        style: {
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          gap: '10px', maxWidth: '100%', flexWrap: 'wrap',
+        },
+      });
+      if (step.icon) {
+        titleRow.appendChild(el('div', {
+          class: 'tr-icon',
+          style: { fontSize: '26px', lineHeight: '1', flexShrink: '0' },
+        }, step.icon));
+      }
+      if (step.title) {
+        titleRow.appendChild(el('div', {
+          class: 'tr-title',
+          style: { fontSize: '20px', fontWeight: '800', lineHeight: '1.2' },
+        }, step.title));
+      }
+      root.appendChild(titleRow);
     }
     if (step.description) {
       root.appendChild(el('div', {

@@ -897,13 +897,43 @@ def pending_bot_get(user_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def builder_template_default_data(name: str = "default_v3") -> dict:
-    """Дефолтные 4 шага мини-аппа для нового конструкторского шаблона."""
-    return {
-        "id": name,
-        "name": name,
-        "version": 1,
-        "steps": [
+def builder_template_default_data(name: str = "default_v3",
+                                  kind: str = "standard") -> dict:
+    """Дефолтные шаги мини-аппа для нового конструкторского шаблона.
+
+    kind:
+      'standard' — 4 шага (Welcome / Код / 2FA / Успех), стандартный мини-апп
+      'welcome'  — 1 шаг приветствия (без авторизации)
+      'text'     — 1 шаг с длинным текстом и кнопкой
+    """
+    if kind == "welcome":
+        steps = [
+            {
+                "key": "welcome", "label": "Welcome",
+                "title": "Добро пожаловать!",
+                "description": "Спасибо за заявку — рады вас видеть.",
+                "icon": "👋",
+                "image": {"type": "sticker", "ref": "duck-wave", "anim": "float"},
+                "button": {"text": "Открыть", "action": "close",
+                           "color": "#2ea6ff", "style": "filled"},
+                "theme": {"background": "#0e161e", "text": "#ffffff"},
+            },
+        ]
+    elif kind == "text":
+        steps = [
+            {
+                "key": "info", "label": "Info",
+                "title": "Информация",
+                "description": "Текст для пользователя. Замените на свой.",
+                "icon": "",
+                "image": {"type": "sticker", "ref": "duck-fire", "anim": "fade"},
+                "button": {"text": "Понятно", "action": "close",
+                           "color": "#2ea6ff", "style": "filled"},
+                "theme": {"background": "#0e161e", "text": "#ffffff"},
+            },
+        ]
+    else:  # standard
+        steps = [
             {
                 "key": "welcome", "label": "Welcome",
                 "title": "Добро пожаловать!",
@@ -944,15 +974,16 @@ def builder_template_default_data(name: str = "default_v3") -> dict:
                            "color": "#4dcd5e", "style": "filled"},
                 "theme": {"background": "#0e161e", "text": "#ffffff"},
             },
-        ],
-    }
+        ]
+    return {"id": name, "name": name, "version": 1, "kind": kind, "steps": steps}
 
 
 def builder_template_create(owner_id: int, slug: str, name: str | None = None,
-                            data: dict | None = None) -> dict:
-    """Создаёт шаблон в bot_templates. Возвращает полный dict."""
+                            data: dict | None = None, kind: str = "standard") -> dict:
+    """Создаёт шаблон в bot_templates. Возвращает полный dict.
+    kind задаёт пресет дефолтных шагов: standard | welcome | text."""
     if not data:
-        data = builder_template_default_data(slug)
+        data = builder_template_default_data(slug, kind=kind)
     name = name or slug
     now = _now()
     with _lock:
