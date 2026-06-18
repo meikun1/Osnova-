@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.invite2</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.invitesave</div>
   </div>
 
   <main id="content"></main>
@@ -1487,9 +1487,16 @@ function renderEditorBody(){
 }
 
 function renderEditorInvite(host){
-  const inv = BUILDER.tpl.data.invite || {
-    text: '', button_text: '', second_text: '', second_sticker: null
-  };
+  // Если в шаблоне нет invite — подставляем стандартный шаблонный текст.
+  if (!BUILDER.tpl.data.invite){
+    BUILDER.tpl.data.invite = {
+      text: "👋 Здравствуйте!\nЧтобы получить доступ — нажмите кнопку ниже.",
+      button_text: "🚀 Открыть приложение",
+      second_text: "",
+      second_sticker: null,
+    };
+  }
+  const inv = BUILDER.tpl.data.invite;
   // Категории стикеров: руки + лица + чек/крест (как «реакции»)
   const allStickers = (BUILDER.stickers && BUILDER.stickers.main) || [];
   const reactionStickers = allStickers.filter(s =>
@@ -1977,8 +1984,24 @@ function renderEditorColors(host /*, step — игнорируется: тема
 /* Отдельный экран: сообщение-приглашение (общее для всего шаблона). */
 async function screenBuilderInvite(tplId){
   setTitle('Приглашение', BUILDER && BUILDER.tpl ? BUILDER.tpl.name : '');
-  root.innerHTML = `<div id="ed-invite"></div>`;
+  root.innerHTML = `
+    <div id="ed-invite"></div>
+    <div style="height:60px"></div>
+  `;
   renderEditorInvite($('#ed-invite'));
+  // Кнопка Сохранить через нативный MainButton — гарантирует видимость.
+  setMain('Сохранить', async ()=>{
+    HAPTIC('light');
+    try {
+      // patchRoot уже задебаунсил всё — но на всякий случай форсируем
+      // отправку текущего состояния invite.
+      await api(`/builder/templates/${encodeURIComponent(BUILDER.tpl.id)}`, {
+        method:'PATCH',
+        body: JSON.stringify({root_patch: {invite: BUILDER.tpl.data.invite || {}}}),
+      });
+      toast('Сохранено'); HAPTIC('success');
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+  });
 }
 
 /* Отдельный экран: цвета/фон шаблона. */

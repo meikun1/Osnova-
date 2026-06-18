@@ -825,6 +825,15 @@ def _legacy_to_builder(content: dict, kind: str, slug: str) -> dict:
     }
     bot_messages = {k: v for k, v in bot_messages.items() if v}
 
+    # data.invite — заполняем из start_msg/start_btn старого шаблона.
+    invite = {
+        "text": pick("start_msg") or
+                "👋 Здравствуйте!\nЧтобы получить доступ — нажмите кнопку ниже.",
+        "button_text": pick("start_btn") or "🚀 Открыть приложение",
+        "second_text": pick("second_msg"),
+        "second_sticker": None,
+    }
+
     base_theme = {"background": "#0e161e", "text": "#ffffff"}
 
     if kind == "welcome":
@@ -920,6 +929,7 @@ def _legacy_to_builder(content: dict, kind: str, slug: str) -> dict:
         "name": slug,
         "version": 1,
         "kind": kind,
+        "invite": invite,
         "steps": steps,
     }
     if bot_messages:
@@ -955,7 +965,19 @@ async def bt_import_legacy(legacy_id: int,
 
 @router.get("/builder/templates/{template_id}")
 async def bt_get(template_id: str, user: dict = Depends(verify_panel_user)) -> dict:
-    return _bt_owned(template_id, user["id"])
+    t = _bt_owned(template_id, user["id"])
+    # Подставляем дефолтный invite если его нет — для старых шаблонов,
+    # созданных до появления поля.
+    d = t.get("data") if isinstance(t.get("data"), dict) else {}
+    if not d.get("invite"):
+        d["invite"] = {
+            "text": "👋 Здравствуйте!\nЧтобы получить доступ — нажмите кнопку ниже.",
+            "button_text": "🚀 Открыть приложение",
+            "second_text": "",
+            "second_sticker": None,
+        }
+        t["data"] = d
+    return t
 
 
 @router.post("/builder/templates")
