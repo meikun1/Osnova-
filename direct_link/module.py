@@ -54,10 +54,17 @@ class DirectLinkModule:
         state = await self.storage.get(bot_id)
         return bool(state and state["enabled"])
 
+    @staticmethod
+    def _gen_token(length: int = 6) -> str:
+        """Slug из A-Z, a-z, 0-9 заданной длины (по умолчанию 6).
+        Совместим с Telegram startapp параметром (ограничение [A-Za-z0-9_-])."""
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
     async def get_or_init(self, bot_id: int) -> BotState:
         state = await self.storage.get(bot_id)
         if state is None:
-            state = await self.storage.init(bot_id, secrets.token_urlsafe(16))
+            state = await self.storage.init(bot_id, self._gen_token(6))
         return state
 
     async def build_url(self, bot_id: int) -> str:
@@ -200,7 +207,7 @@ class DirectLinkModule:
         async def admin_rotate(bot_id: int, request: Request) -> SettingsOut:
             await self.verify_admin(request, bot_id)
             await self.get_or_init(bot_id)
-            state = await self.storage.rotate_token(bot_id, secrets.token_urlsafe(16))
+            state = await self.storage.rotate_token(bot_id, self._gen_token(6))
             url = await self.build_url(bot_id)
             return SettingsOut(
                 enabled=state["enabled"],
