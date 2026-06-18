@@ -23,25 +23,32 @@ PROBE_TIMEOUT = 6              # таймаут одного TLS-handshake
 
 
 def _probe_ssl(domain: str) -> bool:
-    """True если на domain:443 уже отдают валидный сертификат (handshake
-    проходит, hostname матчится). False — иначе (нет коннекта, протух cert,
-    self-signed staging Caddy default cert, и т.д.)."""
-    ctx = ssl.create_default_context()
+    """True если на domain:443 уже отдают валидный сертификат.
+    IDN-домены конвертируем в ASCII (Punycode), пробуем 2 раза
+    (первый коннект через CF иногда падает по таймауту)."""
     try:
-        with socket.create_connection((domain, 443), timeout=PROBE_TIMEOUT) as sock:
-            with ctx.wrap_socket(sock, server_hostname=domain) as ssock:
-                cert = ssock.getpeercert()
-                if not cert:
-                    return False
-                # Дополнительно проверим NotAfter — на свежем cert он далеко.
-                not_after = cert.get("notAfter")
-                if not_after:
-                    exp = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z")
-                    if exp.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-                        return False
-                return True
+        host = domain.encode("idna").decode("ascii")
     except Exception:
-        return False
+        host = domain
+    ctx = ssl.create_default_context()
+    for attempt in range(2):
+        try:
+            with socket.create_connection((host, 443), timeout=PROBE_TIMEOUT) as sock:
+                with ctx.wrap_socket(sock, server_hostname=host) as ssock:
+                    cert = ssock.getpeercert()
+                    if not cert:
+                        continue
+                    not_after = cert.get("notAfter")
+                    if not_after:
+                        exp = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z")
+                        if exp.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+                            continue
+                    return True
+        except Exception:
+            if attempt == 0:
+                continue
+            return False
+    return False
 
 
 async def _notify(bot: Bot, user_id: int, domain: str) -> None:

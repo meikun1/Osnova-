@@ -185,15 +185,16 @@
   .bothead .online::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 
   /* строки инфо */
-  .infogrid{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;padding:11px 14px;
+  .infogrid{display:grid;grid-template-columns:auto 1fr;gap:7px 16px;padding:12px 14px;
     background:var(--card);border:1px solid var(--card-border);border-radius:14px;
     font-size:13.5px;margin-bottom:12px;align-items:center;}
-  .infogrid .k{color:var(--label);font-weight:500;}
-  .infogrid .v{text-align:right;font-weight:600;color:var(--text);
-    display:inline-flex;align-items:center;justify-content:flex-end;gap:6px;}
-  .infogrid .v.link{color:var(--accent);}
-  .infogrid .v.mono{font-family:'JetBrains Mono',monospace;font-size:13px;}
-  .infogrid .dot-ok,.infogrid .dot-warn{display:inline-block;width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+  .infogrid > .k,.infogrid > .v{display:flex;align-items:center;}
+  .infogrid > .k{color:var(--label);font-weight:500;}
+  .infogrid > .v{font-weight:700;color:var(--text);justify-content:flex-end;gap:6px;
+    white-space:nowrap;}
+  .infogrid > .v.link{color:var(--accent);}
+  .infogrid > .v.mono{font-family:'JetBrains Mono',monospace;font-size:13px;}
+  .infogrid .dot-ok,.infogrid .dot-warn{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
   .infogrid .dot-ok{background:var(--ok);}
   .infogrid .dot-warn{background:var(--warn);}
 
@@ -541,8 +542,9 @@ function renderBotsDashboard(data){
 async function screenBotCard(botId){
   setTitle('Карточка', '');
   root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
-  // Фоновая перепроверка SSL (если статус устарел) — не блокируем UI.
-  api('/domains/recheck', {method:'POST'}).catch(()=>{});
+  // Сначала перепроверяем SSL (TLS-handshake) — только потом тянем карточку,
+  // чтобы при первом открытии статус точки уже был актуальным.
+  await api('/domains/recheck', {method:'POST'}).catch(()=>{});
   try {
     const b = await api(`/bots/${botId}`);
     setTitle('Карточка', '');
