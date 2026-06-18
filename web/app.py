@@ -123,6 +123,14 @@ def create_app() -> FastAPI:
         import os
         html = _PANEL_PATH.read_text(encoding="utf-8")
         mtime = int(os.path.getmtime(_PANEL_PATH))
+        # Cache-bust для template-render.js (его статика отдаётся StaticFiles
+        # и Telegram WebView держит в кэше дольше, чем хотелось бы).
+        tr_path = _PANEL_PATH.parent / "static" / "template-render.js"
+        try:
+            tr_v = int(os.path.getmtime(tr_path))
+        except OSError:
+            tr_v = mtime
+        html = html.replace("__TR_V__", f"v={tr_v}")
         return HTMLResponse(
             html,
             headers={
