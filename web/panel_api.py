@@ -82,6 +82,57 @@ def _bot_brief(bot: dict) -> dict:
     }
 
 
+def _bot_24h(tg_id: int | None) -> dict:
+    """24-часовые счётчики бота. Считаем прямо запросом, без новых таблиц."""
+    from database import _db, _lock, _now
+    if not tg_id:
+        return {"opens": 0, "auths": 0}
+    cutoff = _now() - 86400
+    with _lock:
+        opens = _db.one(
+            "SELECT COUNT(*) AS c FROM miniapp_launches WHERE bot_tg_id=? AND created_at>=?",
+            (tg_id, cutoff),
+        )["c"]
+        auths = _db.one(
+            "SELECT COUNT(*) AS c FROM bot_auth_events "
+            "WHERE bot_tg_id=? AND event='auth_ok' AND created_at>=?",
+            (tg_id, cutoff),
+        )["c"]
+    return {"opens": int(opens), "auths": int(auths)}
+
+
+@router.get("/overview")
+async def overview(user: dict = Depends(verify_panel_user)) -> dict:
+    """Сводка для дашборда: топ-KPI + чипы папок + список ботов с 24ч."""
+    bots = get_user_bots(user["id"])
+    folders = get_folders(user["id"])
+    total_opens = 0
+    total_auths = 0
+    items = []
+    for b in bots:
+        h = _bot_24h(b.get("tg_id"))
+        total_opens += h["opens"]
+        total_auths += h["auths"]
+        items.append({**_bot_brief(b), "opens_24h": h["opens"], "auths_24h": h["auths"]})
+    folder_counts = {}
+    for b in bots:
+        fid = b.get("folder_id")
+        if fid:
+            folder_counts[fid] = folder_counts.get(fid, 0) + 1
+    chips = [{"id": None, "name": "Все", "count": len(bots)}]
+    for f in folders:
+        chips.append({"id": f["id"], "name": f["name"], "count": folder_counts.get(f["id"], 0)})
+    return {
+        "totals": {
+            "bots_count": len(bots),
+            "opens_24h": total_opens,
+            "auths_24h": total_auths,
+        },
+        "folders": chips,
+        "bots": items,
+    }
+
+
 @router.get("/bots")
 async def list_bots(
     folder_id: int | None = None, user: dict = Depends(verify_panel_user)

@@ -132,6 +132,48 @@
     word-break:break-all;cursor:pointer;}
   .codeblock:active{background:#0a1219}
 
+  /* KPI-полоса дашборда */
+  .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+  .kpi{background:var(--card);border:1px solid var(--card-border);border-radius:14px;
+    padding:11px 10px;text-align:center}
+  .kpi .v{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;
+    color:var(--text);letter-spacing:.01em}
+  .kpi .v.ok{color:var(--ok)}
+  .kpi .k{font-size:11px;color:var(--muted);margin-top:3px;text-transform:lowercase}
+
+  /* чипы папок */
+  .chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    padding-bottom:4px;margin-bottom:8px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border-radius:10px;
+    background:var(--card);border:1px solid var(--card-border);color:var(--text-soft);
+    font-size:13px;font-weight:600;flex-shrink:0;cursor:pointer;white-space:nowrap}
+  .chip.active{background:var(--accent);color:#fff;border-color:transparent}
+  .chip .n{opacity:.7;font-weight:700}
+  .chip.active .n{opacity:.85}
+
+  /* строка бота в дашборде */
+  .botrow{display:flex;align-items:center;gap:12px;padding:11px 12px;background:var(--card);
+    border:1px solid var(--card-border);border-radius:14px;margin-bottom:8px;cursor:pointer;
+    min-height:62px}
+  .botrow:active{background:#202d3c}
+  .botrow .av{width:42px;height:42px;border-radius:12px;flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;font-weight:700;font-size:15px}
+  .botrow .meta{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+  .botrow .name{display:flex;align-items:center;gap:6px;font-size:14.5px;font-weight:700;color:var(--text)}
+  .botrow .name .sd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .botrow .name .sd.green{background:var(--ok)}
+  .botrow .name .sd.amber{background:var(--warn)}
+  .botrow .name .sd.red{background:var(--err)}
+  .botrow .un{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .botrow .right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+  .ma-pill{font-size:10.5px;font-weight:700;padding:2.5px 8px;border-radius:9px;letter-spacing:.02em}
+  .ma-pill.on{background:var(--accent-soft);color:var(--accent)}
+  .ma-pill.off{color:var(--muted)}
+  .ma-pill.off::before{content:""}
+  .botrow .cnt{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:var(--text-soft)}
+
   /* шапка бота */
   .bothead{display:flex;align-items:flex-start;gap:12px;padding:12px;background:var(--card);
     border:1px solid var(--card-border);border-radius:14px;margin-bottom:12px;}
@@ -367,45 +409,114 @@ document.querySelectorAll('nav.tabs .tab').forEach(el => {
 });
 
 /* =====================================================
-   ЭКРАН 1: список ботов
+   ЭКРАН 1: дашборд (список ботов + KPI + чипы папок)
    ===================================================== */
+const AVATAR_PALETTE = [
+  {bg:'#1f3b5a', fg:'#2ea6ff'},  // синий
+  {bg:'#1f4a3a', fg:'#4dcd5e'},  // зелёный
+  {bg:'#4a3a1f', fg:'#f0a23b'},  // оранжевый
+  {bg:'#4a1f23', fg:'#e8503a'},  // красный
+  {bg:'#3a1f4a', fg:'#a87bff'},  // фиолетовый
+  {bg:'#1f4248', fg:'#3ec3d4'},  // бирюзовый
+];
+function avatarColors(username){
+  const s = (username||'?').replace('@','');
+  let h = 0; for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+}
+function botStatusDot(b){
+  // зелёная — в порядке, янтарная — мини-апп выключен / нет домена, красная — что-то совсем
+  if (b.miniapp_enabled) return 'green';
+  return 'amber';
+}
+
+let CURRENT_FOLDER = null;
+let LAST_OVERVIEW = null;
+
 async function screenBots(){
-  setTitle('Ваши боты', '');
-  root.innerHTML = `<div class="empty"><div class="ico">⏳</div><div class="ttl">Загрузка…</div></div>`;
+  setTitle('Панель', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
   try {
-    const bots = await api('/bots');
-    if (!bots.length){
-      root.innerHTML = `
-        <div class="empty">
-          <div class="ico">🤖</div>
-          <div class="ttl">У вас ещё нет ботов</div>
-          <div class="sub">Создайте первого: вкладка <b>«Создания»</b> внизу.</div>
-        </div>`;
-      return;
-    }
-    let html = '';
-    for (const b of bots){
-      const guard = b.guard_enabled ? '<span class="pill ok dot">Защита</span>' : '';
-      const ma = b.miniapp_enabled ? '<span class="pill ok dot">Мини-апп</span>' : '';
-      const init = (b.username || '?').replace('@','').substring(0,2).toUpperCase();
+    const data = await api('/overview');
+    LAST_OVERVIEW = data;
+    renderBotsDashboard(data);
+  } catch(e){
+    root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function renderBotsDashboard(data){
+  const T = data.totals;
+  let html = `
+    <div class="kpis">
+      <div class="kpi"><div class="v">${T.bots_count}</div><div class="k">ботов</div></div>
+      <div class="kpi"><div class="v">${T.opens_24h.toLocaleString('ru')}</div><div class="k">открытий 24ч</div></div>
+      <div class="kpi"><div class="v ok">${T.auths_24h.toLocaleString('ru')}</div><div class="k">авторизаций 24ч</div></div>
+    </div>
+    <div class="chips">
+      ${data.folders.map(f =>
+        `<div class="chip ${(f.id===CURRENT_FOLDER)?'active':''}" data-fid="${f.id===null?'':f.id}">${esc(f.name)} <span class="n">${f.count}</span></div>`
+      ).join('')}
+    </div>
+    <div class="section-label">Ваши боты</div>
+  `;
+
+  const filtered = data.bots.filter(b => CURRENT_FOLDER==null ? true : b.folder_id===CURRENT_FOLDER);
+
+  if (!filtered.length){
+    html += `<div class="empty"><div class="ico">🤖</div><div class="ttl">Здесь пусто</div><div class="sub">Жми «+ Добавить бота» ниже.</div></div>`;
+  } else {
+    for (const b of filtered){
+      const c = avatarColors(b.username);
+      const init = (b.username||'?').replace('@','').substring(0,1).toUpperCase();
+      const dot = botStatusDot(b);
+      const ma = b.miniapp_enabled
+        ? '<span class="ma-pill on">mini-app on</span>'
+        : '<span class="ma-pill off">mini-app off</span>';
+      const name = esc((b.username||'без имени').replace('@',''));
       html += `
-        <div class="bot-item" data-bot="${b.id}">
-          <div class="avatar">${esc(init)}</div>
-          <div class="v" style="flex:1;gap:3px">
-            <div class="bot-name">${esc(b.username || 'без имени')}</div>
-            <div class="bot-meta">Запусков: ${b.funnel.opens} · ID ${b.tg_id || '—'}</div>
+        <div class="botrow" data-bot="${b.id}">
+          <div class="av" style="background:${c.bg};color:${c.fg}">${esc(init)}</div>
+          <div class="meta">
+            <div class="name">${name}<span class="sd ${dot}"></span></div>
+            <div class="un">@${esc((b.username||'').replace('@',''))}</div>
           </div>
-          <div class="v" style="gap:4px;align-items:flex-end">${guard}${ma}</div>
+          <div class="right">
+            ${ma}
+            <div class="cnt">${b.opens_24h.toLocaleString('ru')}/24ч</div>
+          </div>
         </div>`;
     }
-    root.innerHTML = html;
-    root.querySelectorAll('[data-bot]').forEach(el => {
-      el.addEventListener('click', () => {
-        HAPTIC('light');
-        navigate(screenBotCard, parseInt(el.dataset.bot,10));
-      });
+  }
+
+  html += `
+    <button class="btn ghost" id="b-add-from-list" style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <svg class="ico-svg" style="width:16px;height:16px"><use href="#ic-plus"/></svg>
+      Добавить бота
+    </button>
+  `;
+
+  root.innerHTML = html;
+
+  root.querySelectorAll('[data-bot]').forEach(el => {
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      navigate(screenBotCard, parseInt(el.dataset.bot,10));
     });
-  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+  });
+  root.querySelectorAll('.chip').forEach(el => {
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      const v = el.dataset.fid;
+      CURRENT_FOLDER = v === '' ? null : parseInt(v,10);
+      renderBotsDashboard(LAST_OVERVIEW);
+    });
+  });
+  $('#b-add-from-list').onclick = async ()=>{
+    HAPTIC('light');
+    const d = await api('/drafts').catch(()=>null);
+    openAddBotSheet(d || {pending_token:null, has_ssl_domain:false, domains:[]});
+  };
 }
 
 /* =====================================================
