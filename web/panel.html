@@ -230,6 +230,13 @@
     align-items:center;justify-content:center;font-size:32px;}
   .sticker-tile.active{border-color:var(--accent);background:var(--accent-soft)}
 
+  /* иконки grid (6 в строку) */
+  .icon-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;}
+  .icon-tile{aspect-ratio:1;border-radius:14px;background:var(--input-bg);
+    border:2px solid var(--input-border);cursor:pointer;display:flex;
+    align-items:center;justify-content:center;font-size:26px;color:var(--muted);}
+  .icon-tile.active{border-color:var(--accent);background:var(--accent-soft)}
+
   /* save-status */
   .save-status{position:absolute;top:14px;left:14px;font-size:10.5px;font-weight:600;
     color:var(--muted);z-index:2;background:#0e161e;border:1px solid #1e2832;
@@ -1364,7 +1371,10 @@ function renderEditorBody(){
   host.innerHTML = '';
 }
 
+const ICON_PRESETS = ['🚀','✨','🔐','⚡','🎁','💎','🔥','🎉','💛','⭐','🛡','👀','⏳','✅','❌','👋','🌟','💫','🎯','📩'];
+
 function renderEditorTexts(host, step){
+  const curIcon = step.icon || '';
   host.innerHTML = `
     <div class="field-row">
       <div class="lbl">Заголовок</div>
@@ -1376,13 +1386,24 @@ function renderEditorTexts(host, step){
     </div>
     <div class="field-row">
       <div class="lbl">Иконка перед текстом</div>
-      <input class="input" id="f-icon" value="${esc(step.icon||'')}" placeholder="Эмодзи или пусто" maxlength="4">
-      <div class="field-hint" style="margin-top:5px">Можно оставить пустым.</div>
+      <div class="icon-grid" id="f-icons">
+        <div class="icon-tile ${!curIcon?'active':''}" data-icon="" title="Без иконки">∅</div>
+        ${ICON_PRESETS.map(ic =>
+          `<div class="icon-tile ${ic===curIcon?'active':''}" data-icon="${esc(ic)}">${esc(ic)}</div>`
+        ).join('')}
+      </div>
+      <div class="field-hint" style="margin-top:8px">Иконка появится слева от заголовка. Можно убрать выбрав ∅.</div>
     </div>
   `;
   $('#f-title').oninput = (e)=> patchStep({title: e.target.value});
   $('#f-desc').oninput  = (e)=> patchStep({description: e.target.value});
-  $('#f-icon').oninput  = (e)=> patchStep({icon: e.target.value});
+  $('#f-icons').querySelectorAll('[data-icon]').forEach(el => {
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      patchStep({icon: el.dataset.icon});
+      renderEditorBody();
+    });
+  });
 }
 
 const ACTION_OPTIONS = [
