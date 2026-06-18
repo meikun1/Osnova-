@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.fixsteps</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.flat</div>
   </div>
 
   <main id="content"></main>
@@ -1337,6 +1337,11 @@ function renderBuilder(){
   const currentStep = steps.find(s => s.key === B.currentStepKey) || steps[0];
 
   let html = `
+    <div class="row gap-s" style="margin-bottom:8px">
+      <button class="btn small ghost" id="b-invite-open" style="flex:1;justify-content:center">📨 Сообщение-приглашение</button>
+      <button class="btn small ghost" id="b-colors-open" style="flex:1;justify-content:center">🎨 Цвета / Фон</button>
+    </div>
+
     <div class="builder-steps">
       ${steps.map((s, i)=>`
         <div class="builder-step ${s.key===B.currentStepKey?'active':''}" data-step="${esc(s.key)}">
@@ -1352,15 +1357,14 @@ function renderBuilder(){
       <div id="preview-body"></div>
     </div>
 
-    <div class="editor-tabs">
-      <div class="editor-tab ${B.currentTab==='invite'?'active':''}"  data-tab="invite">📨 Приглашение</div>
-      <div class="editor-tab ${B.currentTab==='texts'?'active':''}"   data-tab="texts">Тексты</div>
-      <div class="editor-tab ${B.currentTab==='button'?'active':''}"  data-tab="button">Кнопки</div>
-      <div class="editor-tab ${B.currentTab==='image'?'active':''}"   data-tab="image">Картинка</div>
-      <div class="editor-tab ${B.currentTab==='colors'?'active':''}"  data-tab="colors">Цвета</div>
-    </div>
+    <div class="section-label" style="margin-top:14px">Тексты</div>
+    <div id="ed-texts"></div>
 
-    <div id="editor-body"></div>
+    <div class="section-label">Кнопка</div>
+    <div id="ed-button"></div>
+
+    <div class="section-label">Картинка</div>
+    <div id="ed-image"></div>
   `;
   root.innerHTML = html;
 
@@ -1373,22 +1377,17 @@ function renderBuilder(){
     });
   });
 
-  // Editor tabs
-  root.querySelectorAll('[data-tab]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      HAPTIC('light');
-      B.currentTab = el.dataset.tab;
-      // Переключаем .active на самих табах + перерисовываем содержимое
-      root.querySelectorAll('[data-tab]').forEach(x=>{
-        x.classList.toggle('active', x.dataset.tab === B.currentTab);
-      });
-      renderEditorBody();
-    });
-  });
+  $('#b-invite-open').onclick = ()=> navigate(screenBuilderInvite, B.tpl.id);
+  $('#b-colors-open').onclick = ()=> navigate(screenBuilderColors, B.tpl.id);
 
-  // Initial preview + editor
   renderPreview();
-  renderEditorBody();
+  // Все секции рендерятся в свои хост-блоки
+  const step = steps.find(s => s.key === B.currentStepKey) || steps[0];
+  if (step){
+    renderEditorTexts($('#ed-texts'), step);
+    renderEditorButton($('#ed-button'), step);
+    renderEditorImage($('#ed-image'), step);
+  }
 }
 
 function renderPreview(){
@@ -1452,46 +1451,19 @@ function showSave(cls, text){
 /* =====================================================
    Editor tabs body
    ===================================================== */
+/* Shim для обратной совместимости: после patchStep перерисовываем
+   нужные секции редактора без полного renderBuilder. */
 function renderEditorBody(){
   const B = BUILDER;
-  const steps = B.tpl.data.steps || [];
+  const steps = B.tpl.data?.steps || [];
   const step = steps.find(s => s.key === B.currentStepKey) || steps[0];
-  const host = $('#editor-body');
-  if (!step){ host.innerHTML = ''; return; }
-
-  if (B.currentTab === 'invite') return renderEditorInvite(host);
-  if (B.currentTab === 'texts') return renderEditorTexts(host, step);
-  if (B.currentTab === 'button') return renderEditorButton(host, step);
-  if (B.currentTab === 'image') return renderEditorImage(host, step);
-  if (B.currentTab === 'colors') return renderEditorColors(host, step);
-  host.innerHTML = '';
-}
-
-const ICON_PRESETS = ['🚀','✨','🔐','⚡','🎁','💎','🔥','🎉','💛','⭐','🛡','👀','⏳','✅','❌','👋','🌟','💫','🎯','📩'];
-
-/* Универсальный PATCH root-полей шаблона с debounce. */
-function patchRoot(patch){
-  const B = BUILDER;
-  // Локальный апдейт для превью/состояний
-  for (const k in patch){
-    if (typeof patch[k] === 'object' && patch[k] !== null
-        && typeof B.tpl.data[k] === 'object' && B.tpl.data[k] !== null){
-      B.tpl.data[k] = {...B.tpl.data[k], ...patch[k]};
-    } else {
-      B.tpl.data[k] = patch[k];
-    }
-  }
-  showSave('saving', '⋯ сохраняем');
-  clearTimeout(B.saveTimer);
-  B.saveTimer = setTimeout(async ()=>{
-    try {
-      await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
-        method:'PATCH',
-        body: JSON.stringify({root_patch: patch}),
-      });
-      showSave('saved', '✓ сохранено');
-    } catch(e){ showSave('', '✗ ошибка'); toast(e.message); }
-  }, 600);
+  if (!step) return;
+  renderPreview();
+  if ($('#ed-texts'))  renderEditorTexts($('#ed-texts'), step);
+  if ($('#ed-button')) renderEditorButton($('#ed-button'), step);
+  if ($('#ed-image'))  renderEditorImage($('#ed-image'), step);
+  if ($('#ed-colors')) renderEditorColors($('#ed-colors'), step);
+  if ($('#ed-invite')) renderEditorInvite($('#ed-invite'));
 }
 
 function renderEditorInvite(host){
@@ -1952,6 +1924,22 @@ function renderEditorColors(host /*, step — игнорируется: тема
     renderPreview();
     renderEditorBody();
   };
+}
+
+/* Отдельный экран: сообщение-приглашение (общее для всего шаблона). */
+async function screenBuilderInvite(tplId){
+  setTitle('Приглашение', BUILDER && BUILDER.tpl ? BUILDER.tpl.name : '');
+  root.innerHTML = `<div id="ed-invite"></div>`;
+  renderEditorInvite($('#ed-invite'));
+}
+
+/* Отдельный экран: цвета/фон шаблона. */
+async function screenBuilderColors(tplId){
+  setTitle('Цвета шаблона', BUILDER && BUILDER.tpl ? BUILDER.tpl.name : '');
+  root.innerHTML = `<div id="ed-colors"></div>`;
+  const steps = BUILDER.tpl.data?.steps || [];
+  const step = steps.find(s => s.key === BUILDER.currentStepKey) || steps[0];
+  renderEditorColors($('#ed-colors'), step);
 }
 
 async function publishBuilder(){
