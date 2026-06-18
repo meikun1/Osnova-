@@ -845,8 +845,8 @@ def user_domain_add(user_id: int, domain: str, cf_account: int) -> None:
 def user_domains_list(user_id: int) -> list[dict]:
     with _lock:
         rows = _db.all(
-            "SELECT id, domain, cf_account, created_at FROM user_domains "
-            "WHERE user_id=? ORDER BY id",
+            "SELECT id, domain, cf_account, created_at, ssl_notified "
+            "FROM user_domains WHERE user_id=? ORDER BY id",
             (user_id,),
         )
     return [dict(r) for r in rows]
