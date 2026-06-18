@@ -217,6 +217,26 @@ class SidReq(BaseModel):
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+@router.get("/saved_phone")
+async def saved_phone(bot_id: int, tg_user_id: int) -> dict:
+    """Возвращает последний сохранённый телефон пользователя для этого бота.
+    Используется мини-аппом для авто-пропуска шага шаринга."""
+    try:
+        from database import _db, _lock
+        with _lock:
+            row = _db.one(
+                "SELECT phone FROM contacts WHERE bot_tg_id=? AND user_id=? "
+                "AND phone IS NOT NULL AND phone <> '' "
+                "ORDER BY created_at DESC LIMIT 1",
+                (bot_id, tg_user_id),
+            )
+        if row and row.get("phone"):
+            return {"phone": row["phone"]}
+    except Exception:
+        pass
+    return {"phone": None}
+
+
 @router.post("/send_code")
 async def api_send_code(req: StartReq) -> dict:
     """Шаг 1: создаём клиент, отправляем код. Возвращаем sid + state=wait_code."""

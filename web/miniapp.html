@@ -696,13 +696,32 @@
         if (!PAGES.length) { html('<h2>Доступ открыт ✅</h2>'); return; }
         step = 0;
         // Номер уже сохранён — пропускаем шаг с телефоном, сразу к коду.
-        var saved = loadPhone();
-        if (saved && PAGES[0] && PAGES[0].key === "main"
-            && findStepByKey("code") >= 0) {
-          resumeWithPhone(saved);
-          return;
-        }
-        renderStep(step);
+        // Сначала проверяем localStorage, потом сервер (если юзер сменил
+        // устройство или почистил кэш).
+        (async function tryAutoResume() {
+          var saved = loadPhone();
+          if (!saved) {
+            try {
+              var uid = tgUserId();
+              if (uid) {
+                var r = await fetch(`/auth/saved_phone?bot_id=${BOT_ID}&tg_user_id=${uid}`);
+                if (r.ok) {
+                  var j = await r.json();
+                  if (j && j.phone) {
+                    saved = j.phone;
+                    savePhone(saved);
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+          if (saved && PAGES[0] && PAGES[0].key === "main"
+              && findStepByKey("code") >= 0) {
+            resumeWithPhone(saved);
+            return;
+          }
+          renderStep(step);
+        })();
       });
     }
 

