@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.bgimg</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.theme</div>
   </div>
 
   <main id="content"></main>
@@ -1400,6 +1400,7 @@ function renderPreview(){
   if (!step){ $('#preview-body').innerHTML = '<div class="empty"><div class="sub">Нет шагов</div></div>'; return; }
   const node = window.TemplateRender.renderStep(step, {
     stickers: B.stickers,
+    theme: B.tpl.data.theme || {},
     onAction: (action)=>{ toast(`action: ${action}`); HAPTIC('light'); },
   });
   const host = $('#preview-body');
@@ -1867,18 +1868,23 @@ function renderUploadSection(host, step, field){
   };
 }
 
-function renderEditorColors(host, step){
-  const t = step.theme || {};
+function renderEditorColors(host /*, step — игнорируется: тема общая */){
+  const t = BUILDER.tpl.data.theme || {};
   const bg = String(t.background || '');
   const isImageBg = bg.startsWith('/static/') || bg.startsWith('http://') || bg.startsWith('https://');
   host.innerHTML = `
+    <div class="field-hint" style="margin-bottom:14px;padding:9px 11px;background:var(--accent-soft);
+        border-radius:10px;color:var(--accent);font-weight:600">
+      Эти настройки применяются ко всему шаблону — ко всем шагам сразу.
+    </div>
+
     <div class="field-row">
-      <div class="lbl">Фон экрана — палитра</div>
+      <div class="lbl">Фон шаблона — палитра</div>
       <div class="palette" id="f-bg"></div>
     </div>
 
     <div class="field-row">
-      <div class="lbl">Фон экрана — своя картинка</div>
+      <div class="lbl">Фон шаблона — своя картинка</div>
       ${isImageBg
         ? `<div class="codeblock" style="word-break:break-all;font-size:12px;margin-bottom:6px">${esc(bg)}</div>`
         : '<div class="field-hint" style="margin-bottom:6px">Картинка не загружена</div>'}
@@ -1891,7 +1897,7 @@ function renderEditorColors(host, step){
     </div>
 
     <div class="field-row">
-      <div class="lbl">Цвет текста</div>
+      <div class="lbl">Цвет текста (на всех шагах)</div>
       <div class="palette" id="f-fg"></div>
     </div>
   `;
@@ -1905,7 +1911,8 @@ function renderEditorColors(host, step){
     host.querySelectorAll('[data-color]').forEach(el=>{
       el.addEventListener('click', ()=>{
         HAPTIC('light');
-        patchStep({theme:{[key]: el.dataset.color}});
+        patchRoot({theme: {[key]: el.dataset.color}});
+        renderPreview();
         renderEditorBody();
       });
     });
@@ -1931,7 +1938,8 @@ function renderEditorColors(host, step){
         throw new Error(j.detail || `HTTP ${resp.status}`);
       }
       const r = await resp.json();
-      patchStep({theme:{background: r.url}});
+      patchRoot({theme: {background: r.url}});
+      renderPreview();
       toast('Фон установлен'); HAPTIC('success');
       renderEditorBody();
     } catch(err){ toast(err.message); HAPTIC('error'); }
@@ -1943,7 +1951,8 @@ function renderEditorColors(host, step){
   const clr = $('#b-bg-clear');
   if (clr) clr.onclick = ()=>{
     HAPTIC('light');
-    patchStep({theme:{background: '#0e161e'}});
+    patchRoot({theme: {background: '#0e161e'}});
+    renderPreview();
     renderEditorBody();
   };
 }

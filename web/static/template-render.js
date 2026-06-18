@@ -129,10 +129,11 @@
     }, btn.text);
   }
 
-  /** Главный экспорт. */
+  /** Главный экспорт. step + опционально opts.theme — общая тема шаблона.
+   *  Приоритет: opts.theme (шаблон) → step.theme (legacy per-step). */
   function renderStep(step, opts) {
     opts = opts || {};
-    const theme = step.theme || {};
+    const theme = Object.assign({}, step.theme || {}, opts.theme || {});
     // Фон может быть hex/rgb-цветом или URL картинки.
     const bgVal = String(theme.background || '#0e161e');
     const isImageBg = bgVal.startsWith('/static/') || bgVal.startsWith('http://') || bgVal.startsWith('https://');

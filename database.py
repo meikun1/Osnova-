@@ -986,8 +986,10 @@ def builder_template_default_data(name: str = "default_v3",
         "button_action": "open_miniapp",   # open_miniapp | open_url | none
         "button_url": "",
     }
+    # Тема на уровне шаблона — применяется ко всем шагам сразу.
+    theme = {"background": "#0e161e", "text": "#ffffff"}
     return {"id": name, "name": name, "version": 1, "kind": kind,
-            "invite": invite, "steps": steps}
+            "theme": theme, "invite": invite, "steps": steps}
 
 
 def builder_template_create(owner_id: int, slug: str, name: str | None = None,
