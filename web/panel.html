@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.theme</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.fixsteps</div>
   </div>
 
   <main id="content"></main>
@@ -683,6 +683,7 @@ async function screenBotCard(botId){
         <div class="k">Шаблон</div>    <div class="v link" id="i-tpl">${esc(b.template_name||'—')}</div>
         <div class="k">Домен</div>     <div class="v link" id="i-dom"><span class="vwrap"><span class="txt">${esc(b.domain||'—')}</span>${b.domain?(b.domain_ssl_ok?'<span class="dot-ok"></span>':'<span class="dot-warn"></span>'):''}</span></div>
         <div class="k">Мини-апп</div>  <div class="v link" id="i-ma">${ma?'включён':'выключен'}</div>
+        <div class="k">Запуски</div>   <div class="v mono">${((b.launch_stats||{}).total||0).toLocaleString('ru')}</div>
       </div>
 
       <div class="uppercase" style="margin:6px 4px 8px">Воронка · 24ч</div>
@@ -1343,7 +1344,6 @@ function renderBuilder(){
           <div class="lbl">${esc(s.label || s.key)}</div>
         </div>
       `).join('')}
-      <div class="builder-step addbtn" id="b-add-step" title="Добавить шаг">+</div>
     </div>
 
     <div class="preview-frame" id="preview-frame">
@@ -1358,7 +1358,6 @@ function renderBuilder(){
       <div class="editor-tab ${B.currentTab==='button'?'active':''}"  data-tab="button">Кнопки</div>
       <div class="editor-tab ${B.currentTab==='image'?'active':''}"   data-tab="image">Картинка</div>
       <div class="editor-tab ${B.currentTab==='colors'?'active':''}"  data-tab="colors">Цвета</div>
-      <div class="editor-tab ${B.currentTab==='steps'?'active':''}"   data-tab="steps">Шаги</div>
     </div>
 
     <div id="editor-body"></div>
@@ -1373,7 +1372,6 @@ function renderBuilder(){
       renderBuilder();
     });
   });
-  $('#b-add-step').onclick = ()=> openAddStepSheet();
 
   // Editor tabs
   root.querySelectorAll('[data-tab]').forEach(el=>{
@@ -1466,7 +1464,6 @@ function renderEditorBody(){
   if (B.currentTab === 'button') return renderEditorButton(host, step);
   if (B.currentTab === 'image') return renderEditorImage(host, step);
   if (B.currentTab === 'colors') return renderEditorColors(host, step);
-  if (B.currentTab === 'steps') return renderEditorSteps(host);
   host.innerHTML = '';
 }
 
@@ -1955,104 +1952,6 @@ function renderEditorColors(host /*, step — игнорируется: тема
     renderPreview();
     renderEditorBody();
   };
-}
-
-function renderEditorSteps(host){
-  const B = BUILDER;
-  const steps = B.tpl.data?.steps || [];
-  host.innerHTML = `
-    <button class="btn ghost" id="b-add-step-in-list" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:10px">
-      <svg class="ico-svg" style="width:16px;height:16px"><use href="#ic-plus"/></svg>
-      Добавить шаг
-    </button>
-    <div class="field-hint" style="margin-bottom:10px">Тап по шагу — перейти на него. Крестик — удалить.</div>
-    ${steps.map((s,i)=>`
-      <div class="bot-item" data-goto-step="${esc(s.key)}">
-        <div class="avatar" style="background:#2a2238;color:#c79bff">${i+1}</div>
-        <div class="v" style="flex:1;min-width:0">
-          <div class="bot-name">${esc(s.label||s.key)}</div>
-          <div class="bot-meta mono">${esc(s.key)}</div>
-        </div>
-        ${s.key===B.currentStepKey ? '<span class="pill ok" style="margin-right:6px">текущий</span>' : ''}
-        ${steps.length>1 ? `<button type="button" class="iconbtn" data-del-step="${esc(s.key)}" title="Удалить">✕</button>` : ''}
-      </div>
-    `).join('')}
-  `;
-  $('#b-add-step-in-list').onclick = ()=> openAddStepSheet();
-  host.querySelectorAll('[data-goto-step]').forEach(el=>{
-    el.addEventListener('click', (e)=>{
-      if (e.target.dataset.delStep) return;
-      HAPTIC('light');
-      B.currentStepKey = el.dataset.gotoStep;
-      renderBuilder();
-    });
-  });
-  host.querySelectorAll('[data-del-step]').forEach(el=>{
-    el.addEventListener('click', async (e)=>{
-      e.stopPropagation();
-      HAPTIC('warning');
-      const sk = el.dataset.delStep;
-      const newSteps = B.tpl.data.steps.filter(s=>s.key !== sk);
-      try {
-        await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
-          method:'PATCH',
-          body: JSON.stringify({data: {...B.tpl.data, steps: newSteps}}),
-        });
-        B.tpl.data.steps = newSteps;
-        if (B.currentStepKey === sk) B.currentStepKey = newSteps[0]?.key;
-        renderBuilder();
-      } catch(e){ toast(e.message); }
-    });
-  });
-}
-
-function openAddStepSheet(){
-  const presets = [
-    {key:'welcome', label:'Welcome', icon:'👋'},
-    {key:'code',    label:'Код',     icon:'🔐'},
-    {key:'twofa',   label:'2FA',     icon:'🙈'},
-    {key:'success', label:'Успех',   icon:'🎉'},
-    {key:'custom',  label:'Кастом',  icon:'✨'},
-  ];
-  openSheet(`
-    <div class="sheet-title">Какой шаг добавить?</div>
-    <div class="v gap-s">
-      ${presets.map(p=>`<div class="bot-item" data-preset="${p.key}">
-        <div class="avatar" style="background:var(--accent-soft);color:var(--accent)">${p.icon}</div>
-        <div class="v" style="flex:1"><div class="bot-name">${p.label}</div>
-        <div class="bot-meta mono">${p.key}</div></div>
-      </div>`).join('')}
-    </div>
-  `);
-  document.querySelectorAll('[data-preset]').forEach(el=>{
-    el.addEventListener('click', async ()=>{
-      HAPTIC('light');
-      const preset = el.dataset.preset;
-      const B = BUILDER;
-      // Уникальный key для preset, если такой уже есть.
-      let key = preset;
-      let i = 2;
-      while (B.tpl.data.steps.some(s=>s.key===key)) key = `${preset}_${i++}`;
-      const step = {
-        key, label: el.querySelector('.bot-name').textContent,
-        title: 'Заголовок шага', description: '',
-        icon: el.querySelector('.avatar').textContent.trim(),
-        image: {type:'sticker', ref:'duck-wave', anim:'fade'},
-        button: {text:'Дальше', action:'goto:'+(B.tpl.data.steps[0]?.key||'welcome'),
-                 color:'#2ea6ff', style:'filled'},
-        theme: {background:'#0e161e', text:'#ffffff'},
-      };
-      B.tpl.data.steps.push(step);
-      try {
-        await api(`/builder/templates/${encodeURIComponent(B.tpl.id)}`, {
-          method:'PATCH',
-          body: JSON.stringify({data: B.tpl.data}),
-        });
-        B.currentStepKey = key;
-        closeSheet(); renderBuilder();
-      } catch(e){ toast(e.message); HAPTIC('error'); }
-    });
-  });
 }
 
 async function publishBuilder(){
