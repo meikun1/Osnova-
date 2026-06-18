@@ -1149,18 +1149,30 @@ async function screenTemplate(botId, templateId){
       html += `<div class="empty"><div class="ico">📋</div><div class="ttl">Шаблонов пока нет</div><div class="sub">Создай первый кнопкой выше.</div></div>`;
     } else {
       for (const t of tpls){
-        const dt = new Date(t.updated_at * 1000);
+        const dt = new Date((t.updated_at||t.created_at||0) * 1000);
         const ds = dt.toLocaleString('ru', {dateStyle:'short', timeStyle:'short'});
-        const draft = t.is_draft;
+        const isLegacy = t.source === 'legacy';
+        let statusPill = '';
+        if (isLegacy){
+          statusPill = '<span class="pill muted" style="margin-right:6px">старый</span>';
+        } else if (t.is_draft){
+          statusPill = '<span class="pill warn" style="margin-right:6px">draft</span>';
+        } else {
+          statusPill = '<span class="pill ok" style="margin-right:6px">опубл.</span>';
+        }
+        const avatarColor = isLegacy ? 'background:#2a3a4a;color:#8b9aab' : 'background:#2a2238;color:#c79bff';
+        const meta = isLegacy
+          ? `${esc(t.kind||'standard')} · из Telegram-чата`
+          : `v${t.version} · ${ds}`;
         html += `
-          <div class="bot-item" data-tpl="${esc(t.id)}">
-            <div class="avatar" style="background:#2a2238;color:#c79bff">${esc(t.name.substring(0,1).toUpperCase())}</div>
+          <div class="bot-item" data-tpl="${esc(t.id)}" data-source="${esc(t.source||'builder')}" data-legacy-id="${esc(String(t.legacy_id||''))}">
+            <div class="avatar" style="${avatarColor}">${esc((t.name||'?').substring(0,1).toUpperCase())}</div>
             <div class="v" style="flex:1;min-width:0">
               <div class="bot-name">${esc(t.name)}</div>
-              <div class="bot-meta">v${t.version} · ${ds}</div>
+              <div class="bot-meta">${meta}</div>
             </div>
-            ${draft?'<span class="pill warn" style="margin-right:6px">draft</span>':'<span class="pill ok" style="margin-right:6px">опубл.</span>'}
-            <button type="button" class="iconbtn" data-del-tpl="${esc(t.id)}" title="Удалить">✕</button>
+            ${statusPill}
+            ${!isLegacy ? `<button type="button" class="iconbtn" data-del-tpl="${esc(t.id)}" title="Удалить">✕</button>` : ''}
           </div>`;
       }
     }
@@ -1220,7 +1232,11 @@ async function screenTemplate(botId, templateId){
       el.addEventListener('click', (e)=>{
         if (e.target.dataset.delTpl) return;
         HAPTIC('light');
-        navigate(screenBuilder, el.dataset.tpl);
+        if (el.dataset.source === 'legacy'){
+          openLegacyTemplateSheet(el.dataset.legacyId, el.querySelector('.bot-name').textContent);
+        } else {
+          navigate(screenBuilder, el.dataset.tpl);
+        }
       });
     });
     root.querySelectorAll('[data-del-tpl]').forEach(el=>{
@@ -1235,6 +1251,38 @@ async function screenTemplate(botId, templateId){
       });
     });
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+function openLegacyTemplateSheet(legacyId, name){
+  openSheet(`
+    <div class="sheet-title">Старый шаблон</div>
+    <div class="card tight" style="margin-bottom:12px">
+      <div style="font-weight:600">${esc(name)}</div>
+      <div class="field-hint" style="margin-top:4px">Создан в Telegram-чате старым редактором.</div>
+    </div>
+    <div class="field-hint" style="line-height:1.5;margin-bottom:14px">
+      Старые шаблоны нельзя редактировать в новом конструкторе.
+      Можно <b>импортировать</b> — получишь копию в формате конструктора,
+      исходник останется на месте.
+    </div>
+    <button class="btn" id="legacy-import">Импортировать в конструктор</button>
+    <div style="height:8px"></div>
+    <button class="btn muted" id="legacy-cancel">Отмена</button>
+  `);
+  $('#legacy-cancel').onclick = closeSheet;
+  $('#legacy-import').onclick = async ()=>{
+    $('#legacy-import').textContent = 'Импорт…';
+    $('#legacy-import').disabled = true;
+    try {
+      const t = await api(`/builder/templates/import-legacy/${encodeURIComponent(legacyId)}`, {method:'POST'});
+      closeSheet(); HAPTIC('success');
+      toast(`✓ Импортирован: ${t.name}`);
+      navigate(screenBuilder, t.id);
+    } catch(e){ toast(e.message); HAPTIC('error');
+      $('#legacy-import').textContent = 'Импортировать в конструктор';
+      $('#legacy-import').disabled = false;
+    }
+  };
 }
 
 /* =====================================================

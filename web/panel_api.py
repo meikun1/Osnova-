@@ -606,8 +606,57 @@ def _bt_owned(template_id: str, user_id: int) -> dict:
 
 @router.get("/builder/templates")
 async def bt_list(user: dict = Depends(verify_panel_user)) -> list[dict]:
+    """Список шаблонов юзера. Включает и новые builder-шаблоны (bot_templates),
+    и старые из таблицы templates (помечаются source='legacy', не редактируются
+    конструктором — только импорт или удаление)."""
     from database import builder_template_list
-    return builder_template_list(user["id"])
+    out = []
+    for t in builder_template_list(user["id"]):
+        out.append({**t, "source": "builder"})
+    for t in get_owner_templates(user["id"]):
+        out.append({
+            "id": f"legacy:{t['id']}",
+            "name": t.get("name") or "Без имени",
+            "version": 0,
+            "is_draft": False,
+            "created_at": t.get("created_at"),
+            "updated_at": t.get("created_at"),
+            "source": "legacy",
+            "legacy_id": t["id"],
+            "kind": t.get("kind", "standard"),
+        })
+    return out
+
+
+@router.post("/builder/templates/import-legacy/{legacy_id}")
+async def bt_import_legacy(legacy_id: int,
+                            user: dict = Depends(verify_panel_user)) -> dict:
+    """Импортирует старый шаблон в формат конструктора. Возвращает новый
+    builder-шаблон с теми же текстами в правильной структуре шагов."""
+    from database import (
+        builder_template_create, builder_template_default_data,
+        builder_template_get, _now,
+    )
+    t = get_template(legacy_id)
+    if not t or t["owner_id"] != user["id"]:
+        raise HTTPException(404, "legacy template not found")
+
+    kind = t.get("kind") or "standard"
+    slug = f"imported_{legacy_id}_{_now()}"
+    name = (t.get("name") or "Импортированный")[:40]
+
+    data = builder_template_default_data(slug, kind=kind)
+    # Если есть кастомные тексты в content — переносим
+    content = t.get("content") or {}
+    if isinstance(content, dict) and content:
+        # Минимальный маппинг: подменяем title первого шага из welcome_text
+        for s in data["steps"]:
+            if s["key"] == "welcome" and content.get("welcome_text"):
+                s["title"] = content["welcome_text"][:80]
+            if s["key"] == "code" and content.get("code_prompt"):
+                s["description"] = content["code_prompt"][:200]
+
+    return builder_template_create(user["id"], slug, name, data=data, kind=kind)
 
 
 @router.get("/builder/templates/{template_id}")
