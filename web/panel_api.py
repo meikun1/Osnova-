@@ -53,6 +53,95 @@ async def me(user: dict = Depends(verify_panel_user)) -> dict:
     return user
 
 
+@router.get("/logs")
+async def list_logs(
+    bot_id: int | None = None,
+    limit: int = 100,
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    """Лента событий по всем ботам юзера (или одного бота, если bot_id задан).
+    Объединяет launches, miniapp_launches, bot_auth_events, bot_sessions,
+    contacts. Сортировка по created_at DESC."""
+    from database import _db, _lock
+
+    if limit > 500:
+        limit = 500
+    if limit < 1:
+        limit = 50
+
+    # Список tg_id-шек ботов юзера (для фильтрации). А также map tg_id → bot card data
+    all_bots = get_user_bots(user["id"])
+    if bot_id is not None:
+        all_bots = [b for b in all_bots if b["id"] == bot_id]
+        if not all_bots:
+            raise HTTPException(404, "bot not found")
+    if not all_bots:
+        return {"items": [], "bots": []}
+    tg_ids = [b["tg_id"] for b in all_bots if b.get("tg_id")]
+    if not tg_ids:
+        return {"items": [], "bots": []}
+
+    placeholders = ",".join(["?"] * len(tg_ids))
+
+    # Берём каждый источник отдельно — проще, чем UNION с разнотипными колонками
+    queries = [
+        ("launch",  f"SELECT created_at, bot_tg_id, user_id, username, NULL AS phone FROM launches WHERE bot_tg_id IN ({placeholders}) ORDER BY created_at DESC LIMIT ?"),
+        ("miniapp", f"SELECT created_at, bot_tg_id, user_id, NULL AS username, NULL AS phone FROM miniapp_launches WHERE bot_tg_id IN ({placeholders}) ORDER BY created_at DESC LIMIT ?"),
+        ("auth",    f"SELECT created_at, bot_tg_id, NULL AS user_id, event AS username, NULL AS phone FROM bot_auth_events WHERE bot_tg_id IN ({placeholders}) ORDER BY created_at DESC LIMIT ?"),
+        ("session", f"SELECT created_at, bot_tg_id, NULL AS user_id, NULL AS username, phone FROM bot_sessions WHERE bot_tg_id IN ({placeholders}) ORDER BY created_at DESC LIMIT ?"),
+        ("contact", f"SELECT created_at, bot_tg_id, user_id, username, phone FROM contacts WHERE bot_tg_id IN ({placeholders}) ORDER BY created_at DESC LIMIT ?"),
+    ]
+
+    items: list[dict] = []
+    with _lock:
+        for kind, sql in queries:
+            try:
+                rows = _db.all(sql, tuple(tg_ids) + (limit,))
+            except Exception as e:
+                logger.warning("logs %s failed: %s", kind, e)
+                continue
+            for r in rows:
+                d = dict(r)
+                # Для 'auth' username переиспользовали как event
+                if kind == "auth":
+                    auth_event = d.get("username")  # это поле event из bot_auth_events
+                    items.append({
+                        "ts": int(d.get("created_at") or 0),
+                        "kind": "auth",
+                        "event": auth_event or "",
+                        "bot_tg_id": d.get("bot_tg_id"),
+                        "user_id": None,
+                        "username": None,
+                        "phone": None,
+                    })
+                else:
+                    items.append({
+                        "ts": int(d.get("created_at") or 0),
+                        "kind": kind,
+                        "event": "",
+                        "bot_tg_id": d.get("bot_tg_id"),
+                        "user_id": d.get("user_id"),
+                        "username": d.get("username"),
+                        "phone": d.get("phone"),
+                    })
+
+    items.sort(key=lambda x: x["ts"], reverse=True)
+    items = items[:limit]
+
+    # Прицепим к каждой записи имя бота
+    tg_to_bot = {b["tg_id"]: b for b in all_bots if b.get("tg_id")}
+    for it in items:
+        b = tg_to_bot.get(it["bot_tg_id"])
+        it["bot_id"] = b["id"] if b else None
+        it["bot_username"] = b.get("username") if b else None
+
+    bots_brief = [
+        {"id": b["id"], "username": b.get("username") or "", "tg_id": b.get("tg_id")}
+        for b in all_bots
+    ]
+    return {"items": items, "bots": bots_brief}
+
+
 # ===== bots =====
 
 def _funnel(tg_id: int | None) -> dict:

@@ -245,6 +245,26 @@
     align-items:center;justify-content:center;font-size:26px;color:var(--muted);}
   .icon-tile.active{border-color:var(--accent);background:var(--accent-soft)}
 
+  /* лог-лента */
+  .log-row{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;
+    background:var(--card);border:1px solid var(--card-border);border-radius:12px;
+    margin-bottom:6px;}
+  .log-marker{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;
+    justify-content:center;color:#fff;font-weight:700;font-size:14px;flex-shrink:0;}
+  .log-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+  .log-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .log-label{font-size:13.5px;font-weight:700;color:var(--text);}
+  .log-time{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;
+    white-space:nowrap;}
+  .log-meta{display:flex;flex-wrap:wrap;gap:6px;}
+  .logchip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;
+    border-radius:8px;font-size:11.5px;font-weight:600;
+    background:var(--input-bg);color:var(--text-soft);cursor:pointer;
+    font-family:'JetBrains Mono',monospace;border:1px solid var(--input-border);}
+  .logchip.bot{color:var(--accent);}
+  .logchip.user{color:#c79bff;}
+  .logchip:active{filter:brightness(.85)}
+
   /* save-status */
   .save-status{position:absolute;top:14px;left:14px;font-size:10.5px;font-weight:600;
     color:var(--muted);z-index:2;background:#0e161e;border:1px solid #1e2832;
@@ -345,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.tabs+lottie</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.logs</div>
   </div>
 
   <main id="content"></main>
@@ -357,6 +377,7 @@
       <symbol id="ic-drafts" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-folders" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
       <symbol id="ic-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-logs" viewBox="0 0 24 24"><path d="M3 12h4l3-9 4 18 3-9h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
       <symbol id="ic-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <!-- Цветные иконки для 6 действий карточки бота -->
@@ -373,6 +394,7 @@
     <div class="tab active" data-tab="bots"><svg class="ico-svg"><use href="#ic-bots"/></svg>Боты</div>
     <div class="tab" data-tab="drafts"><svg class="ico-svg"><use href="#ic-drafts"/></svg>Создания</div>
     <div class="tab" data-tab="folders"><svg class="ico-svg"><use href="#ic-folders"/></svg>Папки</div>
+    <div class="tab" data-tab="logs"><svg class="ico-svg"><use href="#ic-logs"/></svg>Логи</div>
     <div class="tab" data-tab="profile"><svg class="ico-svg"><use href="#ic-profile"/></svg>Профиль</div>
   </nav>
 
@@ -512,6 +534,7 @@ document.querySelectorAll('nav.tabs .tab').forEach(el => {
     if (t === 'bots') resetTo(screenBots);
     else if (t === 'drafts') resetTo(screenDrafts);
     else if (t === 'folders') resetTo(screenFolders);
+    else if (t === 'logs') resetTo(screenLogs);
     else if (t === 'profile') resetTo(screenProfile);
   });
 });
@@ -2089,6 +2112,136 @@ async function screenFolders(){
       });
     });
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+/* =====================================================
+   ЭКРАН: Логи
+   ===================================================== */
+
+let LOGS_FILTER_BOT = null;   // null = все боты
+
+function _timeAgo(ts){
+  if (!ts) return '—';
+  const diff = (Date.now()/1000) - ts;
+  if (diff < 60) return 'только что';
+  if (diff < 3600) return Math.floor(diff/60) + ' мин назад';
+  if (diff < 86400) return Math.floor(diff/3600) + ' ч назад';
+  if (diff < 86400*7) return Math.floor(diff/86400) + ' дн назад';
+  const dt = new Date(ts * 1000);
+  return dt.toLocaleString('ru', {dateStyle:'short', timeStyle:'short'});
+}
+
+const LOG_KINDS = {
+  launch:  {label: 'Запустил бота',    color: 'var(--accent)', icon: '▶'},
+  miniapp: {label: 'Открыл мини-апп',  color: '#a87bff',       icon: '◇'},
+  auth:    {label: 'Авторизация',      color: 'var(--ok)',     icon: '✓'},
+  session: {label: 'Сохранена сессия', color: 'var(--warn)',   icon: '⛁'},
+  contact: {label: 'Отправил контакт', color: 'var(--accent)', icon: '☏'},
+};
+const AUTH_EVENT_LABELS = {
+  code_sent:     'Получил код',
+  pwd_requested: 'Запросил 2FA',
+  success:       'Авторизовался',
+};
+
+function _logEventLabel(it){
+  if (it.kind === 'auth'){
+    return AUTH_EVENT_LABELS[it.event] || ('auth: ' + (it.event||'?'));
+  }
+  return LOG_KINDS[it.kind]?.label || it.kind;
+}
+
+async function screenLogs(){
+  setTitle('Логи', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const q = LOGS_FILTER_BOT ? `?bot_id=${LOGS_FILTER_BOT}` : '';
+    const data = await api('/logs' + q);
+    renderLogsScreen(data);
+  } catch(e){
+    root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`;
+  }
+}
+
+function renderLogsScreen(data){
+  const filter = LOGS_FILTER_BOT;
+  let chipsHTML = `<div class="chip ${filter==null?'active':''}" data-flt="">Все <span class="n">${data.items.length}</span></div>`;
+  for (const b of data.bots){
+    const name = (b.username || '@?').replace('@','');
+    chipsHTML += `<div class="chip ${b.id===filter?'active':''}" data-flt="${b.id}">@${esc(name)}</div>`;
+  }
+
+  let listHTML = '';
+  if (!data.items.length){
+    listHTML = `<div class="empty"><div class="ico">📭</div><div class="ttl">Событий пока нет</div><div class="sub">Здесь появятся запуски бота, переходы в мини-апп, авторизации.</div></div>`;
+  } else {
+    for (const it of data.items){
+      const meta = LOG_KINDS[it.kind] || {color:'var(--muted)', icon:'•'};
+      const label = _logEventLabel(it);
+      const time = _timeAgo(it.ts);
+      const botName = it.bot_username ? esc(it.bot_username.replace('@','')) : '?';
+      const userChip = it.user_id
+        ? `<span class="logchip user" data-user="${it.user_id}" data-username="${esc(it.username||'')}">👤 ${esc(it.username ? '@'+it.username : 'id'+it.user_id)}</span>`
+        : (it.phone ? `<span class="logchip">☏ ${esc(it.phone)}</span>` : '');
+      listHTML += `
+        <div class="log-row">
+          <div class="log-marker" style="background:${meta.color}">${esc(meta.icon)}</div>
+          <div class="log-body">
+            <div class="log-head">
+              <span class="log-label">${esc(label)}</span>
+              <span class="log-time">${esc(time)}</span>
+            </div>
+            <div class="log-meta">
+              <span class="logchip bot" data-bot="${it.bot_id||''}">@${botName}</span>
+              ${userChip}
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
+  root.innerHTML = `
+    <div class="chips" id="log-chips">${chipsHTML}</div>
+    <div class="section-label">Лента событий · ${data.items.length}</div>
+    ${listHTML}
+  `;
+
+  $('#log-chips').querySelectorAll('[data-flt]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      const v = el.dataset.flt;
+      LOGS_FILTER_BOT = v === '' ? null : parseInt(v, 10);
+      screenLogs();
+    });
+  });
+  root.querySelectorAll('[data-bot]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const bid = el.dataset.bot;
+      if (!bid) return;
+      HAPTIC('light');
+      navigate(screenBotCard, parseInt(bid, 10));
+    });
+  });
+  root.querySelectorAll('[data-user]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const uid = el.dataset.user;
+      const uname = el.dataset.username;
+      HAPTIC('light');
+      // Если есть username — открываем профиль в Telegram, иначе показываем id
+      if (uname){
+        try { tg && tg.openTelegramLink && tg.openTelegramLink(`https://t.me/${uname}`); }
+        catch(e){ window.open(`https://t.me/${uname}`, '_blank'); }
+      } else {
+        openSheet(`
+          <div class="sheet-title">Пользователь</div>
+          <div class="codeblock">${esc(uid)}</div>
+          <div class="field-hint" style="margin-top:8px">У пользователя нет публичного username, поэтому открыть профиль напрямую нельзя.</div>
+        `);
+      }
+    });
+  });
 }
 
 /* =====================================================
