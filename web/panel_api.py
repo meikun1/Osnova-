@@ -695,26 +695,55 @@ def _bt_owned(template_id: str, user_id: int) -> dict:
 
 @router.get("/builder/templates")
 async def bt_list(user: dict = Depends(verify_panel_user)) -> list[dict]:
-    """Список шаблонов юзера. Включает и новые builder-шаблоны (bot_templates),
-    и старые из таблицы templates (помечаются source='legacy', не редактируются
-    конструктором — только импорт или удаление)."""
-    from database import builder_template_list
-    out = []
-    for t in builder_template_list(user["id"]):
-        out.append({**t, "source": "builder"})
-    for t in get_owner_templates(user["id"]):
-        out.append({
-            "id": f"legacy:{t['id']}",
-            "name": t.get("name") or "Без имени",
-            "version": 0,
-            "is_draft": False,
-            "created_at": t.get("created_at"),
-            "updated_at": t.get("created_at"),
-            "source": "legacy",
-            "legacy_id": t["id"],
-            "kind": t.get("kind", "standard"),
-        })
-    return out
+    """Список шаблонов юзера. При первом обращении автоматически мигрирует
+    все ещё не импортированные старые шаблоны из таблицы templates в
+    bot_templates. Возвращает только builder-формат (без «старый формат»)."""
+    from database import (
+        builder_template_create, builder_template_list, _now,
+    )
+
+    # Какие legacy уже мигрированы — смотрим по data.legacy_source_id
+    builder_items = builder_template_list(user["id"])
+    migrated_legacy_ids: set[int] = set()
+    for t in builder_items:
+        # data в листе не приходит, нужно вытянуть полную запись
+        try:
+            from database import builder_template_get
+            full = builder_template_get(t["id"])
+            lid = (full.get("data") or {}).get("legacy_source_id")
+            if isinstance(lid, int):
+                migrated_legacy_ids.add(lid)
+        except Exception:
+            pass
+
+    # Мигрируем всё что ещё не мигрировано
+    legacy = get_owner_templates(user["id"])
+    for t in legacy:
+        if t["id"] in migrated_legacy_ids:
+            continue
+        kind = t.get("kind") or "standard"
+        if kind not in ("standard", "welcome", "text"):
+            kind = "standard"
+        slug = f"imported_{t['id']}_{_now()}"
+        name = (t.get("name") or "Шаблон")[:40]
+        content = t.get("content") or {}
+        try:
+            data = _legacy_to_builder(content, kind, slug)
+        except Exception as e:
+            logger.warning("auto-migrate legacy %s failed: %s", t["id"], e)
+            continue
+        data["name"] = name
+        data["legacy_source_id"] = t["id"]
+        try:
+            builder_template_create(user["id"], slug, name, data=data, kind=kind)
+        except Exception as e:
+            logger.warning("auto-migrate insert %s failed: %s", t["id"], e)
+        # Небольшая пауза, чтобы timestamp в slug отличался
+        import time as _t
+        _t.sleep(0.001)
+
+    # Возвращаем актуальный список (после миграции)
+    return [{**t, "source": "builder"} for t in builder_template_list(user["id"])]
 
 
 def _split_title(text: str) -> tuple[str, str]:
