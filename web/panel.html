@@ -97,6 +97,12 @@
   .btn.danger{background:var(--err)}
   .btn.muted{background:var(--input-bg);color:var(--text-soft);border:1px solid var(--input-border);}
   .btn.small{padding:9px 12px;font-size:13px;font-weight:600}
+  /* Маленькая круглая кнопка для action-иконок в списках */
+  .iconbtn{display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:8px;border:none;cursor:pointer;
+    background:var(--err-bg);color:var(--err);font-size:18px;font-weight:700;
+    flex-shrink:0;padding:0;line-height:1;-webkit-appearance:none;font-family:inherit;}
+  .iconbtn:active{filter:brightness(.85)}
 
   /* инпуты */
   .input,.textarea{width:100%;background:var(--input-bg);border:1px solid var(--input-border);
@@ -788,9 +794,12 @@ async function screenSettings(botId, b){
         const sel = p.id === cur;
         html += `<div class="bot-item" data-pid="${p.id}" style="${sel?'border-color:var(--accent)':''}">
           <div class="avatar" style="background:#2a3a2c;color:var(--ok)">🌐</div>
-          <div class="v" style="flex:1"><div class="bot-name">${esc(p.label || 'прокси')}</div>
-          <div class="bot-meta mono" style="font-size:11px">${esc((p.url||'').substring(0,40))}</div></div>
-          <button class="btn small danger" data-del-proxy="${p.id}" style="width:auto;padding:5px 10px;font-size:12px;margin-left:6px">×</button>
+          <div class="v" style="flex:1;min-width:0">
+            <div class="bot-name">${esc(p.label || 'прокси')}</div>
+            <div class="bot-meta mono" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.url||'')}</div>
+          </div>
+          ${sel?'<span class="pill ok dot" style="margin-right:6px">текущий</span>':''}
+          <button type="button" class="iconbtn" data-del-proxy="${p.id}" title="Удалить">✕</button>
         </div>`;
       }
       $('#proxy-list').innerHTML = html;
