@@ -350,9 +350,11 @@ def add_bot(
 ) -> int:
     user_secret = secrets.token_urlsafe(6)
     with _lock:
+        # Новый бот сразу активен: enabled=1, miniapp_enabled=1.
         row = _db.one(
             "INSERT INTO bots(owner_id, token, username, tg_id, user_secret, "
-            "created_at) VALUES(?,?,?,?,?,?) RETURNING id",
+            "enabled, miniapp_enabled, created_at) "
+            "VALUES(?,?,?,?,?,1,1,?) RETURNING id",
             (owner_id, token, username, tg_id, user_secret, _now()),
         )
         _db.commit()

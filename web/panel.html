@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.bans</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.always-on</div>
   </div>
 
   <main id="content"></main>
@@ -600,20 +600,15 @@ function renderBotsDashboard(data){
     for (const b of filtered){
       const c = avatarColors(b.username);
       const init = (b.username||'?').replace('@','').substring(0,1).toUpperCase();
-      const dot = botStatusDot(b);
-      const ma = b.miniapp_enabled
-        ? '<span class="ma-pill on">mini-app on</span>'
-        : '<span class="ma-pill off">mini-app off</span>';
       const name = esc((b.username||'без имени').replace('@',''));
       html += `
         <div class="botrow" data-bot="${b.id}">
           <div class="av" style="background:${c.bg};color:${c.fg}">${esc(init)}</div>
           <div class="meta">
-            <div class="name">${name}<span class="sd ${dot}"></span></div>
+            <div class="name">${name}<span class="sd green"></span></div>
             <div class="un">@${esc((b.username||'').replace('@',''))}</div>
           </div>
           <div class="right">
-            ${ma}
             <div class="cnt">${b.opens_24h.toLocaleString('ru')}/24ч</div>
           </div>
         </div>`;
@@ -682,7 +677,6 @@ async function screenBotCard(botId){
         <div class="k">Токен</div>     <div class="v mono" id="i-tok" style="cursor:pointer" title="Тап — скопировать полный токен">${esc(b.token_mask||'—')}</div>
         <div class="k">Шаблон</div>    <div class="v link" id="i-tpl">${esc(b.template_name||'—')}</div>
         <div class="k">Домен</div>     <div class="v link" id="i-dom"><span class="vwrap"><span class="txt">${esc(b.domain||'—')}</span>${b.domain?(b.domain_ssl_ok?'<span class="dot-ok"></span>':'<span class="dot-warn"></span>'):''}</span></div>
-        <div class="k">Мини-апп</div>  <div class="v link" id="i-ma">${ma?'включён':'выключен'}</div>
       </div>
 
       <div class="uppercase" style="margin:6px 4px 8px">Воронка · 24ч</div>
@@ -700,8 +694,8 @@ async function screenBotCard(botId){
         <div class="switch ${guard?'on':''}" id="t-guard"></div>
       </div>
       <div class="togrow" id="r-ma" style="cursor:pointer"><span class="ico">🔗</span>
-        <div class="v"><div class="ttl">Прямая ссылка</div><div class="sub">для menu_button в BotFather</div></div>
-        <div class="switch ${ma?'on':''}" id="t-ma"></div>
+        <div class="v"><div class="ttl">Прямая ссылка</div><div class="sub">URL для menu_button в BotFather</div></div>
+        <span style="color:var(--accent);font-size:18px">›</span>
       </div>
       <div class="togrow" style="opacity:.55"><span class="ico">📢</span>
         <div class="v"><div class="ttl">Автоспам</div><div class="sub">скоро</div></div>
@@ -729,7 +723,6 @@ async function screenBotCard(botId){
     // Свитч щёлкает прямо в карточке; вся строка открывает экран с описанием/ссылкой.
     $('#t-guard').onclick = (e)=>{ e.stopPropagation(); toggle('guard_enabled', e.currentTarget, b.guard_enabled); };
     $('#r-guard').onclick = ()=> navigate(screenGuard, botId, b.username);
-    $('#t-ma').onclick = (e)=>{ e.stopPropagation(); toggle('miniapp_enabled', e.currentTarget, b.miniapp_enabled); };
     $('#r-ma').onclick = ()=> navigate(screenDirectLink, botId, b.username);
 
     // Токен: тап копирует полный токен в буфер (используется владельцем).
