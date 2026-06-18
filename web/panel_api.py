@@ -316,15 +316,46 @@ async def patch_bot(
     payload: dict = Body(...),
     user: dict = Depends(verify_panel_user),
 ) -> dict:
-    _ensure_owner(bot_id, user["id"])
-    allowed = {
-        "guard_enabled", "auto_approve", "welcome_message",
-        "folder_id", "template_id", "miniapp_enabled",
-    }
+    import secrets as _secrets
+    bot = _ensure_owner(bot_id, user["id"])
+    bool_fields = {"guard_enabled", "auto_approve", "miniapp_enabled"}
+    allowed = bool_fields | {"welcome_message", "folder_id", "template_id"}
     for k, v in payload.items():
-        if k in allowed:
-            update_bot_field(bot_id, k, v)
+        if k not in allowed:
+            continue
+        if k in bool_fields:
+            v = 1 if bool(v) else 0
+        update_bot_field(bot_id, k, v)
+    # При включении защиты — генерим персональный секрет, если пуст.
+    if payload.get("guard_enabled") and not bot.get("user_secret"):
+        update_bot_field(bot_id, "user_secret", _secrets.token_urlsafe(6))
     return _bot_brief(get_bot(bot_id))
+
+
+@router.get("/bots/{bot_id}/guard")
+async def guard_info(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
+    bot = _ensure_owner(bot_id, user["id"])
+    username = (bot.get("username") or "").lstrip("@")
+    secret = bot.get("user_secret") or ""
+    return {
+        "enabled": bool(bot.get("guard_enabled")),
+        "link": f"https://t.me/{username}?start={secret}" if username and secret else "",
+        "secret": secret,
+    }
+
+
+@router.post("/bots/{bot_id}/guard/rotate")
+async def guard_rotate(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
+    import secrets as _secrets
+    bot = _ensure_owner(bot_id, user["id"])
+    new = _secrets.token_urlsafe(6)
+    update_bot_field(bot_id, "user_secret", new)
+    username = (bot.get("username") or "").lstrip("@")
+    return {
+        "enabled": bool(bot.get("guard_enabled")),
+        "link": f"https://t.me/{username}?start={new}" if username else "",
+        "secret": new,
+    }
 
 
 @router.delete("/bots/{bot_id}")

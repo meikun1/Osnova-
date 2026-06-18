@@ -577,8 +577,9 @@ async function screenBotCard(botId){
         <div class="fline green"><div class="lbl">Авторизованных сессий</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
       </div>
 
-      <div class="togrow"><span class="ico">🛡</span>
-        <div class="v"><div class="ttl">Защита от бана</div><div class="sub">пауза при подозрении на бан</div></div>
+      <div class="togrow" id="r-guard" style="cursor:pointer">
+        <span class="ico">🛡</span>
+        <div class="v"><div class="ttl">Защита от бана</div><div class="sub">${guard?'включена — отвечает только по персональной ссылке':'выключена — отвечает всем'}</div></div>
         <div class="switch ${guard?'on':''}" id="t-guard"></div>
       </div>
       <div class="togrow"><span class="ico">🔗</span>
@@ -608,7 +609,9 @@ async function screenBotCard(botId){
       try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({[key]: next})}); b[key] = next; }
       catch(e){ toast(e.message); el.classList.toggle('on', !next); HAPTIC('error'); }
     };
-    $('#t-guard').onclick = (e)=> toggle('guard_enabled', e.currentTarget, b.guard_enabled);
+    // Свитч щёлкает прямо в карточке; вся строка открывает экран с описанием/ссылкой.
+    $('#t-guard').onclick = (e)=>{ e.stopPropagation(); toggle('guard_enabled', e.currentTarget, b.guard_enabled); };
+    $('#r-guard').onclick = ()=> navigate(screenGuard, botId, b.username);
     $('#t-ma').onclick = (e)=> toggle('miniapp_enabled', e.currentTarget, b.miniapp_enabled);
 
     $('#a-stats').onclick = ()=> navigate(screenStats, botId, b);
@@ -779,6 +782,71 @@ async function screenSettings(botId, b){
       });
     });
   } catch(e){ $('#proxy-list').innerHTML = `<div class="field-hint">${esc(e.message)}</div>`; }
+}
+
+async function screenGuard(botId, botName){
+  setTitle('Защита от бана', botName ? esc(botName) : '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const g = await api(`/bots/${botId}/guard`);
+    const renderStatusPill = (on)=> on
+      ? '<span class="pill ok dot">включена</span>'
+      : '<span class="pill muted dot">выключена</span>';
+    root.innerHTML = `
+      <div class="card">
+        <p style="font-size:13.5px;line-height:1.5;color:var(--text-soft);margin:0 0 12px">
+          Когда защита включена, бот отвечает только тем, кто пришёл по вашей персональной
+          ссылке. На обычный <code>/start</code> (в т.ч. от проверяющих) бот молчит —
+          это снижает риск блокировки.
+        </p>
+        <div class="row between" style="border-top:1px solid var(--hairline);padding-top:10px">
+          <div style="font-weight:600;font-size:14px">Статус</div>
+          <span id="g-status">${renderStatusPill(g.enabled)}</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:8px">Ссылка для юзера</div>
+        <div class="field-hint" style="margin-bottom:10px">Эту ссылку нужно давать только своим клиентам. Тап — скопировать.</div>
+        <div class="codeblock" id="g-link">${esc(g.link||'(сначала включите защиту)')}</div>
+      </div>
+
+      <div class="togrow" id="r-toggle">
+        <span class="ico">🛡</span>
+        <div class="v"><div class="ttl">Защита от бана</div><div class="sub">${g.enabled?'включена':'выключена'}</div></div>
+        <div class="switch ${g.enabled?'on':''}" id="t-g"></div>
+      </div>
+
+      <button class="btn ghost" id="b-rotate" style="margin-top:6px">♻️ Обновить ссылку</button>
+    `;
+    const refresh = async ()=>{
+      const g2 = await api(`/bots/${botId}/guard`);
+      $('#g-status').innerHTML = renderStatusPill(g2.enabled);
+      $('#g-link').textContent = g2.link || '(сначала включите защиту)';
+      $('#t-g').classList.toggle('on', g2.enabled);
+    };
+    $('#g-link').onclick = ()=>{
+      const txt = $('#g-link').textContent;
+      if (txt && !txt.startsWith('(')){
+        navigator.clipboard?.writeText(txt).then(()=>{toast('Скопировано'); HAPTIC('success');});
+      }
+    };
+    $('#t-g').onclick = async (e)=>{
+      e.stopPropagation();
+      HAPTIC('light');
+      const cur = $('#t-g').classList.contains('on');
+      $('#t-g').classList.toggle('on', !cur);
+      try {
+        await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({guard_enabled: !cur})});
+        await refresh();
+      } catch(err){ toast(err.message); HAPTIC('error'); $('#t-g').classList.toggle('on', cur); }
+    };
+    $('#b-rotate').onclick = async ()=>{
+      HAPTIC('light');
+      try { await api(`/bots/${botId}/guard/rotate`, {method:'POST'}); await refresh(); toast('Ссылка обновлена'); HAPTIC('success'); }
+      catch(e){ toast(e.message); HAPTIC('error'); }
+    };
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
 
 async function screenSessions(botId, botName){
