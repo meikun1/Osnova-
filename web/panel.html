@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.invitesave</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.menubtn</div>
   </div>
 
   <main id="content"></main>
@@ -1514,9 +1514,13 @@ function renderEditorInvite(host){
     <textarea class="textarea" id="inv-text" rows="5" placeholder="👋 Здравствуйте! Чтобы получить доступ к группе…">${esc(inv.text||'')}</textarea>
     <div class="field-hint" style="margin:5px 0 14px">HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.</div>
 
-    <div class="uppercase" style="margin-bottom:5px">1-е сообщение · текст кнопки</div>
-    <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение">
-    <div class="field-hint" style="margin:5px 0 14px">Если пусто — кнопка не покажется. Кнопка автоматически открывает мини-апп этого бота.</div>
+    <div class="uppercase" style="margin-bottom:5px">Название menu-кнопки бота</div>
+    <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение" maxlength="14">
+    <div class="field-hint" style="margin:5px 0 14px">
+      Это название кнопки <b>слева внизу у поля ввода</b> в чате с ботом —
+      она открывает мини-апп. Бот сам её ставит через <code>setChatMenuButton</code>.
+      Максимум 14 символов.
+    </div>
 
     <div class="uppercase" style="margin-bottom:5px">2-е сообщение · текст (необязательно)</div>
     <textarea class="textarea" id="inv-text2" rows="3" placeholder="Кратко: что делать или просто стрелка ↑">${esc(inv.second_text||'')}</textarea>
@@ -1550,13 +1554,6 @@ function renderEditorInvite(host){
   const renderPreview = ()=>{
     const i = BUILDER.tpl.data.invite || {};
     const t1 = (i.text || '').trim() || '<i style="color:var(--muted)">пустой текст</i>';
-    let btnHTML = '';
-    if ((i.button_text||'').trim()){
-      btnHTML = `<div style="margin-top:10px;background:var(--accent);color:#fff;
-        padding:9px 14px;border-radius:10px;font-weight:700;text-align:center;
-        font-size:13px;cursor:default">${esc(i.button_text)}
-        <div style="font-size:10px;font-weight:500;opacity:.8;margin-top:3px">→ мини-апп</div></div>`;
-    }
     let block2 = '';
     const t2 = (i.second_text || '').trim();
     const s2 = i.second_sticker && stickerById[i.second_sticker.ref];
@@ -1573,11 +1570,32 @@ function renderEditorInvite(host){
         ${stickerHTML}${textHTML}
       </div>`;
     }
+
+    // Эмуляция menu-кнопки бота в нижней панели чата
+    const menuLabel = (i.button_text || '').trim() || 'Меню';
+    const inputBarHTML = `
+      <div class="field-hint" style="margin:14px 0 6px">↓ нижняя панель чата</div>
+      <div style="display:flex;align-items:center;gap:8px;background:#1e2832;
+        border-radius:14px;padding:6px 8px">
+        <div style="background:var(--accent-soft);color:var(--accent);font-weight:700;
+          font-size:12px;padding:7px 12px;border-radius:9px;
+          display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+          max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${esc(menuLabel)}">
+          <span style="opacity:.8;font-size:14px">▦</span>
+          ${esc(menuLabel)}
+        </div>
+        <div style="flex:1;background:#0e161e;color:var(--muted);font-size:12px;
+          padding:7px 10px;border-radius:9px">Сообщение…</div>
+      </div>
+      <div class="field-hint" style="margin-top:4px">Текст этой кнопки задаётся ботом через setChatMenuButton.</div>
+    `;
+
     $('#inv-preview').innerHTML = `
       <div class="field-hint" style="margin-bottom:8px">↓ 1-е сообщение</div>
       <div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
         font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${t1}</div>
-      ${btnHTML}${block2}`;
+      ${block2}
+      ${inputBarHTML}`;
   };
   renderPreview();
 
