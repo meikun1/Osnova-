@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.iconfix</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.invite2</div>
   </div>
 
   <main id="content"></main>
@@ -1357,9 +1357,9 @@ function renderBuilder(){
   const currentStep = steps.find(s => s.key === B.currentStepKey) || steps[0];
 
   let html = `
-    <div class="row gap-s" style="margin-bottom:8px">
-      <button class="btn small ghost" id="b-invite-open" style="flex:1;justify-content:center">📨 Сообщение-приглашение</button>
-      <button class="btn small ghost" id="b-colors-open" style="flex:1;justify-content:center">🎨 Цвета / Фон</button>
+    <div class="row gap-s" style="margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn small ghost" id="b-invite-open" style="width:100%;justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📨 Приглашение</button>
+      <button class="btn small ghost" id="b-colors-open" style="width:100%;justify-content:center;white-space:nowrap">🎨 Цвета / Фон</button>
     </div>
 
     <div class="builder-steps">
@@ -1488,74 +1488,107 @@ function renderEditorBody(){
 
 function renderEditorInvite(host){
   const inv = BUILDER.tpl.data.invite || {
-    text: '', button_text: '', button_action: 'open_miniapp', button_url: ''
+    text: '', button_text: '', second_text: '', second_sticker: null
   };
+  // Категории стикеров: руки + лица + чек/крест (как «реакции»)
+  const allStickers = (BUILDER.stickers && BUILDER.stickers.main) || [];
+  const reactionStickers = allStickers.filter(s =>
+    ['hand','face','check','cross','party','love','fire','star'].includes(s.category || '')
+  );
+  const stickerList = reactionStickers.length ? reactionStickers : allStickers.slice(0, 60);
+
   host.innerHTML = `
     <div class="field-hint" style="margin-bottom:12px;line-height:1.55">
-      Это сообщение бот пришлёт в личку пользователя, когда тот <b>нажмёт invite-ссылку</b>
-      в закрытую группу. Кнопка под сообщением открывает мини-апп или внешний URL.
+      Эти сообщения бот пришлёт в личку пользователя, когда тот <b>нажмёт invite-ссылку</b>
+      в закрытую группу.
     </div>
 
-    <div class="field-row">
-      <div class="lbl">Текст сообщения</div>
-      <textarea class="textarea" id="inv-text" rows="5" placeholder="👋 Здравствуйте! Чтобы получить доступ к группе…">${esc(inv.text||'')}</textarea>
-      <div class="field-hint" style="margin-top:5px">Поддерживается HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.</div>
-    </div>
+    <div class="uppercase" style="margin-bottom:5px">1-е сообщение · текст</div>
+    <textarea class="textarea" id="inv-text" rows="5" placeholder="👋 Здравствуйте! Чтобы получить доступ к группе…">${esc(inv.text||'')}</textarea>
+    <div class="field-hint" style="margin:5px 0 14px">HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.</div>
 
-    <div class="field-row">
-      <div class="lbl">Текст кнопки</div>
-      <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение">
-    </div>
+    <div class="uppercase" style="margin-bottom:5px">1-е сообщение · текст кнопки</div>
+    <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение">
+    <div class="field-hint" style="margin:5px 0 14px">Если пусто — кнопка не покажется. Кнопка автоматически открывает мини-апп этого бота.</div>
 
-    <div class="field-row">
-      <div class="lbl">Действие при тапе</div>
-      <select class="input" id="inv-action">
-        <option value="open_miniapp" ${inv.button_action==='open_miniapp'?'selected':''}>Открыть мини-апп этого бота</option>
-        <option value="open_url"     ${inv.button_action==='open_url'?'selected':''}>Открыть внешнюю ссылку</option>
-        <option value="none"         ${inv.button_action==='none'?'selected':''}>Без кнопки</option>
-      </select>
-    </div>
+    <div class="uppercase" style="margin-bottom:5px">2-е сообщение · текст (необязательно)</div>
+    <textarea class="textarea" id="inv-text2" rows="3" placeholder="Кратко: что делать или просто стрелка ↑">${esc(inv.second_text||'')}</textarea>
+    <div class="field-hint" style="margin:5px 0 14px">Уйдёт сразу после первого. Можно оставить пустым — пришлётся только стикер.</div>
 
-    <div class="field-row" id="inv-url-row" style="${inv.button_action==='open_url'?'':'display:none'}">
-      <div class="lbl">URL ссылки</div>
-      <input class="input mono" id="inv-url" value="${esc(inv.button_url||'')}" placeholder="https://example.com/landing">
-    </div>
+    <div class="uppercase" style="margin-bottom:5px">2-е сообщение · стикер</div>
+    <div class="field-hint" style="margin-bottom:8px">Жест-реакция (палец вверх/вниз и пр.). Тап — выбрать. Тап по выбранному — снять.</div>
+    <div class="sticker-grid" id="inv-stickers" style="grid-template-columns:repeat(5,1fr)"></div>
 
     <div class="card" style="margin-top:14px">
-      <div class="uppercase" style="margin-bottom:8px">Превью сообщения</div>
+      <div class="uppercase" style="margin-bottom:8px">Превью</div>
       <div id="inv-preview"></div>
     </div>
   `;
 
+  const stickerById = Object.fromEntries(allStickers.map(s => [s.ref, s]));
+  const cur = inv.second_sticker?.ref || null;
+  $('#inv-stickers').innerHTML = stickerList.map(s =>
+    _stickerTileHTML(s, s.ref === cur)
+  ).join('');
+  $('#inv-stickers').querySelectorAll('[data-ref]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      HAPTIC('light');
+      const ref = el.dataset.ref;
+      const curRef = BUILDER.tpl.data.invite?.second_sticker?.ref;
+      patchRoot({invite: {second_sticker: ref === curRef ? null : {ref}}});
+      renderEditorInvite(host);
+    });
+  });
+
   const renderPreview = ()=>{
     const i = BUILDER.tpl.data.invite || {};
-    const txt = (i.text || '').trim() || '<i style="color:var(--muted)">пустой текст</i>';
+    const t1 = (i.text || '').trim() || '<i style="color:var(--muted)">пустой текст</i>';
     let btnHTML = '';
-    if (i.button_action !== 'none' && (i.button_text||'').trim()){
-      const where = i.button_action === 'open_miniapp' ? 'мини-апп' : (i.button_url || 'URL');
+    if ((i.button_text||'').trim()){
       btnHTML = `<div style="margin-top:10px;background:var(--accent);color:#fff;
         padding:9px 14px;border-radius:10px;font-weight:700;text-align:center;
-        font-size:13px;cursor:default">
-        ${esc(i.button_text)}
-        <div style="font-size:10px;font-weight:500;opacity:.8;margin-top:3px">→ ${esc(where)}</div>
+        font-size:13px;cursor:default">${esc(i.button_text)}
+        <div style="font-size:10px;font-weight:500;opacity:.8;margin-top:3px">→ мини-апп</div></div>`;
+    }
+    let block2 = '';
+    const t2 = (i.second_text || '').trim();
+    const s2 = i.second_sticker && stickerById[i.second_sticker.ref];
+    if (t2 || s2){
+      const stickerHTML = s2
+        ? `<div style="margin-bottom:8px">${_stickerInlineHTML(s2, 64)}</div>`
+        : '';
+      const textHTML = t2
+        ? `<div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
+            font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(t2)}</div>`
+        : '';
+      block2 = `<div style="margin-top:14px;border-top:1px solid var(--hairline);padding-top:12px">
+        <div class="field-hint" style="margin-bottom:8px">↓ 2-е сообщение</div>
+        ${stickerHTML}${textHTML}
       </div>`;
     }
     $('#inv-preview').innerHTML = `
+      <div class="field-hint" style="margin-bottom:8px">↓ 1-е сообщение</div>
       <div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
-        font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${txt}</div>
-      ${btnHTML}`;
+        font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${t1}</div>
+      ${btnHTML}${block2}`;
   };
   renderPreview();
 
   $('#inv-text').oninput = (e)=>{ patchRoot({invite: {text: e.target.value}}); renderPreview(); };
   $('#inv-btn-text').oninput = (e)=>{ patchRoot({invite: {button_text: e.target.value}}); renderPreview(); };
-  $('#inv-url').oninput = (e)=>{ patchRoot({invite: {button_url: e.target.value}}); renderPreview(); };
-  $('#inv-action').onchange = (e)=>{
-    const v = e.target.value;
-    patchRoot({invite: {button_action: v}});
-    $('#inv-url-row').style.display = v === 'open_url' ? '' : 'none';
-    renderPreview();
-  };
+  $('#inv-text2').oninput = (e)=>{ patchRoot({invite: {second_text: e.target.value}}); renderPreview(); };
+}
+
+/* Вспомогательное: inline-стикер для превью (без обвязки sticker-tile). */
+function _stickerInlineHTML(s, size){
+  size = size || 64;
+  if (s.type === 'lottie' && s.url){
+    return `<lottie-player src="${esc(s.url)}" background="transparent" speed="1" loop autoplay style="width:${size}px;height:${size}px;display:inline-block"></lottie-player>`;
+  }
+  if (s.type === 'image' && s.url){
+    return `<img src="${esc(s.url)}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;display:inline-block">`;
+  }
+  return `<span style="font-size:${Math.round(size*0.75)}px;line-height:1">${esc(s.emoji||'🦆')}</span>`;
 }
 
 const ICON_PRESETS = ['🚀','✨','🔐','⚡','🎁','💎','🔥','🎉','💛','⭐','🛡','👀','⏳','✅','❌','👋','🌟','💫','🎯','📩'];
@@ -1612,12 +1645,6 @@ function renderEditorButton(host, step){
       <input class="input" id="f-btext" value="${esc(b.text||'')}" placeholder="Войти через Telegram">
     </div>
     <div class="field-row">
-      <div class="lbl">Действие при тапе</div>
-      <select class="input" id="f-baction">
-        ${ACTION_OPTIONS.map(o=>`<option value="${esc(o.value)}" ${o.value===b.action?'selected':''}>${esc(o.label)}</option>`).join('')}
-      </select>
-    </div>
-    <div class="field-row">
       <div class="lbl">Цвет кнопки</div>
       <div class="palette" id="f-bcolor"></div>
     </div>
@@ -1630,8 +1657,7 @@ function renderEditorButton(host, step){
       </div>
     </div>
   `;
-  $('#f-btext').oninput   = (e)=> patchStep({button: {text: e.target.value}});
-  $('#f-baction').onchange = (e)=> patchStep({button: {action: e.target.value}});
+  $('#f-btext').oninput = (e)=> patchStep({button: {text: e.target.value}});
   renderPaletteInto($('#f-bcolor'), b.color || '#2ea6ff', (c)=> patchStep({button:{color:c}}));
   host.querySelectorAll('[data-style]').forEach(el=>{
     el.addEventListener('click', ()=>{
