@@ -240,6 +240,32 @@ async def set_proxy(
     return {"ok": True, "proxy_id": proxy_id}
 
 
+@router.post("/bots/{bot_id}/restart")
+async def restart_bot_endpoint(
+    bot_id: int, user: dict = Depends(verify_panel_user)
+) -> dict:
+    _ensure_owner(bot_id, user["id"])
+    try:
+        from child.runtime import get_runtime
+        ok = await get_runtime().restart_bot(bot_id)
+    except Exception as e:
+        raise HTTPException(500, str(e)[:200])
+    return {"ok": bool(ok)}
+
+
+@router.get("/bots/{bot_id}/sessions")
+async def list_sessions(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
+    from database import get_bot_sessions, get_bot_sessions_count
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    if not tg_id:
+        return {"count": 0, "items": []}
+    return {
+        "count": get_bot_sessions_count(tg_id),
+        "items": get_bot_sessions(tg_id),
+    }
+
+
 @router.post("/bots/{bot_id}/broadcast")
 async def broadcast(
     bot_id: int,
