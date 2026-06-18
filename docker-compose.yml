@@ -75,6 +75,8 @@ services:
       DOMAIN_TARGET: app:8080
       CF_POOL_JSON_PATH: /app/cf_pool.json
       ADMIN_IDS: ${ADMIN_IDS:-}
+      PANEL_BASE_URL: ${PANEL_BASE_URL:-}
+      PANEL_MENU_LABEL: ${PANEL_MENU_LABEL:-🛠 Запустить}
     volumes:
       - sessions_data:/app/sessions
       - caddy_conf:/etc/caddy
