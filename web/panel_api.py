@@ -224,6 +224,63 @@ async def list_proxies(user: dict = Depends(verify_panel_user)) -> list[dict]:
     return get_owner_proxies(user["id"])
 
 
+@router.post("/proxies")
+async def add_proxy_endpoint(
+    payload: dict = Body(...),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    from database import add_proxy
+    url = (payload.get("url") or "").strip()
+    label = (payload.get("label") or "").strip() or None
+    if not url:
+        raise HTTPException(400, "url required")
+    # Минимальная проверка формата
+    if "://" not in url:
+        raise HTTPException(400, "url must be like socks5://user:pass@host:port")
+    pid = add_proxy(user["id"], url, label)
+    return {"id": pid, "url": url, "label": label}
+
+
+@router.delete("/proxies/{proxy_id}")
+async def delete_proxy_endpoint(
+    proxy_id: int, user: dict = Depends(verify_panel_user)
+) -> dict:
+    from database import delete_proxy, get_proxy
+    p = get_proxy(proxy_id)
+    if not p or p["owner_id"] != user["id"]:
+        raise HTTPException(404, "proxy not found")
+    delete_proxy(proxy_id)
+    return {"ok": True}
+
+
+@router.get("/bots/{bot_id}/miniapp")
+async def get_miniapp_info(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
+    """Инфо для экрана «Прямая ссылка»: персональный URL, startapp-ссылка,
+    статус «включена/выключена», ID бота."""
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    domains = user_domains_list(user["id"])
+    domain = domains[-1]["domain"] if domains else ""
+    miniapp_url = f"https://{domain}/app/{tg_id}" if (domain and tg_id) else ""
+
+    # startapp ссылка (deep link)
+    try:
+        from directlink_service import get_module
+        startapp_url = await get_module().build_url(tg_id) if tg_id else ""
+    except Exception:
+        startapp_url = ""
+
+    username = (bot.get("username") or "").lstrip("@")
+    return {
+        "enabled": bool(bot.get("miniapp_enabled")),
+        "miniapp_url": miniapp_url,
+        "startapp_url": startapp_url,
+        "username": username,
+        "tg_id": tg_id,
+        "domain": domain,
+    }
+
+
 @router.patch("/bots/{bot_id}/proxy")
 async def set_proxy(
     bot_id: int,

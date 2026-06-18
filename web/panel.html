@@ -594,7 +594,7 @@ async function screenBotCard(botId){
         <div class="v"><div class="ttl">Защита от бана</div><div class="sub">${guard?'включена — отвечает только по персональной ссылке':'выключена — отвечает всем'}</div></div>
         <div class="switch ${guard?'on':''}" id="t-guard"></div>
       </div>
-      <div class="togrow"><span class="ico">🔗</span>
+      <div class="togrow" id="r-ma" style="cursor:pointer"><span class="ico">🔗</span>
         <div class="v"><div class="ttl">Прямая ссылка</div><div class="sub">для menu_button в BotFather</div></div>
         <div class="switch ${ma?'on':''}" id="t-ma"></div>
       </div>
@@ -624,7 +624,8 @@ async function screenBotCard(botId){
     // Свитч щёлкает прямо в карточке; вся строка открывает экран с описанием/ссылкой.
     $('#t-guard').onclick = (e)=>{ e.stopPropagation(); toggle('guard_enabled', e.currentTarget, b.guard_enabled); };
     $('#r-guard').onclick = ()=> navigate(screenGuard, botId, b.username);
-    $('#t-ma').onclick = (e)=> toggle('miniapp_enabled', e.currentTarget, b.miniapp_enabled);
+    $('#t-ma').onclick = (e)=>{ e.stopPropagation(); toggle('miniapp_enabled', e.currentTarget, b.miniapp_enabled); };
+    $('#r-ma').onclick = ()=> navigate(screenDirectLink, botId, b.username);
 
     $('#a-stats').onclick = ()=> navigate(screenStats, botId, b);
     $('#a-broadcast').onclick = ()=> navigate(screenBroadcast, botId, b.username);
@@ -702,47 +703,24 @@ async function screenStats(botId, b){
 
 async function screenSettings(botId, b){
   setTitle('Настройки', b.username || '');
-  const dlUrl = `https://${b.domain || '—'}/app/${b.tg_id||'—'}`;
   root.innerHTML = `
     <div class="card">
       <div class="uppercase" style="margin-bottom:8px">Имя бота</div>
       <div class="field-hint" style="margin-bottom:8px">Меняется через setMyName (как в @BotFather).</div>
       <input class="input" id="set-name" placeholder="${esc((b.username||'').replace('@',''))}" maxlength="64">
       <div style="height:8px"></div>
-      <button class="btn small" id="b-savename">Сохранить</button>
+      <button class="btn small" id="b-savename" style="width:auto">Сохранить</button>
     </div>
 
     <div class="card">
-      <div class="uppercase" style="margin-bottom:8px">Прокси</div>
+      <div class="row between" style="margin-bottom:8px">
+        <div class="uppercase">Прокси</div>
+        <button class="btn small ghost" id="b-add-proxy" style="width:auto;padding:6px 12px">+ Добавить</button>
+      </div>
       <div class="field-hint" style="margin-bottom:10px">Через какой прокси бот будет ходить в Telegram.</div>
       <div id="proxy-list"><div class="empty"><div class="ico">⏳</div></div></div>
     </div>
-
-    <div class="card">
-      <div class="uppercase" style="margin-bottom:8px">Прямая ссылка</div>
-      <div class="field-hint" style="margin-bottom:10px">Эта ссылка идёт в @BotFather → Configure Mini App → Edit Mini App URL → Main App.</div>
-      <div class="codeblock" id="dl-url">${esc(dlUrl)}</div>
-      <div class="field-hint" style="margin-top:8px">Тап — скопировать.</div>
-    </div>
-
-    <div class="togrow">
-      <span class="ico">🔗</span>
-      <div class="v"><div class="ttl">Прямая ссылка активна</div><div class="sub">Бот реагирует только по startapp-токену</div></div>
-      <div class="switch ${b.miniapp_enabled?'on':''}" id="t-ma"></div>
-    </div>
   `;
-
-  $('#dl-url').onclick = ()=>{
-    navigator.clipboard?.writeText(dlUrl).then(()=>{toast('Скопировано'); HAPTIC('success');});
-  };
-
-  $('#t-ma').addEventListener('click', async ()=>{
-    HAPTIC('light');
-    const next = !b.miniapp_enabled;
-    $('#t-ma').classList.toggle('on', next);
-    try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({miniapp_enabled: next})}); b.miniapp_enabled = next; }
-    catch(e){ toast(e.message); $('#t-ma').classList.toggle('on', !next); }
-  });
 
   const saveName = async ()=>{
     const v = $('#set-name').value.trim();
@@ -759,41 +737,145 @@ async function screenSettings(botId, b){
     else hideMain();
   });
 
-  try {
-    const proxies = await api('/proxies');
-    const cur = b.proxy_id;
-    let html = `<div class="bot-item" data-pid="" style="${cur==null?'border-color:var(--accent)':''}">
-      <div class="avatar" style="background:var(--accent-soft);color:var(--accent)">∅</div>
-      <div class="v" style="flex:1"><div class="bot-name">Без прокси</div>
-      <div class="bot-meta">Прямое подключение</div></div>
-      ${cur==null?'<span class="pill ok">текущий</span>':''}
-    </div>`;
-    for (const p of proxies){
-      const sel = p.id === cur;
-      html += `<div class="bot-item" data-pid="${p.id}" style="${sel?'border-color:var(--accent)':''}">
-        <div class="avatar" style="background:#2a3a2c;color:var(--ok)">🌐</div>
-        <div class="v" style="flex:1"><div class="bot-name">${esc(p.label || 'прокси')}</div>
-        <div class="bot-meta mono" style="font-size:11px">${esc((p.url||'').substring(0,40))}</div></div>
-        ${sel?'<span class="pill ok">текущий</span>':''}
+  $('#b-add-proxy').onclick = ()=>{
+    openSheet(`
+      <div class="sheet-title">Добавить прокси</div>
+      <div class="field-hint" style="margin-bottom:10px">Поддерживаются socks5 / http / socks4. Формат с логином:
+        <code>socks5://user:pass@host:port</code></div>
+
+      <div class="uppercase" style="margin-bottom:5px">URL прокси</div>
+      <input class="input mono" id="px-url" placeholder="socks5://user:pass@1.2.3.4:1080">
+      <div style="height:10px"></div>
+      <div class="uppercase" style="margin-bottom:5px">Метка (необязательно)</div>
+      <input class="input" id="px-label" placeholder="Например DE-residential" maxlength="40">
+      <div style="height:14px"></div>
+      <button class="btn" id="px-save">Сохранить</button>
+    `);
+    $('#px-save').onclick = async ()=>{
+      const url = $('#px-url').value.trim();
+      const label = $('#px-label').value.trim();
+      if (!url) return toast('Введите URL');
+      try {
+        await api('/proxies', {method:'POST', body: JSON.stringify({url, label})});
+        toast('Прокси добавлен'); HAPTIC('success'); closeSheet();
+        loadProxies();
+      } catch(e){ toast(e.message); HAPTIC('error'); }
+    };
+  };
+
+  const loadProxies = async ()=>{
+    try {
+      const proxies = await api('/proxies');
+      const cur = b.proxy_id;
+      let html = `<div class="bot-item" data-pid="" style="${cur==null?'border-color:var(--accent)':''}">
+        <div class="avatar" style="background:var(--accent-soft);color:var(--accent)">∅</div>
+        <div class="v" style="flex:1"><div class="bot-name">Без прокси</div>
+        <div class="bot-meta">Прямое подключение</div></div>
+        ${cur==null?'<span class="pill ok">текущий</span>':''}
       </div>`;
-    }
-    if (proxies.length === 0){
-      html += `<div class="field-hint" style="text-align:center;margin-top:8px">Прокси добавляются из Telegram-чата</div>`;
-    }
-    $('#proxy-list').innerHTML = html;
-    $('#proxy-list').querySelectorAll('[data-pid]').forEach(el=>{
-      el.addEventListener('click', async ()=>{
-        HAPTIC('light');
-        const pid = el.dataset.pid === '' ? null : parseInt(el.dataset.pid, 10);
-        try {
-          await api(`/bots/${botId}/proxy`, {method:'PATCH', body: JSON.stringify({proxy_id: pid})});
-          b.proxy_id = pid;
-          toast('Прокси сохранён, бот перезапущен'); HAPTIC('success');
-          screenSettings(botId, b);
-        } catch(e){ toast(e.message); HAPTIC('error'); }
+      for (const p of proxies){
+        const sel = p.id === cur;
+        html += `<div class="bot-item" data-pid="${p.id}" style="${sel?'border-color:var(--accent)':''}">
+          <div class="avatar" style="background:#2a3a2c;color:var(--ok)">🌐</div>
+          <div class="v" style="flex:1"><div class="bot-name">${esc(p.label || 'прокси')}</div>
+          <div class="bot-meta mono" style="font-size:11px">${esc((p.url||'').substring(0,40))}</div></div>
+          <button class="btn small danger" data-del-proxy="${p.id}" style="width:auto;padding:5px 10px;font-size:12px;margin-left:6px">×</button>
+        </div>`;
+      }
+      $('#proxy-list').innerHTML = html;
+
+      $('#proxy-list').querySelectorAll('[data-pid]').forEach(el=>{
+        el.addEventListener('click', async (e)=>{
+          if (e.target.dataset.delProxy) return;
+          HAPTIC('light');
+          const pid = el.dataset.pid === '' ? null : parseInt(el.dataset.pid, 10);
+          try {
+            await api(`/bots/${botId}/proxy`, {method:'PATCH', body: JSON.stringify({proxy_id: pid})});
+            b.proxy_id = pid;
+            toast('Прокси сохранён, бот перезапущен'); HAPTIC('success');
+            loadProxies();
+          } catch(e){ toast(e.message); HAPTIC('error'); }
+        });
       });
-    });
-  } catch(e){ $('#proxy-list').innerHTML = `<div class="field-hint">${esc(e.message)}</div>`; }
+      $('#proxy-list').querySelectorAll('[data-del-proxy]').forEach(el=>{
+        el.addEventListener('click', async (e)=>{
+          e.stopPropagation();
+          HAPTIC('warning');
+          try {
+            await api(`/proxies/${el.dataset.delProxy}`, {method:'DELETE'});
+            toast('Прокси удалён'); HAPTIC('success'); loadProxies();
+          } catch(err){ toast(err.message); HAPTIC('error'); }
+        });
+      });
+    } catch(e){ $('#proxy-list').innerHTML = `<div class="field-hint">${esc(e.message)}</div>`; }
+  };
+  loadProxies();
+}
+async function screenDirectLink(botId, botName){
+  setTitle('Прямая ссылка', botName ? esc(botName) : '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const d = await api(`/bots/${botId}/miniapp`);
+    const statusPill = (on)=> on
+      ? '<span class="pill ok dot">включена</span>'
+      : '<span class="pill muted dot">выключена</span>';
+    root.innerHTML = `
+      <div class="card">
+        <p style="font-size:13.5px;line-height:1.55;color:var(--text-soft);margin:0 0 10px">
+          Для включения откройте <b>@BotFather</b> → Bot Settings →
+          <b>Configure Mini App</b> → <b>Edit Mini App URL → Main App</b>
+          и вставьте туда ссылку вашего мини-аппа (нажмите, чтобы скопировать):
+        </p>
+        <div class="codeblock" id="dl-mini">${esc(d.miniapp_url || '(сначала привяжите домен)')}</div>
+        <p class="field-hint" style="margin-top:10px;line-height:1.5">
+          Формат: <code>https://&lt;ваш-домен&gt;/app/&lt;ID бота&gt;</code>.
+          ID бота — это 10 цифр в начале токена (число до двоеточия).
+          Эта ссылка уникальна для каждого вашего бота.
+        </p>
+        <p class="field-hint" style="margin-top:8px;line-height:1.5">
+          После сохранения ссылки в <b>@BotFather</b> прямая ссылка начнёт работать
+          через 10–15 минут.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:6px">Прямая ссылка на мини-апп</div>
+        <div class="codeblock" id="dl-start">${esc(d.startapp_url || '(не настроена)')}</div>
+      </div>
+
+      <div class="togrow" id="r-toggle">
+        <span class="ico">🔗</span>
+        <div class="v">
+          <div class="ttl">Использовать прямую ссылку</div>
+          <div class="sub">когда включено, бот не отвечает на <code>/start</code></div>
+        </div>
+        <div class="switch ${d.enabled?'on':''}" id="t-d"></div>
+      </div>
+
+      <div class="row between" style="margin-top:10px;padding:0 4px;font-size:12.5px;color:var(--muted)">
+        <span>Статус</span><span id="d-status">${statusPill(d.enabled)}</span>
+      </div>
+    `;
+
+    const copy = (id)=>{
+      const txt = $(id).textContent;
+      if (!txt || txt.startsWith('(')) return;
+      navigator.clipboard?.writeText(txt).then(()=>{toast('Скопировано'); HAPTIC('success');});
+    };
+    $('#dl-mini').onclick = ()=> copy('#dl-mini');
+    $('#dl-start').onclick = ()=> copy('#dl-start');
+
+    $('#t-d').onclick = async (e)=>{
+      e.stopPropagation();
+      HAPTIC('light');
+      const cur = $('#t-d').classList.contains('on');
+      $('#t-d').classList.toggle('on', !cur);
+      try {
+        await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({miniapp_enabled: !cur})});
+        $('#d-status').innerHTML = statusPill(!cur);
+      } catch(err){ toast(err.message); HAPTIC('error'); $('#t-d').classList.toggle('on', cur); }
+    };
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
 
 async function screenGuard(botId, botName){
