@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.inv3</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.runtime</div>
   </div>
 
   <main id="content"></main>
@@ -1189,7 +1189,11 @@ async function screenTemplate(botId, templateId){
   setTitle('Шаблоны', '');
   root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
   try {
-    const tpls = await api('/builder/templates');
+    const [tpls, botInfo] = await Promise.all([
+      api('/builder/templates'),
+      botId ? api(`/bots/${botId}`).catch(()=>null) : Promise.resolve(null),
+    ]);
+    const activeTplId = botInfo?.builder_template_id || null;
     let html = `
       <button class="btn" id="b-new-tpl" style="display:flex;align-items:center;justify-content:center;gap:8px">
         <svg class="ico-svg" style="width:16px;height:16px"><use href="#ic-plus"/></svg>
@@ -1203,11 +1207,14 @@ async function screenTemplate(botId, templateId){
       for (const t of tpls){
         const dt = new Date((t.updated_at||t.created_at||0) * 1000);
         const ds = dt.toLocaleString('ru', {dateStyle:'short', timeStyle:'short'});
-        const statusPill = t.is_draft
-          ? '<span class="pill warn" style="margin-right:6px">draft</span>'
-          : '<span class="pill ok" style="margin-right:6px">опубл.</span>';
+        const isActive = t.id === activeTplId;
+        const statusPill = isActive
+          ? '<span class="pill ok dot" style="margin-right:6px">активен</span>'
+          : (t.is_draft
+              ? '<span class="pill warn" style="margin-right:6px">draft</span>'
+              : '<span class="pill muted" style="margin-right:6px">опубл.</span>');
         html += `
-          <div class="bot-item" data-tpl="${esc(t.id)}">
+          <div class="bot-item" data-tpl="${esc(t.id)}" style="${isActive?'border-color:var(--accent)':''}">
             <div class="avatar" style="background:#2a2238;color:#c79bff">${esc((t.name||'?').substring(0,1).toUpperCase())}</div>
             <div class="v" style="flex:1;min-width:0">
               <div class="bot-name">${esc(t.name)}</div>
@@ -1271,10 +1278,21 @@ async function screenTemplate(botId, templateId){
     };
 
     root.querySelectorAll('[data-tpl]').forEach(el=>{
-      el.addEventListener('click', (e)=>{
+      el.addEventListener('click', async (e)=>{
         if (e.target.dataset.delTpl) return;
         HAPTIC('light');
-        navigate(screenBuilder, el.dataset.tpl);
+        const tplId = el.dataset.tpl;
+        // Если открыли из карточки бота — сразу привязываем к нему
+        if (botId){
+          try {
+            await api(`/bots/${botId}`, {
+              method:'PATCH',
+              body: JSON.stringify({builder_template_id: tplId}),
+            });
+            toast('Применено к боту'); HAPTIC('success');
+          } catch(err){ toast(err.message); HAPTIC('error'); return; }
+        }
+        navigate(screenBuilder, tplId);
       });
     });
     root.querySelectorAll('[data-del-tpl]').forEach(el=>{

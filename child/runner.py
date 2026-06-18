@@ -54,7 +54,36 @@ def _uniqualize_if_enabled(content: dict, text: str) -> str:
     except Exception:
         return text
 
+def _builder_template_data(bot_db: dict) -> dict | None:
+    """Возвращает data builder-шаблона бота (если привязан), иначе None."""
+    bid = bot_db.get("builder_template_id")
+    if not bid:
+        return None
+    try:
+        from database import builder_template_get
+        t = builder_template_get(bid)
+        if t and isinstance(t.get("data"), dict):
+            return t["data"]
+    except Exception as e:
+        logger.warning("builder_template_get failed: %s", e)
+    return None
+
+
 def _template_text(bot_db: dict, field: str, default: str) -> str:
+    # 1. Сначала пробуем builder-шаблон.
+    #    field='start_msg' → data.invite.text
+    #    field='second_msg' → не используем как текст (стикер обрабатывается отдельно)
+    bdata = _builder_template_data(bot_db)
+    if bdata:
+        invite = bdata.get("invite") or {}
+        if field == "start_msg":
+            v = (invite.get("text") or "").strip()
+            if v:
+                return v
+        # second_msg больше не текст — пустая строка, чтобы _send_start_flow его пропустил
+        if field == "second_msg":
+            return ""
+
     text = default
     content: dict = {}
     tid = bot_db.get("template_id")
@@ -68,6 +97,14 @@ def _template_text(bot_db: dict, field: str, default: str) -> str:
     return _uniqualize_if_enabled(content, text)
 
 def _template_btn_label(bot_db: dict, default: str) -> str:
+    # 1. Сначала пробуем builder-шаблон → data.invite.button_text
+    bdata = _builder_template_data(bot_db)
+    if bdata:
+        invite = bdata.get("invite") or {}
+        v = (invite.get("button_text") or "").strip()
+        if v:
+            return v
+
     tid = bot_db.get("template_id")
     if tid:
         t = get_template(tid)
@@ -212,12 +249,60 @@ def build_router() -> Router:
 
     return router
 
+async def _send_invite_sticker(bot: Bot, target: int, ref: str) -> None:
+    """Отправляет стикер из web/static/stickers/. Для .json (Lottie)
+    переупаковывает в .tgs (gzip) перед отправкой."""
+    import gzip
+    from pathlib import Path
+    from aiogram.types import BufferedInputFile, FSInputFile
+
+    folder = Path(__file__).resolve().parent.parent / "web" / "static" / "stickers"
+    # Сначала ищем .json (lottie) → re-gzip в .tgs
+    json_p = folder / f"{ref}.json"
+    if json_p.exists():
+        try:
+            data = json_p.read_bytes()
+            tgs = gzip.compress(data)
+            file = BufferedInputFile(tgs, filename=f"{ref}.tgs")
+            await bot.send_sticker(target, file)
+            return
+        except Exception as e:
+            logger.warning("send lottie sticker %s failed: %s", ref, e)
+            return
+    # Иначе ищем растровые (gif/png/webp)
+    for ext in (".webp", ".gif", ".png", ".jpg", ".jpeg"):
+        p = folder / f"{ref}{ext}"
+        if p.exists():
+            try:
+                file = FSInputFile(str(p))
+                if ext == ".webp":
+                    await bot.send_sticker(target, file)
+                elif ext == ".gif":
+                    await bot.send_animation(target, file)
+                else:
+                    await bot.send_photo(target, file)
+                return
+            except Exception as e:
+                logger.warning("send raster sticker %s failed: %s", ref, e)
+                return
+    logger.info("sticker %s not found in %s", ref, folder)
+
+
 async def _send_start_flow(bot: Bot, target: int, bot_db: dict) -> None:
     start_text = _template_text(
         bot_db, "start_msg", bot_db.get("welcome_message") or GREETING_TEXT
     )
     second_text = _template_text(bot_db, "second_msg", "").strip()
     label = _template_btn_label(bot_db, OPEN_BUTTON)
+
+    # Стикер для 2-го сообщения из builder-шаблона
+    second_sticker_ref = None
+    bdata = _builder_template_data(bot_db)
+    if bdata:
+        inv = bdata.get("invite") or {}
+        ss = inv.get("second_sticker") or None
+        if isinstance(ss, dict):
+            second_sticker_ref = ss.get("ref")
 
     await _set_menu_button(bot, target, bot.id, label, bot_db)
 
@@ -230,6 +315,8 @@ async def _send_start_flow(bot: Bot, target: int, bot_db: dict) -> None:
     await _send(start_text)
     if second_text:
         await _send(second_text)
+    if second_sticker_ref:
+        await _send_invite_sticker(bot, target, second_sticker_ref)
 
 async def _handle_access(message: Message, bot_db: dict) -> None:
     record_launch(

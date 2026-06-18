@@ -168,6 +168,7 @@ def _bot_brief(bot: dict) -> dict:
         "guard_enabled": bool(bot.get("guard_enabled")),
         "miniapp_enabled": bool(bot.get("miniapp_enabled")),
         "template_id": bot.get("template_id"),
+        "builder_template_id": bot.get("builder_template_id"),
         "funnel": _funnel(bot.get("tg_id")),
     }
 
@@ -523,7 +524,7 @@ async def patch_bot(
     import secrets as _secrets
     bot = _ensure_owner(bot_id, user["id"])
     bool_fields = {"guard_enabled", "auto_approve", "miniapp_enabled"}
-    allowed = bool_fields | {"welcome_message", "folder_id", "template_id"}
+    allowed = bool_fields | {"welcome_message", "folder_id", "template_id", "builder_template_id"}
     for k, v in payload.items():
         if k not in allowed:
             continue
