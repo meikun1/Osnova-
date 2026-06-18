@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.smooth2</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.done-btn</div>
   </div>
 
   <main id="content"></main>
@@ -1484,24 +1484,59 @@ function patchRoot(patch){
   }, 600);
 }
 
-/* На Enter в обычных <input> убираем клавиатуру (textarea не трогаем —
-   там Enter переносит строку). */
+/* Плавающая кнопка «Готово»: на iOS/Android в Telegram WebView Enter
+   не всегда генерит keydown, поэтому надёжнее — отдельная кнопка которая
+   появляется, когда любой input/textarea в фокусе. Тап = blur. */
 function _wireKeyboardDismiss(){
-  // На focus к input — выставляем enterkeyhint=done (для iOS) и
-  // навешиваем обработчик Enter → blur через setTimeout.
+  let _focused = null;
+
+  const bar = document.createElement('div');
+  bar.id = 'kb-done-bar';
+  bar.textContent = '✓ Готово';
+  bar.style.cssText = [
+    'position:fixed','right:10px','top:calc(env(safe-area-inset-top, 0px) + 10px)',
+    'z-index:9999','padding:8px 14px','border-radius:10px',
+    'background:var(--accent)','color:#fff','font-weight:700','font-size:13px',
+    'box-shadow:0 4px 16px rgba(46,166,255,.45)','cursor:pointer',
+    'display:none','user-select:none','-webkit-user-select:none',
+    'transition:.15s opacity','opacity:0',
+  ].join(';');
+  document.body.appendChild(bar);
+
+  const show = ()=>{ bar.style.display = 'block'; requestAnimationFrame(()=>{ bar.style.opacity = '1'; }); };
+  const hide = ()=>{ bar.style.opacity = '0'; setTimeout(()=>{ if (!_focused) bar.style.display = 'none'; }, 160); };
+
   document.addEventListener('focusin', (e)=>{
     const t = e.target;
-    if (!t || t.tagName !== 'INPUT') return;
-    if (!t.getAttribute('enterkeyhint')) t.setAttribute('enterkeyhint', 'done');
-    if (t._enterBound) return;
-    t._enterBound = true;
-    t.addEventListener('keydown', (ev)=>{
-      if (ev.key === 'Enter' || ev.keyCode === 13){
-        ev.preventDefault();
-        // setTimeout 0 — чтобы клавиатура успела обработать Enter и закрыться
-        setTimeout(()=> t.blur(), 0);
-      }
-    });
+    if (!t) return;
+    const tag = t.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+    if (tag === 'INPUT' && !t.getAttribute('enterkeyhint')){
+      t.setAttribute('enterkeyhint', 'done');
+    }
+    _focused = t;
+    show();
+  });
+  document.addEventListener('focusout', ()=>{
+    _focused = null;
+    hide();
+  });
+
+  // Tap по «Готово» — закрываем клавиатуру
+  bar.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    if (_focused) _focused.blur();
+    HAPTIC('light');
+  });
+
+  // Bonus: Enter в input → blur (если событие всё-таки прилетит)
+  document.addEventListener('keydown', (e)=>{
+    if (e.key !== 'Enter' && e.keyCode !== 13) return;
+    const t = e.target;
+    if (t && t.tagName === 'INPUT'){
+      e.preventDefault();
+      setTimeout(()=> t.blur(), 0);
+    }
   });
 }
 _wireKeyboardDismiss();
