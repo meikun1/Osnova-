@@ -1,13 +1,35 @@
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    WebAppInfo,
+)
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import ADMIN_IDS
+from database import user_domains_list
+
+
+def _panel_url_for(user_id: int) -> str | None:
+    """Возвращает URL панели владельца, если у юзера есть домен с готовым SSL.
+    Без такого домена WebApp Telegram не примет (нужен HTTPS на живом домене)."""
+    if user_id is None:
+        return None
+    domains = [d for d in user_domains_list(user_id) if d.get("ssl_notified")]
+    if not domains:
+        return None
+    return f"https://{domains[-1]['domain']}/panel"
 
 
 def main_menu_kb(user_bots: list[dict], user_id: int | None = None) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
+
+    panel_url = _panel_url_for(user_id)
+    if panel_url:
+        builder.row(
+            InlineKeyboardButton(text="🛠 Открыть панель", web_app=WebAppInfo(url=panel_url))
+        )
 
     if user_id is not None and user_id in ADMIN_IDS:
         builder.row(

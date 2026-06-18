@@ -28,6 +28,7 @@ from web.auth_api import router as auth_router, start_gc
 
 _MINIAPP_HTML = (Path(__file__).parent / "miniapp.html").read_text(encoding="utf-8")
 _PREVIEW3D_HTML = (Path(__file__).parent / "preview3d.html").read_text(encoding="utf-8")
+_PANEL_HTML = (Path(__file__).parent / "panel.html").read_text(encoding="utf-8")
 
 def _miniapp_config(bot_id: int) -> dict:
     cfg: dict = {
@@ -110,6 +111,20 @@ def create_app() -> FastAPI:
 
     # авторизация Telegram-аккаунта
     app.include_router(auth_router)
+
+    # панель владельца бота
+    from web.panel_api import router as panel_router
+    app.include_router(panel_router)
+
+    @app.get("/panel", response_class=HTMLResponse)
+    async def panel_page() -> HTMLResponse:
+        return HTMLResponse(
+            _PANEL_HTML,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+            },
+        )
 
     get_module().mount(app)
     return app

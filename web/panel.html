@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Панель управления</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#17212b; --card:#1c2734; --card-border:#232e3c;
+    --input-bg:#0e161e; --input-border:#1e2832; --hairline:#1a2330;
+    --text:#fff; --text-soft:#cdd6e0; --muted:#8b9aab; --label:#708499; --hint:#5b6877;
+    --accent:#2ea6ff; --accent-soft:#1f3b5a;
+    --ok:#4dcd5e; --ok-bg:#1f3b2c;
+    --warn:#f0a23b; --warn-bg:#2f2a1f;
+    --err:#e8503a; --err-bg:#4a2027;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    height:100%;overflow:hidden;-webkit-text-size-adjust:100%;}
+  body{display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);}
+  .mono{font-family:'JetBrains Mono',monospace;font-size:.9em}
+  .uppercase{text-transform:uppercase;letter-spacing:.05em;font-size:11px;font-weight:700;color:var(--label)}
+  .hidden{display:none!important}
+
+  /* топбар */
+  .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 8px;
+    border-bottom:1px solid var(--hairline);min-height:44px;}
+  .topbar .title{flex:1;font-size:18px;font-weight:700}
+  .topbar .sub{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px}
+  .topbar .back{font-size:22px;color:var(--accent);cursor:pointer;padding:0 6px;display:none}
+
+  /* контент */
+  main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+    padding:14px 14px 80px;}
+
+  /* нижняя навигация */
+  nav.tabs{display:flex;border-top:1px solid var(--hairline);background:var(--bg);
+    padding:8px 8px 6px;}
+  nav.tabs .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    color:var(--muted);cursor:pointer;padding:6px 4px;font-size:11px;font-weight:600;}
+  nav.tabs .tab.active{color:var(--accent)}
+  nav.tabs .tab .ico{font-size:20px;line-height:1}
+
+  /* карточки */
+  .card{background:var(--card);border:1px solid var(--card-border);
+    border-radius:14px;padding:14px;margin-bottom:10px}
+  .card.tight{padding:12px}
+  .row{display:flex;align-items:center;gap:10px}
+  .row.between{justify-content:space-between}
+  .gap-s{gap:6px} .gap-m{gap:10px} .gap-l{gap:14px}
+  .v{display:flex;flex-direction:column;gap:6px}
+
+  .section-label{padding:14px 4px 6px;color:var(--label);font-size:11px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.05em}
+
+  /* бот в списке */
+  .bot-item{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);
+    border:1px solid var(--card-border);border-radius:14px;margin-bottom:8px;cursor:pointer;
+    min-height:60px;transition:.1s background;}
+  .bot-item:active{background:#202d3c}
+  .avatar{width:40px;height:40px;border-radius:12px;background:var(--accent-soft);
+    color:var(--accent);display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:15px;flex-shrink:0}
+  .bot-name{font-size:14.5px;font-weight:600;line-height:1.2}
+  .bot-meta{font-size:12px;color:var(--muted);line-height:1.2;margin-top:3px}
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:9px;
+    font-size:10.5px;font-weight:600;line-height:1.5;}
+  .pill.ok{background:var(--ok-bg);color:var(--ok)}
+  .pill.warn{background:var(--warn-bg);color:var(--warn)}
+  .pill.err{background:var(--err-bg);color:var(--err)}
+  .pill.muted{background:var(--input-bg);color:var(--muted)}
+  .pill.dot::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+
+  /* метрики (воронка) */
+  .funnel{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+  .metric{background:var(--input-bg);border:1px solid var(--input-border);
+    border-radius:12px;padding:11px 12px;}
+  .metric .label{font-size:11px;color:var(--label);text-transform:uppercase;
+    letter-spacing:.04em;font-weight:700;}
+  .metric .value{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;
+    margin-top:4px;color:var(--text);}
+
+  /* кнопки */
+  .btn{display:flex;align-items:center;justify-content:center;width:100%;border:none;
+    border-radius:12px;padding:14px 18px;font-size:15px;font-weight:700;cursor:pointer;
+    background:var(--accent);color:#fff;-webkit-appearance:none;font-family:inherit;}
+  .btn:active{filter:brightness(.92)}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent-soft);}
+  .btn.danger{background:var(--err)}
+  .btn.muted{background:var(--input-bg);color:var(--text-soft);border:1px solid var(--input-border);}
+  .btn.small{padding:9px 12px;font-size:13px;font-weight:600}
+
+  /* инпуты */
+  .input,.textarea{width:100%;background:var(--input-bg);border:1px solid var(--input-border);
+    border-radius:12px;padding:12px 14px;color:var(--text);font-size:14.5px;
+    font-family:inherit;outline:none;-webkit-appearance:none;}
+  .input:focus,.textarea:focus{border-color:var(--accent)}
+  .textarea{resize:vertical;min-height:90px;font-family:inherit}
+  .field-hint{font-size:11.5px;color:var(--hint);margin-top:5px;line-height:1.4}
+
+  /* свитч */
+  .switch{position:relative;width:42px;height:25px;background:#384655;border-radius:13px;
+    transition:.18s;flex-shrink:0;cursor:pointer}
+  .switch::after{content:"";position:absolute;top:2px;left:2px;width:21px;height:21px;
+    background:#fff;border-radius:50%;transition:.18s;}
+  .switch.on{background:var(--accent)}
+  .switch.on::after{left:19px}
+
+  /* шторка */
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:50;display:none;
+    animation:bgIn .15s ease-out}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);border-radius:24px 24px 0 0;
+    z-index:51;display:none;animation:sheetUp .22s cubic-bezier(.18,.89,.32,1.28);
+    padding:18px 16px calc(28px + env(safe-area-inset-bottom));max-height:90%;overflow-y:auto;}
+  .sheet.show, .sheet-bg.show{display:block}
+  .sheet-handle{width:36px;height:4px;border-radius:2px;background:#384655;margin:0 auto 12px}
+  .sheet-title{font-size:17px;font-weight:700;margin-bottom:14px}
+  @keyframes bgIn{from{opacity:0}to{opacity:1}}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+
+  /* код / моно блоки */
+  .codeblock{font-family:'JetBrains Mono',monospace;font-size:13px;background:var(--input-bg);
+    border:1px solid var(--input-border);padding:10px 12px;border-radius:10px;color:var(--text-soft);
+    word-break:break-all;cursor:pointer;}
+  .codeblock:active{background:#0a1219}
+
+  /* пустые состояния */
+  .empty{text-align:center;padding:36px 18px;color:var(--muted)}
+  .empty .ico{font-size:38px;margin-bottom:10px}
+  .empty .ttl{font-size:15px;font-weight:600;color:var(--text-soft);margin-bottom:4px}
+  .empty .sub{font-size:12.5px;line-height:1.5}
+
+  /* тосты */
+  #toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#0b1117;
+    color:#fff;padding:12px 16px;border-radius:10px;font-size:13.5px;border:1px solid #2a3947;
+    z-index:200;display:none;max-width:80%;text-align:center;box-shadow:0 6px 24px rgba(0,0,0,.4)}
+  #toast.show{display:block}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="back" id="backbtn">‹</span>
+    <div class="v" style="gap:1px">
+      <div class="title" id="screen-title">Панель</div>
+      <div class="sub" id="screen-sub"></div>
+    </div>
+  </div>
+
+  <main id="content"></main>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="bots"><span class="ico">🤖</span>Боты</div>
+    <div class="tab" data-tab="drafts"><span class="ico">✨</span>Создания</div>
+    <div class="tab" data-tab="folders"><span class="ico">📁</span>Папки</div>
+    <div class="tab" data-tab="profile"><span class="ico">👤</span>Профиль</div>
+  </nav>
+
+  <div class="sheet-bg" id="sheet-bg"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div id="sheet-body"></div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+/* ---------- Telegram WebApp init ---------- */
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+if (tg) {
+  try { tg.ready(); } catch(e){}
+  try { tg.expand(); } catch(e){}
+  try { tg.setHeaderColor('#17212b'); } catch(e){}
+  try { tg.setBackgroundColor('#17212b'); } catch(e){}
+}
+const INIT_DATA = tg ? tg.initData : "";
+const USER = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
+
+const HAPTIC = (kind) => {
+  if (!tg || !tg.HapticFeedback) return;
+  try {
+    if (kind === 'success' || kind === 'error' || kind === 'warning') {
+      tg.HapticFeedback.notificationOccurred(kind);
+    } else { tg.HapticFeedback.impactOccurred(kind || 'light'); }
+  } catch(e){}
+};
+
+/* ---------- API ---------- */
+const ApiBase = '/api/panel';
+async function api(path, opts = {}) {
+  const headers = Object.assign({
+    'X-Telegram-Init-Data': INIT_DATA,
+    'Content-Type': 'application/json',
+  }, opts.headers || {});
+  const res = await fetch(ApiBase + path, Object.assign({headers}, opts));
+  let data = null;
+  try { data = await res.json(); } catch(e){}
+  if (!res.ok) {
+    const msg = (data && data.detail) ? data.detail : `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+/* ---------- helpers ---------- */
+const $ = (sel) => document.querySelector(sel);
+const root = $('#content');
+const title = $('#screen-title');
+const sub = $('#screen-sub');
+const backBtn = $('#backbtn');
+
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g, c => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function toast(msg, ms=2400){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+function setTitle(t, s){ title.textContent = t; sub.textContent = s || ''; }
+
+function openSheet(html){
+  $('#sheet-body').innerHTML = html;
+  $('#sheet-bg').classList.add('show');
+  $('#sheet').classList.add('show');
+}
+function closeSheet(){
+  $('#sheet-bg').classList.remove('show');
+  $('#sheet').classList.remove('show');
+}
+$('#sheet-bg').addEventListener('click', closeSheet);
+
+/* ---------- routing ---------- */
+let ME = null;
+const stack = [];   // история экранов для back
+let currentTab = 'bots';
+
+function navigate(screenFn, ...args){
+  stack.push({fn: screenFn, args});
+  screenFn(...args);
+  updateBack();
+}
+function back(){
+  if (stack.length <= 1) return false;
+  stack.pop();
+  const prev = stack[stack.length - 1];
+  prev.fn(...prev.args);
+  updateBack();
+  return true;
+}
+function resetTo(screenFn, ...args){
+  stack.length = 0;
+  navigate(screenFn, ...args);
+}
+function updateBack(){
+  const can = stack.length > 1;
+  backBtn.style.display = can ? 'block' : 'none';
+  if (tg && tg.BackButton){
+    try { can ? tg.BackButton.show() : tg.BackButton.hide(); } catch(e){}
+  }
+}
+backBtn.addEventListener('click', back);
+if (tg && tg.BackButton){
+  try { tg.BackButton.onClick(()=> back()); } catch(e){}
+}
+
+/* ---------- tab switching ---------- */
+document.querySelectorAll('nav.tabs .tab').forEach(el => {
+  el.addEventListener('click', ()=> {
+    HAPTIC('light');
+    const t = el.dataset.tab;
+    currentTab = t;
+    document.querySelectorAll('nav.tabs .tab').forEach(x => x.classList.toggle('active', x === el));
+    if (t === 'bots') resetTo(screenBots);
+    else if (t === 'drafts') resetTo(screenDrafts);
+    else if (t === 'folders') resetTo(screenFolders);
+    else if (t === 'profile') resetTo(screenProfile);
+  });
+});
+
+/* =====================================================
+   ЭКРАН 1: список ботов
+   ===================================================== */
+async function screenBots(){
+  setTitle('Ваши боты', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div><div class="ttl">Загрузка…</div></div>`;
+  try {
+    const bots = await api('/bots');
+    if (!bots.length){
+      root.innerHTML = `
+        <div class="empty">
+          <div class="ico">🤖</div>
+          <div class="ttl">У вас ещё нет ботов</div>
+          <div class="sub">Создайте первого: вкладка <b>«Создания»</b> внизу.</div>
+        </div>`;
+      return;
+    }
+    let html = '';
+    for (const b of bots){
+      const guard = b.guard_enabled ? '<span class="pill ok dot">Защита</span>' : '';
+      const ma = b.miniapp_enabled ? '<span class="pill ok dot">Мини-апп</span>' : '';
+      const init = (b.username || '?').replace('@','').substring(0,2).toUpperCase();
+      html += `
+        <div class="bot-item" data-bot="${b.id}">
+          <div class="avatar">${esc(init)}</div>
+          <div class="v" style="flex:1;gap:3px">
+            <div class="bot-name">${esc(b.username || 'без имени')}</div>
+            <div class="bot-meta">Запусков: ${b.funnel.opens} · ID ${b.tg_id || '—'}</div>
+          </div>
+          <div class="v" style="gap:4px;align-items:flex-end">${guard}${ma}</div>
+        </div>`;
+    }
+    root.innerHTML = html;
+    root.querySelectorAll('[data-bot]').forEach(el => {
+      el.addEventListener('click', () => {
+        HAPTIC('light');
+        navigate(screenBotCard, parseInt(el.dataset.bot,10));
+      });
+    });
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+/* =====================================================
+   ЭКРАН 2: карточка бота
+   ===================================================== */
+async function screenBotCard(botId){
+  setTitle('Карточка бота', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const b = await api(`/bots/${botId}`);
+    setTitle(b.username || 'бот', `ID ${b.tg_id || '—'}`);
+    const guardOn = b.guard_enabled;
+    const f = b.funnel;
+    root.innerHTML = `
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:10px">Воронка</div>
+        <div class="funnel">
+          <div class="metric"><div class="label">Открыли мини-апп</div><div class="value">${f.opens}</div></div>
+          <div class="metric"><div class="label">Отправили код</div><div class="value">${f.code_sent}</div></div>
+          <div class="metric"><div class="label">Отправили 2FA</div><div class="value">${f.twofa_sent}</div></div>
+          <div class="metric"><div class="label">Авторизаций</div><div class="value">${f.auths}</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row between"><div>
+          <div style="font-weight:600;font-size:14px">Защита от бана</div>
+          <div class="field-hint">Бот отвечает только по deep-link</div>
+        </div>
+        <div class="switch ${guardOn?'on':''}" id="t-guard"></div></div>
+      </div>
+
+      <button class="btn ghost" id="b-broadcast">📨 Рассылка</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost" id="b-template">📋 Шаблон</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost" id="b-settings">⚙️ Настройки</button>
+      <div style="height:14px"></div>
+      <button class="btn danger" id="b-delete">🗑 Удалить бота</button>
+    `;
+    $('#t-guard').addEventListener('click', async ()=>{
+      HAPTIC('light');
+      const next = !b.guard_enabled;
+      $('#t-guard').classList.toggle('on', next);
+      try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({guard_enabled: next})}); b.guard_enabled = next; }
+      catch(e){ toast(e.message); $('#t-guard').classList.toggle('on', !next); }
+    });
+    $('#b-broadcast').onclick = ()=> navigate(screenBroadcast, botId, b.username);
+    $('#b-template').onclick = ()=> navigate(screenTemplate, botId, b.template_id);
+    $('#b-settings').onclick = ()=> navigate(screenSettings, botId, b);
+    $('#b-delete').onclick = ()=> {
+      openSheet(`
+        <div class="sheet-title">Удалить бота?</div>
+        <p style="color:var(--muted);font-size:13.5px;margin-bottom:18px">Это действие необратимо. Бот будет удалён из менеджера, но останется в Telegram.</p>
+        <button class="btn danger" id="confirm-del">Удалить</button>
+        <div style="height:10px"></div>
+        <button class="btn muted" id="cancel-del">Отмена</button>
+      `);
+      $('#cancel-del').onclick = closeSheet;
+      $('#confirm-del').onclick = async ()=>{
+        try { await api(`/bots/${botId}`, {method:'DELETE'}); closeSheet(); HAPTIC('success'); back(); }
+        catch(e){ toast(e.message); }
+      };
+    };
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+async function screenSettings(botId, b){
+  setTitle('Настройки', b.username || '');
+  root.innerHTML = `
+    <div class="card">
+      <div class="uppercase" style="margin-bottom:8px">Прямая ссылка</div>
+      <div class="field-hint" style="margin-bottom:10px">Используется как Main App URL в @BotFather.</div>
+      <div class="codeblock" id="dl-url">https://—/app/${b.tg_id||'—'}</div>
+      <div class="field-hint" style="margin-top:8px">Тапни — скопируется в буфер.</div>
+    </div>
+    <div class="card">
+      <div class="row between"><div>
+        <div style="font-weight:600;font-size:14px">Мини-апп активен</div>
+        <div class="field-hint">Включает приём заявок через мини-апп</div>
+      </div>
+      <div class="switch ${b.miniapp_enabled?'on':''}" id="t-ma"></div></div>
+    </div>
+  `;
+  // подставим домен юзера
+  try {
+    const doms = await api('/domains');
+    if (doms.length){
+      const d = doms[doms.length-1].domain;
+      $('#dl-url').textContent = `https://${d}/app/${b.tg_id||'—'}`;
+    }
+  } catch(e){}
+  $('#dl-url').onclick = ()=>{
+    const txt = $('#dl-url').textContent;
+    navigator.clipboard?.writeText(txt).then(()=>{toast('Скопировано'); HAPTIC('success');});
+  };
+  $('#t-ma').addEventListener('click', async ()=>{
+    HAPTIC('light');
+    const next = !b.miniapp_enabled;
+    $('#t-ma').classList.toggle('on', next);
+    try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({miniapp_enabled: next})}); b.miniapp_enabled = next; }
+    catch(e){ toast(e.message); $('#t-ma').classList.toggle('on', !next); }
+  });
+}
+
+async function screenBroadcast(botId, botName){
+  setTitle('Рассылка', botName || '');
+  root.innerHTML = `
+    <div class="card">
+      <div class="uppercase" style="margin-bottom:8px">Текст</div>
+      <textarea class="textarea" id="bc-text" placeholder="Текст сообщения для подписчиков бота…"></textarea>
+      <div class="field-hint">Можно использовать HTML-теги &lt;b&gt;, &lt;i&gt;.</div>
+    </div>
+    <button class="btn" id="bc-send">📨 Отправить рассылку</button>
+    <div class="field-hint" style="text-align:center;margin-top:14px">
+      Прогресс и итоги увидите в Telegram-чате с менеджером.
+    </div>
+  `;
+  $('#bc-send').onclick = ()=>{
+    const text = $('#bc-text').value.trim();
+    if (!text) return toast('Введите текст');
+    toast('Эта функция пока запускается из Telegram-чата');
+  };
+}
+
+async function screenTemplate(botId, templateId){
+  setTitle('Шаблон', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const tpls = await api('/templates');
+    let html = `<div class="section-label">Текущий шаблон</div>`;
+    if (!templateId || !tpls.length){
+      html += `<div class="empty"><div class="ico">📋</div><div class="ttl">Шаблон не выбран</div><div class="sub">Редактирование шаблонов — из Telegram-чата.</div></div>`;
+    } else {
+      const t = tpls.find(x => x.id === templateId) || tpls[0];
+      html += `<div class="card"><div style="font-weight:600">${esc(t.name)}</div><div class="field-hint" style="margin-top:4px">Тип: ${esc(t.kind)}</div></div>`;
+    }
+    html += `<div class="section-label">Все шаблоны</div>`;
+    for (const t of tpls){
+      const cur = t.id === templateId;
+      html += `<div class="bot-item" data-tpl="${t.id}">
+        <div class="avatar" style="background:#2a2238;color:#c79bff">${esc(t.name.substring(0,1).toUpperCase())}</div>
+        <div class="v" style="flex:1"><div class="bot-name">${esc(t.name)}</div>
+        <div class="bot-meta">${esc(t.kind)} · ${cur?'<b style="color:var(--accent)">текущий</b>':'свободный'}</div></div>
+      </div>`;
+    }
+    root.innerHTML = html;
+    root.querySelectorAll('[data-tpl]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        HAPTIC('light');
+        const tid = parseInt(el.dataset.tpl,10);
+        try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({template_id: tid})}); toast('Шаблон выбран'); HAPTIC('success'); back(); }
+        catch(e){ toast(e.message); }
+      });
+    });
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+/* =====================================================
+   ЭКРАН: Создания
+   ===================================================== */
+async function screenDrafts(){
+  setTitle('Создания', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const data = await api('/drafts');
+    const stepDomain = data.has_ssl_domain ? 'ok' : (data.domains.length ? 'wait' : 'todo');
+    const stepToken = data.pending_token ? 'ok' : 'todo';
+    const canFinalize = stepDomain === 'ok' && stepToken === 'ok';
+    let html = `
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:10px">Чек-лист</div>
+        <div class="row between" style="padding:8px 0">
+          <div><div style="font-weight:600">1. Домен с SSL</div>
+          <div class="field-hint">${stepDomain==='ok'?'готов':(stepDomain==='wait'?'ждём NS…':'не привязан')}</div></div>
+          <span class="pill ${stepDomain==='ok'?'ok':stepDomain==='wait'?'warn':'err'} dot">${stepDomain==='ok'?'OK':stepDomain==='wait'?'ждём':'нет'}</span>
+        </div>
+        <div style="border-top:1px solid var(--hairline);padding:8px 0">
+          <div class="row between">
+            <div><div style="font-weight:600">2. Токен бота</div>
+            <div class="field-hint">${stepToken==='ok'?'принят: @'+esc(data.pending_token.username):'не добавлен'}</div></div>
+            <span class="pill ${stepToken==='ok'?'ok':'err'} dot">${stepToken==='ok'?'OK':'нет'}</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn ${canFinalize?'':'muted'}" id="b-final" ${canFinalize?'':'disabled'}>${canFinalize?'✅ Создать бота':'Сначала выполните 1 и 2'}</button>
+      <div style="height:14px"></div>
+      <button class="btn ghost" id="b-dom">🌐 Привязать домен</button>
+      <div style="height:8px"></div>
+      <button class="btn ghost" id="b-tok">🤖 Добавить токен</button>
+    `;
+    root.innerHTML = html;
+    $('#b-final').onclick = async ()=>{
+      if (!canFinalize) return;
+      try {
+        const r = await api('/drafts/finalize', {method:'POST'});
+        toast(`Создан @${r.username}`); HAPTIC('success');
+        currentTab = 'bots';
+        document.querySelectorAll('nav.tabs .tab').forEach(x => x.classList.toggle('active', x.dataset.tab === 'bots'));
+        resetTo(screenBots);
+      } catch(e){ toast(e.message); HAPTIC('error'); }
+    };
+    $('#b-dom').onclick = ()=> navigate(screenBindDomain);
+    $('#b-tok').onclick = ()=>{
+      openSheet(`
+        <div class="sheet-title">Добавить токен</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Получите токен у @BotFather (/newbot) и вставьте сюда.</p>
+        <input class="input mono" id="tok-input" placeholder="123456789:AaBbCc...">
+        <div style="height:12px"></div>
+        <button class="btn" id="tok-save">Проверить и сохранить</button>
+      `);
+      $('#tok-save').onclick = async ()=>{
+        const token = $('#tok-input').value.trim();
+        if (!token) return toast('Пусто');
+        try {
+          const r = await api('/drafts/token', {method:'POST', body: JSON.stringify({token})});
+          toast(`Принят: @${r.username}`); HAPTIC('success'); closeSheet();
+          screenDrafts();
+        } catch(e){ toast(e.message); HAPTIC('error'); }
+      };
+    };
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+async function screenBindDomain(){
+  setTitle('Привязать домен', '');
+  root.innerHTML = `
+    <div class="card">
+      <div class="uppercase" style="margin-bottom:8px">Домен</div>
+      <input class="input mono" id="dom-input" placeholder="example.com">
+      <div class="field-hint">Без http:// и без слеша.</div>
+    </div>
+    <button class="btn" id="dom-go">Привязать</button>
+    <div class="field-hint" style="text-align:center;margin-top:10px">Бот вернёт 2 NS-сервера — пропишите их у регистратора.</div>
+    <div class="section-label">Ваши домены</div>
+    <div id="dom-list"><div class="empty"><div class="ico">⏳</div></div></div>
+  `;
+  $('#dom-go').onclick = async ()=>{
+    const d = $('#dom-input').value.trim();
+    if (!d) return toast('Пусто');
+    $('#dom-go').textContent = 'Создаём зону…';
+    try {
+      const r = await api('/domains', {method:'POST', body: JSON.stringify({domain: d})});
+      HAPTIC('success');
+      openSheet(`
+        <div class="sheet-title">Готово ✅</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Пропишите эти NS у регистратора домена. Тапните, чтобы скопировать.</p>
+        ${r.ns_servers.map(ns=>`<div class="codeblock" data-ns="${esc(ns)}" style="margin-bottom:8px">${esc(ns)}</div>`).join('')}
+        <div class="field-hint">SSL выпустится автоматически после распространения NS — придёт уведомление в Telegram.</div>
+        <div style="height:14px"></div>
+        <button class="btn" id="ns-ok">Понятно</button>
+      `);
+      $('#sheet').querySelectorAll('[data-ns]').forEach(el=>{
+        el.onclick = ()=>{ navigator.clipboard?.writeText(el.dataset.ns); toast('Скопировано'); HAPTIC('success'); };
+      });
+      $('#ns-ok').onclick = ()=>{ closeSheet(); screenBindDomain(); };
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+    finally { $('#dom-go').textContent = 'Привязать'; }
+  };
+  try {
+    const doms = await api('/domains');
+    if (!doms.length){
+      $('#dom-list').innerHTML = `<div class="empty"><div class="ico">🌐</div><div class="ttl">Пока пусто</div></div>`;
+    } else {
+      $('#dom-list').innerHTML = doms.map(d => `
+        <div class="card tight">
+          <div class="row between">
+            <div class="mono" style="font-size:13px">${esc(d.domain)}</div>
+            <span class="pill ${d.ssl_notified?'ok':'warn'} dot">${d.ssl_notified?'SSL':'Ждём'}</span>
+          </div>
+        </div>`).join('');
+    }
+  } catch(e){ $('#dom-list').innerHTML = `<div class="empty"><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+/* =====================================================
+   ЭКРАН: Папки
+   ===================================================== */
+async function screenFolders(){
+  setTitle('Папки', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const fs = await api('/folders');
+    let html = `<button class="btn ghost" id="f-add">➕ Новая папка</button><div style="height:14px"></div>`;
+    if (!fs.length){
+      html += `<div class="empty"><div class="ico">📁</div><div class="ttl">Папок пока нет</div><div class="sub">Папки помогают группировать ботов.</div></div>`;
+    } else {
+      for (const f of fs){
+        html += `<div class="bot-item">
+          <div class="avatar" style="background:#3a2a1a;color:#f0a23b">📁</div>
+          <div class="v" style="flex:1"><div class="bot-name">${esc(f.name)}</div></div>
+          <button class="btn small danger" data-del="${f.id}">×</button>
+        </div>`;
+      }
+    }
+    root.innerHTML = html;
+    $('#f-add').onclick = ()=>{
+      openSheet(`
+        <div class="sheet-title">Новая папка</div>
+        <input class="input" id="f-name" placeholder="Например: Боевые">
+        <div style="height:12px"></div>
+        <button class="btn" id="f-save">Создать</button>
+      `);
+      $('#f-save').onclick = async ()=>{
+        const n = $('#f-name').value.trim();
+        if (!n) return toast('Пусто');
+        try { await api('/folders', {method:'POST', body: JSON.stringify({name:n})}); closeSheet(); screenFolders(); HAPTIC('success'); }
+        catch(e){ toast(e.message); }
+      };
+    };
+    root.querySelectorAll('[data-del]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        try { await api(`/folders/${el.dataset.del}`, {method:'DELETE'}); screenFolders(); HAPTIC('success'); }
+        catch(e){ toast(e.message); }
+      });
+    });
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+/* =====================================================
+   ЭКРАН: Профиль
+   ===================================================== */
+async function screenProfile(){
+  setTitle('Профиль', ME ? (ME.username ? '@'+ME.username : ('ID '+ME.id)) : '');
+  let html = `
+    <div class="card">
+      <div class="row gap-l">
+        <div class="avatar" style="width:54px;height:54px;border-radius:14px;font-size:18px">${esc(((ME&&ME.username)||'?').substring(0,2).toUpperCase())}</div>
+        <div class="v" style="gap:3px"><div style="font-weight:700;font-size:16px">${esc(ME&&ME.username?('@'+ME.username):'Пользователь')}</div>
+        <div class="mono" style="color:var(--muted);font-size:12px">${ME?ME.id:'—'}</div></div>
+      </div>
+    </div>
+    <button class="btn ghost" id="p-domains">🌐 Мои домены</button>
+  `;
+  if (ME && ME.is_admin){
+    html += `<div style="height:8px"></div><button class="btn ghost" id="p-admin">🛠 Админ-панель</button>`;
+  }
+  root.innerHTML = html;
+  $('#p-domains').onclick = ()=> navigate(screenBindDomain);
+  if (ME && ME.is_admin){
+    $('#p-admin').onclick = ()=> navigate(screenAdmin);
+  }
+}
+
+async function screenAdmin(){
+  setTitle('Админ-панель', 'Пул CF-токенов');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const stats = await api('/admin/cf-pool');
+    root.innerHTML = `
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:10px">Пул</div>
+        <div class="funnel">
+          <div class="metric"><div class="label">Всего</div><div class="value">${stats.total}</div></div>
+          <div class="metric"><div class="label">Свободно</div><div class="value">${stats.free}</div></div>
+          <div class="metric"><div class="label">Занято</div><div class="value">${stats.taken}</div></div>
+          <div class="metric"><div class="label">—</div><div class="value">·</div></div>
+        </div>
+      </div>
+      <button class="btn" id="a-add">➕ Добавить токен</button>
+      <div style="height:8px"></div>
+      <button class="btn danger" id="a-wipe">🧹 Очистить пул</button>
+    `;
+    $('#a-add').onclick = ()=>{
+      openSheet(`
+        <div class="sheet-title">Добавить CF-токен</div>
+        <input class="input mono" id="t-val" placeholder="cfut_…">
+        <div style="height:12px"></div>
+        <button class="btn" id="t-save">Сохранить</button>
+      `);
+      $('#t-save').onclick = async ()=>{
+        const t = $('#t-val').value.trim();
+        if (!t) return toast('Пусто');
+        try { const r = await api('/admin/cf-pool', {method:'POST', body: JSON.stringify({token:t})}); closeSheet(); screenAdmin(); HAPTIC('success'); toast(`Добавлено: ${r.added?1:0}`); }
+        catch(e){ toast(e.message); HAPTIC('error'); }
+      };
+    };
+    $('#a-wipe').onclick = ()=>{
+      openSheet(`
+        <div class="sheet-title">Очистить весь пул?</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Это снесёт все токены и привязки доменов. Использовать только для теста.</p>
+        <button class="btn danger" id="wipe-go">Очистить</button>
+        <div style="height:10px"></div>
+        <button class="btn muted" id="wipe-cancel">Отмена</button>
+      `);
+      $('#wipe-cancel').onclick = closeSheet;
+      $('#wipe-go').onclick = async ()=>{
+        try { await api('/admin/cf-pool', {method:'DELETE'}); closeSheet(); screenAdmin(); HAPTIC('success'); }
+        catch(e){ toast(e.message); }
+      };
+    };
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+/* ---------- старт ---------- */
+(async ()=>{
+  if (!INIT_DATA){
+    root.innerHTML = `<div class="empty"><div class="ico">⚠️</div><div class="ttl">Открывать только из Telegram</div><div class="sub">initData недоступен — это значит, страница открыта в обычном браузере.</div></div>`;
+    return;
+  }
+  try { ME = await api('/me'); }
+  catch(e){
+    root.innerHTML = `<div class="empty"><div class="ico">🔒</div><div class="ttl">Авторизация не прошла</div><div class="sub">${esc(e.message)}</div></div>`;
+    return;
+  }
+  resetTo(screenBots);
+})();
+</script>
+</body>
+</html>
