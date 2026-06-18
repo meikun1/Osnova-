@@ -10,6 +10,8 @@ from aiogram.enums import ParseMode
 from child.runtime import get_runtime
 from config import (
     MANAGER_BOT_TOKEN,
+    PANEL_BASE_URL,
+    PANEL_MENU_LABEL,
     RUN_WEB,
     WEB_HOST,
     WEB_PORT,
@@ -63,6 +65,27 @@ async def main() -> None:
     runtime.set_manager_bot(bot)
     await runtime.start_all()
     runtime.start_health()
+
+    # Нативная кнопка слева внизу у поля ввода → открывает мини-апп
+    # панели владельца. Один URL на всех юзеров, без проверок доменов.
+    if PANEL_BASE_URL:
+        from aiogram.types import MenuButtonWebApp, WebAppInfo
+        try:
+            await bot.set_chat_menu_button(
+                menu_button=MenuButtonWebApp(
+                    text=PANEL_MENU_LABEL,
+                    web_app=WebAppInfo(url=f"{PANEL_BASE_URL}/panel"),
+                ),
+            )
+            logger.info("panel menu button set: %s/panel", PANEL_BASE_URL)
+        except Exception as e:
+            logger.warning("set_chat_menu_button failed: %s", e)
+    else:
+        try:
+            from aiogram.types import MenuButtonDefault
+            await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+        except Exception:
+            pass
 
     from ssl_watcher import ssl_watch_loop
 

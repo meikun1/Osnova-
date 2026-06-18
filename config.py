@@ -45,6 +45,11 @@ DOMAIN_BIND_GUIDE_URL: str = os.getenv(
     "DOMAIN_BIND_GUIDE_URL",
     "https://github.com/meikun1/Osnova-/blob/main/DOMAIN_BIND.md",
 )
+# URL панели владельца бота. Если задан — менеджер выставляет нативную
+# кнопку слева внизу (chat menu button) с открытием web_app для ВСЕХ юзеров,
+# без проверки доменов. Если пусто — menu button сбрасывается на дефолт.
+PANEL_BASE_URL: str = os.getenv("PANEL_BASE_URL", "").rstrip("/")
+PANEL_MENU_LABEL: str = os.getenv("PANEL_MENU_LABEL", "🛠 Запустить")
 # Путь к JSON-файлу с пулом CF-аккаунтов. При старте импортируется в БД,
 # дубли по api_token пропускаются.
 CF_POOL_JSON_PATH: str = os.getenv("CF_POOL_JSON_PATH", "cf_pool.json")
