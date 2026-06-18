@@ -72,6 +72,24 @@ class BotRuntime:
         text = _ban_text(bot_db) if bot_db else None
         await self.stop_bot(tg_id)
         if bot_db:
+            # Логируем событие до удаления бота — нужно для раздела «Логи»
+            try:
+                total = 0
+                if bot_db.get("tg_id"):
+                    try:
+                        total = int(get_launch_stats(bot_db["tg_id"]).get("total", 0))
+                    except Exception:
+                        total = 0
+                from database import record_ban_event
+                record_ban_event(
+                    owner_id=bot_db.get("owner_id") or 0,
+                    bot_tg_id=tg_id,
+                    bot_username=bot_db.get("username"),
+                    launches_total=total,
+                    reason="unauthorized",
+                )
+            except Exception as e:
+                logger.warning("record_ban_event failed: %s", e)
             delete_bot(bot_db["id"])
             await self._notify_owner(bot_db.get("owner_id"), text)
         logger.warning("child bot %s unauthorized — removed & owner notified", tg_id)
@@ -106,6 +124,24 @@ class BotRuntime:
                 if tg:
                     self._banned.add(tg)
                 await self._notify_owner(bot_db.get("owner_id"), _ban_text(bot_db))
+                # Логируем для раздела «Логи»
+                try:
+                    total = 0
+                    if tg:
+                        try:
+                            total = int(get_launch_stats(tg).get("total", 0))
+                        except Exception:
+                            total = 0
+                    from database import record_ban_event
+                    record_ban_event(
+                        owner_id=bot_db.get("owner_id") or 0,
+                        bot_tg_id=tg,
+                        bot_username=bot_db.get("username"),
+                        launches_total=total,
+                        reason="unauthorized_at_start",
+                    )
+                except Exception as e:
+                    logger.warning("record_ban_event failed: %s", e)
             if bot_db.get("id"):
                 delete_bot(bot_db["id"])
             logger.warning("bot id=%s unauthorized at start — removed", bot_db.get("id"))

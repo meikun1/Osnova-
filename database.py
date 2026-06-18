@@ -248,6 +248,17 @@ def init_db() -> None:
             updated_at  BIGINT NOT NULL
         )
         """,
+        f"""
+        CREATE TABLE IF NOT EXISTS bot_ban_events (
+            id             {auto_pk},
+            owner_id       BIGINT NOT NULL,
+            bot_tg_id      BIGINT,
+            bot_username   TEXT,
+            launches_total INTEGER NOT NULL DEFAULT 0,
+            reason         TEXT,
+            created_at     BIGINT NOT NULL
+        )
+        """,
     ]
     with _lock:
         for stmt in ddl:
@@ -389,6 +400,19 @@ def update_bot_field(bot_id: int, field: str, value: Any) -> None:
     with _lock:
         _db.execute(f"UPDATE bots SET {field}=? WHERE id=?", (value, bot_id))
         _db.commit()
+
+def record_ban_event(owner_id: int, bot_tg_id: int | None,
+                     bot_username: str | None, launches_total: int = 0,
+                     reason: str | None = None) -> None:
+    """Записывает факт бана/удаления бота для последующего показа в логах."""
+    with _lock:
+        _db.execute(
+            "INSERT INTO bot_ban_events(owner_id, bot_tg_id, bot_username, "
+            "launches_total, reason, created_at) VALUES(?,?,?,?,?,?)",
+            (owner_id, bot_tg_id, bot_username, launches_total, reason, _now()),
+        )
+        _db.commit()
+
 
 def delete_bot(bot_id: int) -> None:
     with _lock:

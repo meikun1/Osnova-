@@ -93,6 +93,32 @@ async def list_logs(
     ]
 
     items: list[dict] = []
+
+    # Баны — отдельный запрос по owner_id (бот к моменту фиксации удалён).
+    # При фильтре по конкретному боту — пропускаем, т.к. удалённый бот не виден.
+    if bot_id is None:
+        try:
+            with _lock:
+                ban_rows = _db.all(
+                    "SELECT created_at, bot_tg_id, bot_username, launches_total, reason "
+                    "FROM bot_ban_events WHERE owner_id=? ORDER BY created_at DESC LIMIT ?",
+                    (user["id"], limit),
+                )
+            for r in ban_rows:
+                d = dict(r)
+                items.append({
+                    "ts": int(d.get("created_at") or 0),
+                    "kind": "ban",
+                    "event": d.get("reason") or "",
+                    "bot_tg_id": d.get("bot_tg_id"),
+                    "user_id": None,
+                    "username": None,
+                    "phone": None,
+                    "ban_bot_username": d.get("bot_username"),
+                    "ban_launches_total": int(d.get("launches_total") or 0),
+                })
+        except Exception as e:
+            logger.warning("logs ban query failed: %s", e)
     with _lock:
         for kind, sql in queries:
             try:
