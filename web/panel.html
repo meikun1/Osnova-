@@ -345,7 +345,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.69e16</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.tabs+lottie</div>
   </div>
 
   <main id="content"></main>
@@ -1618,26 +1618,60 @@ function renderEditorImage(host, step){
   } else {
     $('#img-body').innerHTML = `
       <div class="field-row">
-        <div class="lbl">Стикеры</div>
+        <div class="lbl">Стикеры · ${stickers.length}</div>
+        <input class="input" id="f-sticker-search" placeholder="Поиск по имени…" style="margin-bottom:8px">
         <div class="sticker-grid" id="f-sticker"></div>
+        <div style="text-align:center;margin-top:10px">
+          <button class="btn ghost small" id="f-sticker-more" style="width:auto;display:none">Показать ещё</button>
+        </div>
         <div class="field-hint" style="margin-top:8px;line-height:1.5">
-          Чтобы добавить Lottie / gif / png — просто положите файл в
-          <code>web/static/stickers/</code>. Он появится здесь сразу,
-          без рестарта.
-          <br>
-          Поддерживаются <code>.json</code> / <code>.tgs</code> (Lottie),
+          Чтобы добавить — положите файл в <code>web/static/stickers/</code>.
+          Поддерживаются <code>.tgs</code> / <code>.json</code> (Lottie),
           <code>.gif</code>, <code>.png</code>, <code>.webp</code>, <code>.jpg</code>.
         </div>
       </div>
     `;
-    $('#f-sticker').innerHTML = stickers.map(s => _stickerTileHTML(s, s.ref === im.ref)).join('');
-    $('#f-sticker').querySelectorAll('[data-ref]').forEach(el=>{
-      el.addEventListener('click', ()=>{
-        HAPTIC('light');
-        patchStep({image: {type:'sticker', ref: el.dataset.ref, anim: im.anim || 'none', url: undefined}});
-        renderEditorBody();
+
+    let renderedCount = 0;
+    const PAGE = 24;
+    let filtered = stickers;
+
+    const renderChunk = (reset)=>{
+      if (reset){
+        $('#f-sticker').innerHTML = '';
+        renderedCount = 0;
+      }
+      const next = filtered.slice(renderedCount, renderedCount + PAGE);
+      const html = next.map(s => _stickerTileHTML(s, s.ref === im.ref)).join('');
+      $('#f-sticker').insertAdjacentHTML('beforeend', html);
+      renderedCount += next.length;
+      $('#f-sticker-more').style.display = renderedCount < filtered.length ? '' : 'none';
+      // Привязываем клик к новым плиткам
+      $('#f-sticker').querySelectorAll('[data-ref]:not([data-bound])').forEach(el=>{
+        el.setAttribute('data-bound', '1');
+        el.addEventListener('click', ()=>{
+          HAPTIC('light');
+          patchStep({image: {type:'sticker', ref: el.dataset.ref,
+                             anim: im.anim || 'none', url: undefined}});
+          renderEditorBody();
+        });
       });
-    });
+    };
+
+    renderChunk(true);
+
+    $('#f-sticker-more').onclick = ()=>{
+      HAPTIC('light');
+      renderChunk(false);
+    };
+
+    $('#f-sticker-search').oninput = (e)=>{
+      const q = e.target.value.trim().toLowerCase();
+      filtered = q
+        ? stickers.filter(s => (s.ref + ' ' + (s.title||'')).toLowerCase().includes(q))
+        : stickers;
+      renderChunk(true);
+    };
   }
 }
 
