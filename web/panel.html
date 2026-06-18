@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.invite</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.bgimg</div>
   </div>
 
   <main id="content"></main>
@@ -1869,11 +1869,27 @@ function renderUploadSection(host, step, field){
 
 function renderEditorColors(host, step){
   const t = step.theme || {};
+  const bg = String(t.background || '');
+  const isImageBg = bg.startsWith('/static/') || bg.startsWith('http://') || bg.startsWith('https://');
   host.innerHTML = `
     <div class="field-row">
-      <div class="lbl">Фон экрана</div>
+      <div class="lbl">Фон экрана — палитра</div>
       <div class="palette" id="f-bg"></div>
     </div>
+
+    <div class="field-row">
+      <div class="lbl">Фон экрана — своя картинка</div>
+      ${isImageBg
+        ? `<div class="codeblock" style="word-break:break-all;font-size:12px;margin-bottom:6px">${esc(bg)}</div>`
+        : '<div class="field-hint" style="margin-bottom:6px">Картинка не загружена</div>'}
+      <input type="file" id="f-bg-upload" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none">
+      <div class="row gap-s">
+        <button class="btn small ghost" id="b-bg-pick" style="width:auto">${isImageBg?'Заменить':'Загрузить файл…'}</button>
+        ${isImageBg ? '<button class="btn small muted" id="b-bg-clear" style="width:auto">Убрать картинку</button>' : ''}
+      </div>
+      <div class="field-hint" style="margin-top:6px">PNG / JPG / WEBP / GIF до 5 МБ. Картинка перекрывает цвет.</div>
+    </div>
+
     <div class="field-row">
       <div class="lbl">Цвет текста</div>
       <div class="palette" id="f-fg"></div>
@@ -1894,8 +1910,42 @@ function renderEditorColors(host, step){
       });
     });
   };
-  renderInto($('#f-bg'), BG_OPTS, t.background, 'background');
+  renderInto($('#f-bg'), BG_OPTS, isImageBg ? null : t.background, 'background');
   renderInto($('#f-fg'), FG_OPTS, t.text, 'text');
+
+  $('#b-bg-pick').onclick = ()=> $('#f-bg-upload').click();
+  $('#f-bg-upload').onchange = async (e)=>{
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5*1024*1024){ toast('Файл больше 5 МБ'); return; }
+    $('#b-bg-pick').disabled = true;
+    $('#b-bg-pick').textContent = 'Загрузка…';
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const resp = await fetch(`${ApiBase}/builder/templates/${encodeURIComponent(BUILDER.tpl.id)}/upload-image`, {
+        method:'POST', headers: { 'X-Telegram-Init-Data': INIT_DATA }, body: fd,
+      });
+      if (!resp.ok){
+        const j = await resp.json().catch(()=>({}));
+        throw new Error(j.detail || `HTTP ${resp.status}`);
+      }
+      const r = await resp.json();
+      patchStep({theme:{background: r.url}});
+      toast('Фон установлен'); HAPTIC('success');
+      renderEditorBody();
+    } catch(err){ toast(err.message); HAPTIC('error'); }
+    finally {
+      $('#b-bg-pick').disabled = false;
+      $('#b-bg-pick').textContent = 'Заменить';
+    }
+  };
+  const clr = $('#b-bg-clear');
+  if (clr) clr.onclick = ()=>{
+    HAPTIC('light');
+    patchStep({theme:{background: '#0e161e'}});
+    renderEditorBody();
+  };
 }
 
 function renderEditorSteps(host){

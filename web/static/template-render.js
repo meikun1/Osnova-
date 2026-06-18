@@ -133,21 +133,30 @@
   function renderStep(step, opts) {
     opts = opts || {};
     const theme = step.theme || {};
-    const root = el('div', {
-      class: 'tr-step',
-      style: {
-        position: 'relative',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', textAlign: 'center',
-        padding: '24px 20px',
-        background: theme.background || '#0e161e',
-        color: theme.text || '#fff',
-        borderRadius: '14px',
-        minHeight: '220px',
-        gap: '14px',
-        fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      },
-    });
+    // Фон может быть hex/rgb-цветом или URL картинки.
+    const bgVal = String(theme.background || '#0e161e');
+    const isImageBg = bgVal.startsWith('/static/') || bgVal.startsWith('http://') || bgVal.startsWith('https://');
+    const rootStyle = {
+      position: 'relative',
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center', textAlign: 'center',
+      padding: '24px 20px',
+      color: theme.text || '#fff',
+      borderRadius: '14px',
+      minHeight: '220px',
+      gap: '14px',
+      fontFamily: '-apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+      overflow: 'hidden',
+    };
+    if (isImageBg) {
+      rootStyle.backgroundImage = `url("${bgVal}")`;
+      rootStyle.backgroundSize = 'cover';
+      rootStyle.backgroundPosition = 'center';
+      rootStyle.backgroundRepeat = 'no-repeat';
+    } else {
+      rootStyle.background = bgVal;
+    }
+    const root = el('div', { class: 'tr-step', style: rootStyle });
 
     const img = renderImage(step.image, opts.stickers);
     if (img) root.appendChild(img);
