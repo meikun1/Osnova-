@@ -377,6 +377,8 @@ def update_bot_field(bot_id: int, field: str, value: Any) -> None:
         "welcome_message",
         "folder_id",
         "template",
+        "template_id",
+        "builder_template_id",
         "guard_enabled",
         "user_secret",
         "username",
