@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.inv-simple</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.inv3</div>
   </div>
 
   <main id="content"></main>
@@ -1518,6 +1518,13 @@ function renderEditorInvite(host){
     <div class="field-hint" style="margin-bottom:8px">Жест-реакция (палец вверх/вниз и пр.). Тап — выбрать. Тап по выбранному — снять.</div>
     <div class="sticker-grid" id="inv-stickers" style="grid-template-columns:repeat(5,1fr)"></div>
 
+    <div class="uppercase" style="margin:14px 0 5px">Название chat menu кнопки</div>
+    <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение" maxlength="14">
+    <div class="field-hint" style="margin:5px 0 14px">
+      Кнопка слева внизу у поля ввода в чате с ботом. Бот ставит её через
+      <code>setChatMenuButton</code>. До 14 символов.
+    </div>
+
     <div class="card" style="margin-top:14px">
       <div class="uppercase" style="margin-bottom:8px">Превью</div>
       <div id="inv-preview"></div>
@@ -1531,17 +1538,24 @@ function renderEditorInvite(host){
       _stickerTileHTML(s, s.ref === cur)
     ).join('');
     $('#inv-stickers').querySelectorAll('[data-ref]').forEach(el=>{
-      el.addEventListener('click', ()=>{
+      el.addEventListener('click', async ()=>{
         HAPTIC('light');
         const ref = el.dataset.ref;
         const curRef = BUILDER.tpl.data.invite?.second_sticker?.ref;
         const next = ref === curRef ? null : {ref};
-        // Мгновенно меняем подсветку без полного перерисовывания
+        // Мгновенная подсветка
         $('#inv-stickers').querySelectorAll('[data-ref]').forEach(x=>{
           x.classList.toggle('active', x.dataset.ref === ref && next !== null);
         });
-        patchRoot({invite: {second_sticker: next}});
+        // Локально сразу + сохраняем БЕЗ debounce, чтобы не потерялось при выходе
+        BUILDER.tpl.data.invite = {...(BUILDER.tpl.data.invite||{}), second_sticker: next};
         renderPreview();
+        try {
+          await api(`/builder/templates/${encodeURIComponent(BUILDER.tpl.id)}`, {
+            method:'PATCH',
+            body: JSON.stringify({root_patch: {invite: {second_sticker: next}}}),
+          });
+        } catch(e){ toast(e.message); HAPTIC('error'); }
       });
     });
   };
@@ -1550,22 +1564,53 @@ function renderEditorInvite(host){
   const renderPreview = ()=>{
     const i = BUILDER.tpl.data.invite || {};
     const t1 = (i.text || '').trim() || '<i style="color:var(--muted)">пустой текст</i>';
-    const s2 = i.second_sticker && stickerById[i.second_sticker.ref];
-    const block2 = s2
-      ? `<div style="margin-top:14px;border-top:1px solid var(--hairline);padding-top:12px">
-          <div class="field-hint" style="margin-bottom:8px">↓ 2-е сообщение (стикер)</div>
-          ${_stickerInlineHTML(s2, 80)}
-        </div>`
-      : '';
-    $('#inv-preview').innerHTML = `
+    const host = $('#inv-preview');
+    host.innerHTML = `
       <div class="field-hint" style="margin-bottom:8px">↓ 1-е сообщение</div>
       <div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
         font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${t1}</div>
-      ${block2}`;
+      <div id="inv-prev-sticker"></div>`;
+
+    const s2 = i.second_sticker && stickerById[i.second_sticker.ref];
+    if (s2){
+      const block = document.createElement('div');
+      block.style.cssText = 'margin-top:14px;border-top:1px solid var(--hairline);padding-top:12px';
+      const hint = document.createElement('div');
+      hint.className = 'field-hint';
+      hint.style.marginBottom = '8px';
+      hint.textContent = '↓ 2-е сообщение (стикер)';
+      block.appendChild(hint);
+
+      // Создаём элемент стикера через DOM API — у lottie-player с innerHTML
+      // бывают проблемы инициализации в WebView.
+      let stEl;
+      if (s2.type === 'lottie' && s2.url){
+        stEl = document.createElement('lottie-player');
+        stEl.setAttribute('src', s2.url);
+        stEl.setAttribute('background', 'transparent');
+        stEl.setAttribute('speed', '1');
+        stEl.setAttribute('loop', '');
+        stEl.setAttribute('autoplay', '');
+        stEl.style.width = '96px';
+        stEl.style.height = '96px';
+      } else if (s2.type === 'image' && s2.url){
+        stEl = document.createElement('img');
+        stEl.src = s2.url;
+        stEl.alt = '';
+        stEl.style.cssText = 'width:96px;height:96px;object-fit:contain';
+      } else {
+        stEl = document.createElement('div');
+        stEl.style.cssText = 'font-size:72px;line-height:1';
+        stEl.textContent = s2.emoji || '🦆';
+      }
+      block.appendChild(stEl);
+      host.querySelector('#inv-prev-sticker').appendChild(block);
+    }
   };
   renderPreview();
 
   $('#inv-text').oninput = (e)=>{ patchRoot({invite: {text: e.target.value}}); renderPreview(); };
+  $('#inv-btn-text').oninput = (e)=>{ patchRoot({invite: {button_text: e.target.value}}); };
 }
 
 /* Вспомогательное: inline-стикер для превью (без обвязки sticker-tile). */
