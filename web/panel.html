@@ -877,6 +877,8 @@ async function screenSessions(botId, botName){
         <div class="uppercase" style="margin-bottom:6px">Всего сессий</div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:800">${data.count}</div>
       </div>
+      <button class="btn" id="b-dl-sessions">📥 Выгрузить сессии</button>
+      <div class="field-hint" style="text-align:center;margin-top:10px" id="dl-hint">${data.count===1?'.session-файл':'ZIP-архив со всеми .session'}</div>
       <div class="section-label">Список</div>
     `;
     for (const s of data.items){
@@ -891,6 +893,38 @@ async function screenSessions(botId, botName){
         </div>`;
     }
     root.innerHTML = html;
+
+    $('#b-dl-sessions').onclick = async ()=>{
+      HAPTIC('light');
+      $('#b-dl-sessions').disabled = true;
+      $('#b-dl-sessions').textContent = 'Готовим…';
+      try {
+        const resp = await fetch(`${ApiBase}/bots/${botId}/sessions/download`, {
+          headers: { 'X-Telegram-Init-Data': INIT_DATA },
+        });
+        if (!resp.ok){
+          const j = await resp.json().catch(()=>({}));
+          throw new Error(j.detail || `HTTP ${resp.status}`);
+        }
+        // Имя файла из Content-Disposition или дефолт.
+        const cd = resp.headers.get('content-disposition') || '';
+        const m = cd.match(/filename="?([^";]+)"?/);
+        const filename = m ? m[1] : (data.count===1 ? 'session.session' : 'sessions.zip');
+
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.style.display = 'none';
+        document.body.appendChild(a); a.click();
+        setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+
+        toast(`✓ ${filename}`); HAPTIC('success');
+      } catch(e){ toast(e.message); HAPTIC('error'); }
+      finally {
+        $('#b-dl-sessions').disabled = false;
+        $('#b-dl-sessions').textContent = '📥 Выгрузить сессии';
+      }
+    };
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
 

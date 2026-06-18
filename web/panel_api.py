@@ -270,6 +270,63 @@ async def list_sessions(bot_id: int, user: dict = Depends(verify_panel_user)) ->
     }
 
 
+@router.get("/bots/{bot_id}/sessions/download")
+async def download_sessions(bot_id: int, user: dict = Depends(verify_panel_user)):
+    """Отдаёт ZIP всех .session-файлов бота. Если сессия одна — отдельный
+    .session-файл."""
+    import io
+    import os
+    import zipfile
+    from datetime import datetime, timezone
+
+    from fastapi.responses import Response
+    from database import get_bot_sessions
+    from handlers.export_sessions import _collect_session_files
+
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    if not tg_id:
+        raise HTTPException(404, "no tg_id")
+    sessions = get_bot_sessions(tg_id)
+    if not sessions:
+        raise HTTPException(404, "no sessions")
+    files = _collect_session_files(sessions)
+    if not files:
+        raise HTTPException(404, "session files not found on disk")
+
+    uname = (bot.get("username") or f"bot{bot_id}").lstrip("@")
+
+    if len(files) == 1:
+        phone, data = files[0]
+        return Response(
+            content=data,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{phone}.session"',
+            },
+        )
+
+    buf = io.BytesIO()
+    used: set[str] = set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for phone, data in files:
+            name = f"{phone}.session"
+            i = 1
+            while name in used:
+                name = f"{phone}_{i}.session"
+                i += 1
+            used.add(name)
+            zf.writestr(name, data)
+
+    stamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
+    fname = f"sessions_{uname}_{stamp}.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
 @router.post("/bots/{bot_id}/broadcast")
 async def broadcast(
     bot_id: int,
