@@ -365,7 +365,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.menubtn</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.inv-simple</div>
   </div>
 
   <main id="content"></main>
@@ -1510,21 +1510,9 @@ function renderEditorInvite(host){
       в закрытую группу.
     </div>
 
-    <div class="uppercase" style="margin-bottom:5px">1-е сообщение · текст</div>
+    <div class="uppercase" style="margin-bottom:5px">1-е сообщение</div>
     <textarea class="textarea" id="inv-text" rows="5" placeholder="👋 Здравствуйте! Чтобы получить доступ к группе…">${esc(inv.text||'')}</textarea>
     <div class="field-hint" style="margin:5px 0 14px">HTML: &lt;b&gt;, &lt;i&gt;, &lt;a href&gt;.</div>
-
-    <div class="uppercase" style="margin-bottom:5px">Название menu-кнопки бота</div>
-    <input class="input" id="inv-btn-text" value="${esc(inv.button_text||'')}" placeholder="🚀 Открыть приложение" maxlength="14">
-    <div class="field-hint" style="margin:5px 0 14px">
-      Это название кнопки <b>слева внизу у поля ввода</b> в чате с ботом —
-      она открывает мини-апп. Бот сам её ставит через <code>setChatMenuButton</code>.
-      Максимум 14 символов.
-    </div>
-
-    <div class="uppercase" style="margin-bottom:5px">2-е сообщение · текст (необязательно)</div>
-    <textarea class="textarea" id="inv-text2" rows="3" placeholder="Кратко: что делать или просто стрелка ↑">${esc(inv.second_text||'')}</textarea>
-    <div class="field-hint" style="margin:5px 0 14px">Уйдёт сразу после первого. Можно оставить пустым — пришлётся только стикер.</div>
 
     <div class="uppercase" style="margin-bottom:5px">2-е сообщение · стикер</div>
     <div class="field-hint" style="margin-bottom:8px">Жест-реакция (палец вверх/вниз и пр.). Тап — выбрать. Тап по выбранному — снять.</div>
@@ -1537,71 +1525,47 @@ function renderEditorInvite(host){
   `;
 
   const stickerById = Object.fromEntries(allStickers.map(s => [s.ref, s]));
-  const cur = inv.second_sticker?.ref || null;
-  $('#inv-stickers').innerHTML = stickerList.map(s =>
-    _stickerTileHTML(s, s.ref === cur)
-  ).join('');
-  $('#inv-stickers').querySelectorAll('[data-ref]').forEach(el=>{
-    el.addEventListener('click', ()=>{
-      HAPTIC('light');
-      const ref = el.dataset.ref;
-      const curRef = BUILDER.tpl.data.invite?.second_sticker?.ref;
-      patchRoot({invite: {second_sticker: ref === curRef ? null : {ref}}});
-      renderEditorInvite(host);
+  const renderStickerGrid = ()=>{
+    const cur = BUILDER.tpl.data.invite?.second_sticker?.ref || null;
+    $('#inv-stickers').innerHTML = stickerList.map(s =>
+      _stickerTileHTML(s, s.ref === cur)
+    ).join('');
+    $('#inv-stickers').querySelectorAll('[data-ref]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        HAPTIC('light');
+        const ref = el.dataset.ref;
+        const curRef = BUILDER.tpl.data.invite?.second_sticker?.ref;
+        const next = ref === curRef ? null : {ref};
+        // Мгновенно меняем подсветку без полного перерисовывания
+        $('#inv-stickers').querySelectorAll('[data-ref]').forEach(x=>{
+          x.classList.toggle('active', x.dataset.ref === ref && next !== null);
+        });
+        patchRoot({invite: {second_sticker: next}});
+        renderPreview();
+      });
     });
-  });
+  };
+  renderStickerGrid();
 
   const renderPreview = ()=>{
     const i = BUILDER.tpl.data.invite || {};
     const t1 = (i.text || '').trim() || '<i style="color:var(--muted)">пустой текст</i>';
-    let block2 = '';
-    const t2 = (i.second_text || '').trim();
     const s2 = i.second_sticker && stickerById[i.second_sticker.ref];
-    if (t2 || s2){
-      const stickerHTML = s2
-        ? `<div style="margin-bottom:8px">${_stickerInlineHTML(s2, 64)}</div>`
-        : '';
-      const textHTML = t2
-        ? `<div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
-            font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${esc(t2)}</div>`
-        : '';
-      block2 = `<div style="margin-top:14px;border-top:1px solid var(--hairline);padding-top:12px">
-        <div class="field-hint" style="margin-bottom:8px">↓ 2-е сообщение</div>
-        ${stickerHTML}${textHTML}
-      </div>`;
-    }
-
-    // Эмуляция menu-кнопки бота в нижней панели чата
-    const menuLabel = (i.button_text || '').trim() || 'Меню';
-    const inputBarHTML = `
-      <div class="field-hint" style="margin:14px 0 6px">↓ нижняя панель чата</div>
-      <div style="display:flex;align-items:center;gap:8px;background:#1e2832;
-        border-radius:14px;padding:6px 8px">
-        <div style="background:var(--accent-soft);color:var(--accent);font-weight:700;
-          font-size:12px;padding:7px 12px;border-radius:9px;
-          display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
-          max-width:160px;overflow:hidden;text-overflow:ellipsis" title="${esc(menuLabel)}">
-          <span style="opacity:.8;font-size:14px">▦</span>
-          ${esc(menuLabel)}
-        </div>
-        <div style="flex:1;background:#0e161e;color:var(--muted);font-size:12px;
-          padding:7px 10px;border-radius:9px">Сообщение…</div>
-      </div>
-      <div class="field-hint" style="margin-top:4px">Текст этой кнопки задаётся ботом через setChatMenuButton.</div>
-    `;
-
+    const block2 = s2
+      ? `<div style="margin-top:14px;border-top:1px solid var(--hairline);padding-top:12px">
+          <div class="field-hint" style="margin-bottom:8px">↓ 2-е сообщение (стикер)</div>
+          ${_stickerInlineHTML(s2, 80)}
+        </div>`
+      : '';
     $('#inv-preview').innerHTML = `
       <div class="field-hint" style="margin-bottom:8px">↓ 1-е сообщение</div>
       <div style="background:#1e2832;border-radius:12px;padding:11px 13px;color:var(--text-soft);
         font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word">${t1}</div>
-      ${block2}
-      ${inputBarHTML}`;
+      ${block2}`;
   };
   renderPreview();
 
   $('#inv-text').oninput = (e)=>{ patchRoot({invite: {text: e.target.value}}); renderPreview(); };
-  $('#inv-btn-text').oninput = (e)=>{ patchRoot({invite: {button_text: e.target.value}}); renderPreview(); };
-  $('#inv-text2').oninput = (e)=>{ patchRoot({invite: {second_text: e.target.value}}); renderPreview(); };
 }
 
 /* Вспомогательное: inline-стикер для превью (без обвязки sticker-tile). */
