@@ -22,15 +22,18 @@ from database import (
     delete_folder,
     get_auth_event_counts,
     get_bot,
+    get_bot_user_ids,
     get_folders,
     get_launch_stats,
     get_miniapp_launch_count,
+    get_owner_proxies,
     get_owner_templates,
     get_template,
     get_user_bots,
     pending_bot_clear,
     pending_bot_get,
     pending_bot_set,
+    set_bot_proxy,
     token_exists,
     update_bot_field,
     user_domains_list,
@@ -94,16 +97,133 @@ def _ensure_owner(bot_id: int, user_id: int) -> dict:
     return bot
 
 
+def _mask_token(token: str) -> str:
+    if not token or len(token) < 12:
+        return "****"
+    return f"{token[:4]}..{token[-3:]}"
+
+
 @router.get("/bots/{bot_id}")
 async def get_bot_card(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
     bot = _ensure_owner(bot_id, user["id"])
     stats = get_launch_stats(bot["tg_id"]) if bot.get("tg_id") else {}
+
+    template_name = ""
+    if bot.get("template_id"):
+        t = get_template(bot["template_id"])
+        if t:
+            template_name = t.get("name") or ""
+
+    domains = user_domains_list(user["id"])
+    user_domain = domains[-1]["domain"] if domains else ""
+
     return {
         **_bot_brief(bot),
         "welcome_message": bot.get("welcome_message") or "",
         "auto_approve": bool(bot.get("auto_approve")),
         "launch_stats": stats,
+        "token_mask": _mask_token(bot.get("token") or ""),
+        "template_name": template_name,
+        "domain": user_domain,
+        "proxy_id": bot.get("proxy_id"),
     }
+
+
+@router.get("/bots/{bot_id}/stats")
+async def get_bot_stats(bot_id: int, user: dict = Depends(verify_panel_user)) -> dict:
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    return {
+        "funnel": _funnel(tg_id),
+        "launches": get_launch_stats(tg_id) if tg_id else {},
+    }
+
+
+@router.patch("/bots/{bot_id}/name")
+async def set_bot_name(
+    bot_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    from aiogram import Bot
+    from aiogram.exceptions import TelegramBadRequest
+
+    bot = _ensure_owner(bot_id, user["id"])
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    if len(name) > 64:
+        raise HTTPException(400, "name too long")
+    child = Bot(token=bot["token"])
+    try:
+        await child.set_my_name(name)
+    except TelegramBadRequest as e:
+        raise HTTPException(400, f"Telegram отклонил: {e}")
+    finally:
+        await child.session.close()
+    return {"ok": True, "name": name}
+
+
+@router.get("/proxies")
+async def list_proxies(user: dict = Depends(verify_panel_user)) -> list[dict]:
+    return get_owner_proxies(user["id"])
+
+
+@router.patch("/bots/{bot_id}/proxy")
+async def set_proxy(
+    bot_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    _ensure_owner(bot_id, user["id"])
+    proxy_id = payload.get("proxy_id")
+    if proxy_id is not None and not isinstance(proxy_id, int):
+        raise HTTPException(400, "proxy_id must be int or null")
+    set_bot_proxy(bot_id, proxy_id)
+    # Перезапустим бота, чтобы прокси применилась.
+    try:
+        from child.runtime import get_runtime
+        await get_runtime().restart_bot(bot_id)
+    except Exception:
+        logger.exception("restart after proxy change failed")
+    return {"ok": True, "proxy_id": proxy_id}
+
+
+@router.post("/bots/{bot_id}/broadcast")
+async def broadcast(
+    bot_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    """Запускает рассылку юзерам, которые когда-либо стартовали бота."""
+    from aiogram import Bot
+
+    bot = _ensure_owner(bot_id, user["id"])
+    tg_id = bot.get("tg_id")
+    if not tg_id:
+        raise HTTPException(400, "bot has no tg_id")
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "text required")
+
+    user_ids = get_bot_user_ids(tg_id)
+    if not user_ids:
+        return {"sent": 0, "failed": 0, "total": 0}
+
+    sent = 0
+    failed = 0
+    child = Bot(token=bot["token"])
+    try:
+        for uid in user_ids:
+            try:
+                await child.send_message(uid, text)
+                sent += 1
+            except Exception:
+                failed += 1
+            await asyncio.sleep(0.05)
+    finally:
+        await child.session.close()
+    return {"sent": sent, "failed": failed, "total": len(user_ids)}
 
 
 @router.patch("/bots/{bot_id}")

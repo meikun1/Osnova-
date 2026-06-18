@@ -130,6 +130,56 @@
     word-break:break-all;cursor:pointer;}
   .codeblock:active{background:#0a1219}
 
+  /* шапка бота */
+  .bothead{display:flex;align-items:flex-start;gap:12px;padding:12px;background:var(--card);
+    border:1px solid var(--card-border);border-radius:14px;margin-bottom:12px;}
+  .bothead .avatar{width:46px;height:46px;border-radius:12px;font-size:18px;flex-shrink:0;}
+  .bothead .name{font-size:17px;font-weight:700;line-height:1.2}
+  .bothead .uname{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .bothead .online{display:inline-flex;align-items:center;gap:4px;background:var(--ok-bg);
+    color:var(--ok);font-size:11px;font-weight:600;padding:3px 9px;border-radius:10px;}
+  .bothead .online::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+
+  /* строки инфо */
+  .infogrid{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;padding:10px 12px;
+    background:var(--card);border:1px solid var(--card-border);border-radius:14px;
+    font-size:13.5px;margin-bottom:12px;}
+  .infogrid .k{color:var(--label);}
+  .infogrid .v{text-align:right;font-weight:600;color:var(--text);}
+  .infogrid .v.link{color:var(--accent);}
+  .infogrid .v.mono{font-family:'JetBrains Mono',monospace;font-size:12.5px;}
+  .infogrid .v .dot-ok{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);
+    margin-left:6px;vertical-align:middle;}
+
+  /* воронка с акцент-полосой */
+  .fline{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 14px;
+    background:var(--card);border:1px solid var(--card-border);border-radius:0;
+    margin-bottom:1px;position:relative;}
+  .fline:first-of-type{border-radius:14px 14px 0 0;}
+  .fline:last-of-type{border-radius:0 0 14px 14px;margin-bottom:12px;}
+  .fline::before{content:"";position:absolute;left:8px;top:10px;bottom:10px;width:3px;
+    border-radius:2px;background:var(--accent);}
+  .fline.green::before{background:var(--ok);}
+  .fline .lbl{flex:1;color:var(--text-soft);font-size:13.5px;font-weight:500;}
+  .fline .val{font-family:'JetBrains Mono',monospace;font-size:16.5px;font-weight:700;color:var(--text);}
+  .fline.green .val{color:var(--ok);}
+
+  /* toggle-row */
+  .togrow{display:flex;align-items:center;gap:10px;padding:11px 13px;background:var(--card);
+    border:1px solid var(--card-border);border-radius:14px;margin-bottom:8px;}
+  .togrow .ico{font-size:18px;width:24px;text-align:center}
+  .togrow .v{flex:1;display:flex;flex-direction:column;gap:1px}
+  .togrow .ttl{font-size:14.5px;font-weight:600;color:var(--text)}
+  .togrow .sub{font-size:11.5px;color:var(--muted)}
+
+  /* 2x2 квадратные действия */
+  .actgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;margin-bottom:10px;}
+  .actbtn{background:var(--card);border:1px solid var(--card-border);border-radius:14px;
+    padding:13px 14px;display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;
+    color:var(--text);cursor:pointer;text-align:left;}
+  .actbtn:active{background:#202d3c}
+  .actbtn .ico{font-size:15px}
+
   /* пустые состояния */
   .empty{text-align:center;padding:36px 18px;color:var(--muted)}
   .empty .ico{font-size:38px;margin-bottom:10px}
@@ -329,50 +379,77 @@ async function screenBots(){
    ЭКРАН 2: карточка бота
    ===================================================== */
 async function screenBotCard(botId){
-  setTitle('Карточка бота', '');
+  setTitle('Карточка', '');
   root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
   try {
     const b = await api(`/bots/${botId}`);
-    setTitle(b.username || 'бот', `ID ${b.tg_id || '—'}`);
-    const guardOn = b.guard_enabled;
+    setTitle('Карточка', '');
     const f = b.funnel;
+    const guard = b.guard_enabled;
+    const ma = b.miniapp_enabled;
+    const uname = (b.username||'?').replace('@','');
+    const init = uname.substring(0,2).toUpperCase();
+    const name = b.username ? esc(b.username.replace('@','')) : 'бот';
     root.innerHTML = `
-      <div class="card">
-        <div class="uppercase" style="margin-bottom:10px">Воронка</div>
-        <div class="funnel">
-          <div class="metric"><div class="label">Открыли мини-апп</div><div class="value">${f.opens}</div></div>
-          <div class="metric"><div class="label">Отправили код</div><div class="value">${f.code_sent}</div></div>
-          <div class="metric"><div class="label">Отправили 2FA</div><div class="value">${f.twofa_sent}</div></div>
-          <div class="metric"><div class="label">Авторизаций</div><div class="value">${f.auths}</div></div>
+      <div class="bothead">
+        <div class="avatar">${esc(init)}</div>
+        <div class="v" style="flex:1;gap:1px">
+          <div class="name">${name}</div>
+          <div class="uname">@${esc(uname)}</div>
         </div>
+        <div class="online">online</div>
       </div>
 
-      <div class="card">
-        <div class="row between"><div>
-          <div style="font-weight:600;font-size:14px">Защита от бана</div>
-          <div class="field-hint">Бот отвечает только по deep-link</div>
-        </div>
-        <div class="switch ${guardOn?'on':''}" id="t-guard"></div></div>
+      <div class="infogrid">
+        <div class="k">Токен</div>     <div class="v mono">${esc(b.token_mask||'—')}</div>
+        <div class="k">Шаблон</div>    <div class="v link" id="i-tpl">${esc(b.template_name||'—')}</div>
+        <div class="k">Домен</div>     <div class="v link" id="i-dom">${esc(b.domain||'—')}${b.domain?'<span class="dot-ok"></span>':''}</div>
+        <div class="k">Мини-апп</div>  <div class="v link" id="i-ma">${ma?'включён':'выключен'}</div>
       </div>
 
-      <button class="btn ghost" id="b-broadcast">📨 Рассылка</button>
-      <div style="height:8px"></div>
-      <button class="btn ghost" id="b-template">📋 Шаблон</button>
-      <div style="height:8px"></div>
-      <button class="btn ghost" id="b-settings">⚙️ Настройки</button>
-      <div style="height:14px"></div>
-      <button class="btn danger" id="b-delete">🗑 Удалить бота</button>
+      <div class="uppercase" style="margin:6px 4px 8px">Воронка · 24ч</div>
+      <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
+      <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
+      <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
+      <div class="fline green"><div class="lbl">Авторизованных сессий</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
+
+      <div class="togrow"><span class="ico">🛡</span>
+        <div class="v"><div class="ttl">Защита от бана</div><div class="sub">пауза при подозрении на бан</div></div>
+        <div class="switch ${guard?'on':''}" id="t-guard"></div>
+      </div>
+      <div class="togrow"><span class="ico">🔗</span>
+        <div class="v"><div class="ttl">Прямая ссылка</div><div class="sub">для menu_button в BotFather</div></div>
+        <div class="switch ${ma?'on':''}" id="t-ma"></div>
+      </div>
+      <div class="togrow" style="opacity:.55"><span class="ico">📢</span>
+        <div class="v"><div class="ttl">Автоспам</div><div class="sub">скоро</div></div>
+        <div class="switch" style="pointer-events:none"></div>
+      </div>
+
+      <div class="actgrid">
+        <div class="actbtn" id="a-stats"><span class="ico">📊</span>Статистика</div>
+        <div class="actbtn" id="a-broadcast"><span class="ico">📨</span>Рассылка</div>
+        <div class="actbtn" id="a-template"><span class="ico">📋</span>Шаблон</div>
+        <div class="actbtn" id="a-settings"><span class="ico">⚙️</span>Настройки</div>
+      </div>
+
+      <button class="btn danger" id="b-delete" style="margin-top:6px">🗑 Удалить бота</button>
     `;
-    $('#t-guard').addEventListener('click', async ()=>{
+    const toggle = async (key, el, current) => {
       HAPTIC('light');
-      const next = !b.guard_enabled;
-      $('#t-guard').classList.toggle('on', next);
-      try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({guard_enabled: next})}); b.guard_enabled = next; }
-      catch(e){ toast(e.message); $('#t-guard').classList.toggle('on', !next); }
-    });
-    $('#b-broadcast').onclick = ()=> navigate(screenBroadcast, botId, b.username);
-    $('#b-template').onclick = ()=> navigate(screenTemplate, botId, b.template_id);
-    $('#b-settings').onclick = ()=> navigate(screenSettings, botId, b);
+      const next = !current;
+      el.classList.toggle('on', next);
+      try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({[key]: next})}); b[key] = next; }
+      catch(e){ toast(e.message); el.classList.toggle('on', !next); HAPTIC('error'); }
+    };
+    $('#t-guard').onclick = (e)=> toggle('guard_enabled', e.currentTarget, b.guard_enabled);
+    $('#t-ma').onclick = (e)=> toggle('miniapp_enabled', e.currentTarget, b.miniapp_enabled);
+
+    $('#a-stats').onclick = ()=> navigate(screenStats, botId, b);
+    $('#a-broadcast').onclick = ()=> navigate(screenBroadcast, botId, b.username);
+    $('#a-template').onclick = ()=> navigate(screenTemplate, botId, b.template_id);
+    $('#a-settings').onclick = ()=> navigate(screenSettings, botId, b);
+
     $('#b-delete').onclick = ()=> {
       openSheet(`
         <div class="sheet-title">Удалить бота?</div>
@@ -390,35 +467,84 @@ async function screenBotCard(botId){
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
 
+/* экран Статистики */
+async function screenStats(botId, b){
+  setTitle('Статистика', b ? b.username : '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const data = await api(`/bots/${botId}/stats`);
+    const f = data.funnel, L = data.launches || {};
+    const total = L.total || 0;
+    const arr = (L.by_geo || []).slice(0, 8);
+    let geoHtml = '';
+    if (!arr.length){
+      geoHtml = `<div class="empty"><div class="sub">Запусков ещё нет</div></div>`;
+    } else {
+      const max = arr[0][1];
+      for (const [code, n] of arr){
+        const pct = Math.round(n/max*100);
+        geoHtml += `
+          <div style="margin-bottom:9px">
+            <div class="row between" style="margin-bottom:4px"><span style="font-size:13px;color:var(--text-soft)">${esc((code||'??').toUpperCase())}</span>
+            <span class="mono" style="font-size:12.5px;color:var(--muted)">${n}</span></div>
+            <div style="height:6px;background:var(--input-bg);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--accent)"></div></div>
+          </div>`;
+      }
+    }
+    const unique = L.unique || 0;
+    root.innerHTML = `
+      <div class="card">
+        <div class="uppercase" style="margin-bottom:10px">Запусков всего</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:800">${total.toLocaleString('ru')}</div>
+        <div class="field-hint" style="margin-top:6px">Уникальных юзеров: ${unique.toLocaleString('ru')}</div>
+      </div>
+      <div class="uppercase" style="margin:14px 4px 8px">Воронка · 24ч</div>
+      <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
+      <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
+      <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
+      <div class="fline green"><div class="lbl">Авторизованных</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
+      <div class="uppercase" style="margin:14px 4px 8px">География</div>
+      <div class="card">${geoHtml}</div>
+    `;
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
 async function screenSettings(botId, b){
   setTitle('Настройки', b.username || '');
+  const dlUrl = `https://${b.domain || '—'}/app/${b.tg_id||'—'}`;
   root.innerHTML = `
     <div class="card">
-      <div class="uppercase" style="margin-bottom:8px">Прямая ссылка</div>
-      <div class="field-hint" style="margin-bottom:10px">Используется как Main App URL в @BotFather.</div>
-      <div class="codeblock" id="dl-url">https://—/app/${b.tg_id||'—'}</div>
-      <div class="field-hint" style="margin-top:8px">Тапни — скопируется в буфер.</div>
+      <div class="uppercase" style="margin-bottom:8px">Имя бота</div>
+      <div class="field-hint" style="margin-bottom:8px">Меняется через setMyName (как в @BotFather).</div>
+      <input class="input" id="set-name" placeholder="${esc((b.username||'').replace('@',''))}" maxlength="64">
+      <div style="height:8px"></div>
+      <button class="btn small" id="b-savename">Сохранить</button>
     </div>
+
     <div class="card">
-      <div class="row between"><div>
-        <div style="font-weight:600;font-size:14px">Мини-апп активен</div>
-        <div class="field-hint">Включает приём заявок через мини-апп</div>
-      </div>
-      <div class="switch ${b.miniapp_enabled?'on':''}" id="t-ma"></div></div>
+      <div class="uppercase" style="margin-bottom:8px">Прокси</div>
+      <div class="field-hint" style="margin-bottom:10px">Через какой прокси бот будет ходить в Telegram.</div>
+      <div id="proxy-list"><div class="empty"><div class="ico">⏳</div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="uppercase" style="margin-bottom:8px">Прямая ссылка</div>
+      <div class="field-hint" style="margin-bottom:10px">Эта ссылка идёт в @BotFather → Configure Mini App → Edit Mini App URL → Main App.</div>
+      <div class="codeblock" id="dl-url">${esc(dlUrl)}</div>
+      <div class="field-hint" style="margin-top:8px">Тап — скопировать.</div>
+    </div>
+
+    <div class="togrow">
+      <span class="ico">🔗</span>
+      <div class="v"><div class="ttl">Прямая ссылка активна</div><div class="sub">Бот реагирует только по startapp-токену</div></div>
+      <div class="switch ${b.miniapp_enabled?'on':''}" id="t-ma"></div>
     </div>
   `;
-  // подставим домен юзера
-  try {
-    const doms = await api('/domains');
-    if (doms.length){
-      const d = doms[doms.length-1].domain;
-      $('#dl-url').textContent = `https://${d}/app/${b.tg_id||'—'}`;
-    }
-  } catch(e){}
+
   $('#dl-url').onclick = ()=>{
-    const txt = $('#dl-url').textContent;
-    navigator.clipboard?.writeText(txt).then(()=>{toast('Скопировано'); HAPTIC('success');});
+    navigator.clipboard?.writeText(dlUrl).then(()=>{toast('Скопировано'); HAPTIC('success');});
   };
+
   $('#t-ma').addEventListener('click', async ()=>{
     HAPTIC('light');
     const next = !b.miniapp_enabled;
@@ -426,25 +552,81 @@ async function screenSettings(botId, b){
     try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({miniapp_enabled: next})}); b.miniapp_enabled = next; }
     catch(e){ toast(e.message); $('#t-ma').classList.toggle('on', !next); }
   });
+
+  $('#b-savename').onclick = async ()=>{
+    const v = $('#set-name').value.trim();
+    if (!v) return toast('Введите имя');
+    try {
+      await api(`/bots/${botId}/name`, {method:'PATCH', body: JSON.stringify({name: v})});
+      toast('Имя сохранено'); HAPTIC('success');
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+  };
+
+  try {
+    const proxies = await api('/proxies');
+    const cur = b.proxy_id;
+    let html = `<div class="bot-item" data-pid="" style="${cur==null?'border-color:var(--accent)':''}">
+      <div class="avatar" style="background:var(--accent-soft);color:var(--accent)">∅</div>
+      <div class="v" style="flex:1"><div class="bot-name">Без прокси</div>
+      <div class="bot-meta">Прямое подключение</div></div>
+      ${cur==null?'<span class="pill ok">текущий</span>':''}
+    </div>`;
+    for (const p of proxies){
+      const sel = p.id === cur;
+      html += `<div class="bot-item" data-pid="${p.id}" style="${sel?'border-color:var(--accent)':''}">
+        <div class="avatar" style="background:#2a3a2c;color:var(--ok)">🌐</div>
+        <div class="v" style="flex:1"><div class="bot-name">${esc(p.label || 'прокси')}</div>
+        <div class="bot-meta mono" style="font-size:11px">${esc((p.url||'').substring(0,40))}</div></div>
+        ${sel?'<span class="pill ok">текущий</span>':''}
+      </div>`;
+    }
+    if (proxies.length === 0){
+      html += `<div class="field-hint" style="text-align:center;margin-top:8px">Прокси добавляются из Telegram-чата</div>`;
+    }
+    $('#proxy-list').innerHTML = html;
+    $('#proxy-list').querySelectorAll('[data-pid]').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        HAPTIC('light');
+        const pid = el.dataset.pid === '' ? null : parseInt(el.dataset.pid, 10);
+        try {
+          await api(`/bots/${botId}/proxy`, {method:'PATCH', body: JSON.stringify({proxy_id: pid})});
+          b.proxy_id = pid;
+          toast('Прокси сохранён, бот перезапущен'); HAPTIC('success');
+          screenSettings(botId, b);
+        } catch(e){ toast(e.message); HAPTIC('error'); }
+      });
+    });
+  } catch(e){ $('#proxy-list').innerHTML = `<div class="field-hint">${esc(e.message)}</div>`; }
 }
 
 async function screenBroadcast(botId, botName){
-  setTitle('Рассылка', botName || '');
+  setTitle('Рассылка', botName ? esc(botName) : '');
   root.innerHTML = `
     <div class="card">
-      <div class="uppercase" style="margin-bottom:8px">Текст</div>
-      <textarea class="textarea" id="bc-text" placeholder="Текст сообщения для подписчиков бота…"></textarea>
-      <div class="field-hint">Можно использовать HTML-теги &lt;b&gt;, &lt;i&gt;.</div>
+      <div class="uppercase" style="margin-bottom:8px">От бота</div>
+      <div style="font-size:14.5px;font-weight:600">${esc(botName||'бот')}</div>
+    </div>
+    <div class="card">
+      <div class="uppercase" style="margin-bottom:8px">Сообщение</div>
+      <textarea class="textarea" id="bc-text" placeholder="Текст рассылки. Поддерживается HTML: <b>, <i>, <a href>." style="min-height:140px"></textarea>
+      <div class="field-hint">Уйдёт всем, кто когда-либо стартовал бота.</div>
     </div>
     <button class="btn" id="bc-send">📨 Отправить рассылку</button>
-    <div class="field-hint" style="text-align:center;margin-top:14px">
-      Прогресс и итоги увидите в Telegram-чате с менеджером.
-    </div>
+    <div class="field-hint" id="bc-status" style="text-align:center;margin-top:10px"></div>
   `;
-  $('#bc-send').onclick = ()=>{
+  $('#bc-send').onclick = async ()=>{
     const text = $('#bc-text').value.trim();
     if (!text) return toast('Введите текст');
-    toast('Эта функция пока запускается из Telegram-чата');
+    $('#bc-send').textContent = 'Отправляем…';
+    $('#bc-send').disabled = true;
+    HAPTIC('light');
+    try {
+      const r = await api(`/bots/${botId}/broadcast`, {method:'POST', body: JSON.stringify({text})});
+      $('#bc-status').innerHTML = `Доставлено: <b style="color:var(--ok)">${r.sent}</b> / ${r.total}${r.failed?` &nbsp;Ошибок: ${r.failed}`:''}`;
+      toast(`Готово: ${r.sent}/${r.total}`); HAPTIC('success');
+      $('#bc-text').value = '';
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+    finally { $('#bc-send').textContent='📨 Отправить рассылку'; $('#bc-send').disabled=false; }
   };
 }
 
