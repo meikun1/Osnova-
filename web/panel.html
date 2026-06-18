@@ -33,7 +33,8 @@
     border-bottom:1px solid var(--hairline);min-height:44px;}
   .topbar .title{flex:1;font-size:18px;font-weight:700}
   .topbar .sub{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px}
-  .topbar .back{font-size:22px;color:var(--accent);cursor:pointer;padding:0 6px;display:none}
+  /* Своя back-стрелка скрыта всегда — используем нативный Telegram BackButton */
+  .topbar .back{display:none!important}
 
   /* контент */
   main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
@@ -46,6 +47,7 @@
     color:var(--muted);cursor:pointer;padding:6px 4px;font-size:11px;font-weight:600;}
   nav.tabs .tab.active{color:var(--accent)}
   nav.tabs .tab .ico{font-size:20px;line-height:1}
+  .ico-svg{width:22px;height:22px;display:block;color:currentColor;}
 
   /* карточки */
   .card{background:var(--card);border:1px solid var(--card-border);
@@ -204,11 +206,23 @@
 
   <main id="content"></main>
 
+  <!-- SVG спрайт из прототипа (stroke=1.9, viewBox 0 0 24 24, currentColor) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="ic-bots" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-drafts" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-folders" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="ic-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
   <nav class="tabs">
-    <div class="tab active" data-tab="bots"><span class="ico">🤖</span>Боты</div>
-    <div class="tab" data-tab="drafts"><span class="ico">✨</span>Создания</div>
-    <div class="tab" data-tab="folders"><span class="ico">📁</span>Папки</div>
-    <div class="tab" data-tab="profile"><span class="ico">👤</span>Профиль</div>
+    <div class="tab active" data-tab="bots"><svg class="ico-svg"><use href="#ic-bots"/></svg>Боты</div>
+    <div class="tab" data-tab="drafts"><svg class="ico-svg"><use href="#ic-drafts"/></svg>Создания</div>
+    <div class="tab" data-tab="folders"><svg class="ico-svg"><use href="#ic-folders"/></svg>Папки</div>
+    <div class="tab" data-tab="profile"><svg class="ico-svg"><use href="#ic-profile"/></svg>Профиль</div>
   </nav>
 
   <div class="sheet-bg" id="sheet-bg"></div>
@@ -230,6 +244,21 @@ if (tg) {
 }
 const INIT_DATA = tg ? tg.initData : "";
 const USER = tg && tg.initDataUnsafe ? tg.initDataUnsafe.user : null;
+
+/* MainButton helper. Передаём callback и текст, отписку делаем при смене экрана. */
+let _mainCB = null;
+function setMain(text, cb){
+  if (!tg || !tg.MainButton){ return; }
+  try {
+    if (_mainCB){ tg.MainButton.offClick(_mainCB); _mainCB = null; }
+    if (!text || !cb){ tg.MainButton.hide(); return; }
+    tg.MainButton.setText(text);
+    _mainCB = cb;
+    tg.MainButton.onClick(cb);
+    tg.MainButton.show();
+  } catch(e){}
+}
+function hideMain(){ setMain(null, null); }
 
 const HAPTIC = (kind) => {
   if (!tg || !tg.HapticFeedback) return;
@@ -291,12 +320,14 @@ const stack = [];   // история экранов для back
 let currentTab = 'bots';
 
 function navigate(screenFn, ...args){
+  hideMain();
   stack.push({fn: screenFn, args});
   screenFn(...args);
   updateBack();
 }
 function back(){
   if (stack.length <= 1) return false;
+  hideMain();
   stack.pop();
   const prev = stack[stack.length - 1];
   prev.fn(...prev.args);
@@ -304,6 +335,7 @@ function back(){
   return true;
 }
 function resetTo(screenFn, ...args){
+  hideMain();
   stack.length = 0;
   navigate(screenFn, ...args);
 }
@@ -553,14 +585,20 @@ async function screenSettings(botId, b){
     catch(e){ toast(e.message); $('#t-ma').classList.toggle('on', !next); }
   });
 
-  $('#b-savename').onclick = async ()=>{
+  const saveName = async ()=>{
     const v = $('#set-name').value.trim();
     if (!v) return toast('Введите имя');
+    HAPTIC('light');
     try {
       await api(`/bots/${botId}/name`, {method:'PATCH', body: JSON.stringify({name: v})});
       toast('Имя сохранено'); HAPTIC('success');
     } catch(e){ toast(e.message); HAPTIC('error'); }
   };
+  $('#b-savename').onclick = saveName;
+  $('#set-name').addEventListener('input', (e)=>{
+    if (e.target.value.trim()) setMain('Сохранить имя', saveName);
+    else hideMain();
+  });
 
   try {
     const proxies = await api('/proxies');
@@ -611,23 +649,22 @@ async function screenBroadcast(botId, botName){
       <textarea class="textarea" id="bc-text" placeholder="Текст рассылки. Поддерживается HTML: <b>, <i>, <a href>." style="min-height:140px"></textarea>
       <div class="field-hint">Уйдёт всем, кто когда-либо стартовал бота.</div>
     </div>
-    <button class="btn" id="bc-send">📨 Отправить рассылку</button>
     <div class="field-hint" id="bc-status" style="text-align:center;margin-top:10px"></div>
   `;
-  $('#bc-send').onclick = async ()=>{
+  const doSend = async ()=>{
     const text = $('#bc-text').value.trim();
     if (!text) return toast('Введите текст');
-    $('#bc-send').textContent = 'Отправляем…';
-    $('#bc-send').disabled = true;
     HAPTIC('light');
+    try { tg && tg.MainButton.showProgress(); } catch(e){}
     try {
       const r = await api(`/bots/${botId}/broadcast`, {method:'POST', body: JSON.stringify({text})});
       $('#bc-status').innerHTML = `Доставлено: <b style="color:var(--ok)">${r.sent}</b> / ${r.total}${r.failed?` &nbsp;Ошибок: ${r.failed}`:''}`;
       toast(`Готово: ${r.sent}/${r.total}`); HAPTIC('success');
       $('#bc-text').value = '';
     } catch(e){ toast(e.message); HAPTIC('error'); }
-    finally { $('#bc-send').textContent='📨 Отправить рассылку'; $('#bc-send').disabled=false; }
+    finally { try { tg && tg.MainButton.hideProgress(); } catch(e){} }
   };
+  setMain('Отправить рассылку', doSend);
 }
 
 async function screenTemplate(botId, templateId){
@@ -671,114 +708,167 @@ async function screenDrafts(){
   root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
   try {
     const data = await api('/drafts');
-    const stepDomain = data.has_ssl_domain ? 'ok' : (data.domains.length ? 'wait' : 'todo');
-    const stepToken = data.pending_token ? 'ok' : 'todo';
-    const canFinalize = stepDomain === 'ok' && stepToken === 'ok';
-    let html = `
-      <div class="card">
-        <div class="uppercase" style="margin-bottom:10px">Чек-лист</div>
-        <div class="row between" style="padding:8px 0">
-          <div><div style="font-weight:600">1. Домен с SSL</div>
-          <div class="field-hint">${stepDomain==='ok'?'готов':(stepDomain==='wait'?'ждём NS…':'не привязан')}</div></div>
-          <span class="pill ${stepDomain==='ok'?'ok':stepDomain==='wait'?'warn':'err'} dot">${stepDomain==='ok'?'OK':stepDomain==='wait'?'ждём':'нет'}</span>
-        </div>
-        <div style="border-top:1px solid var(--hairline);padding:8px 0">
-          <div class="row between">
-            <div><div style="font-weight:600">2. Токен бота</div>
-            <div class="field-hint">${stepToken==='ok'?'принят: @'+esc(data.pending_token.username):'не добавлен'}</div></div>
-            <span class="pill ${stepToken==='ok'?'ok':'err'} dot">${stepToken==='ok'?'OK':'нет'}</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn ${canFinalize?'':'muted'}" id="b-final" ${canFinalize?'':'disabled'}>${canFinalize?'✅ Создать бота':'Сначала выполните 1 и 2'}</button>
-      <div style="height:14px"></div>
-      <button class="btn ghost" id="b-dom">🌐 Привязать домен</button>
-      <div style="height:8px"></div>
-      <button class="btn ghost" id="b-tok">🤖 Добавить токен</button>
-    `;
-    root.innerHTML = html;
-    $('#b-final').onclick = async ()=>{
-      if (!canFinalize) return;
-      try {
-        const r = await api('/drafts/finalize', {method:'POST'});
-        toast(`Создан @${r.username}`); HAPTIC('success');
-        currentTab = 'bots';
-        document.querySelectorAll('nav.tabs .tab').forEach(x => x.classList.toggle('active', x.dataset.tab === 'bots'));
-        resetTo(screenBots);
-      } catch(e){ toast(e.message); HAPTIC('error'); }
-    };
-    $('#b-dom').onclick = ()=> navigate(screenBindDomain);
-    $('#b-tok').onclick = ()=>{
-      openSheet(`
-        <div class="sheet-title">Добавить токен</div>
-        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Получите токен у @BotFather (/newbot) и вставьте сюда.</p>
-        <input class="input mono" id="tok-input" placeholder="123456789:AaBbCc...">
-        <div style="height:12px"></div>
-        <button class="btn" id="tok-save">Проверить и сохранить</button>
-      `);
-      $('#tok-save').onclick = async ()=>{
-        const token = $('#tok-input').value.trim();
-        if (!token) return toast('Пусто');
-        try {
-          const r = await api('/drafts/token', {method:'POST', body: JSON.stringify({token})});
-          toast(`Принят: @${r.username}`); HAPTIC('success'); closeSheet();
-          screenDrafts();
-        } catch(e){ toast(e.message); HAPTIC('error'); }
-      };
-    };
-  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
-}
+    const tokenOk = !!data.pending_token;
+    const sslOk = data.has_ssl_domain;
+    const domWaiting = !sslOk && data.domains.length > 0;
+    const canFinalize = tokenOk && sslOk;
 
-async function screenBindDomain(){
-  setTitle('Привязать домен', '');
-  root.innerHTML = `
-    <div class="card">
-      <div class="uppercase" style="margin-bottom:8px">Домен</div>
-      <input class="input mono" id="dom-input" placeholder="example.com">
-      <div class="field-hint">Без http:// и без слеша.</div>
-    </div>
-    <button class="btn" id="dom-go">Привязать</button>
-    <div class="field-hint" style="text-align:center;margin-top:10px">Бот вернёт 2 NS-сервера — пропишите их у регистратора.</div>
-    <div class="section-label">Ваши домены</div>
-    <div id="dom-list"><div class="empty"><div class="ico">⏳</div></div></div>
-  `;
-  $('#dom-go').onclick = async ()=>{
-    const d = $('#dom-input').value.trim();
-    if (!d) return toast('Пусто');
-    $('#dom-go').textContent = 'Создаём зону…';
-    try {
-      const r = await api('/domains', {method:'POST', body: JSON.stringify({domain: d})});
-      HAPTIC('success');
-      openSheet(`
-        <div class="sheet-title">Готово ✅</div>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Пропишите эти NS у регистратора домена. Тапните, чтобы скопировать.</p>
-        ${r.ns_servers.map(ns=>`<div class="codeblock" data-ns="${esc(ns)}" style="margin-bottom:8px">${esc(ns)}</div>`).join('')}
-        <div class="field-hint">SSL выпустится автоматически после распространения NS — придёт уведомление в Telegram.</div>
-        <div style="height:14px"></div>
-        <button class="btn" id="ns-ok">Понятно</button>
-      `);
-      $('#sheet').querySelectorAll('[data-ns]').forEach(el=>{
-        el.onclick = ()=>{ navigator.clipboard?.writeText(el.dataset.ns); toast('Скопировано'); HAPTIC('success'); };
-      });
-      $('#ns-ok').onclick = ()=>{ closeSheet(); screenBindDomain(); };
-    } catch(e){ toast(e.message); HAPTIC('error'); }
-    finally { $('#dom-go').textContent = 'Привязать'; }
-  };
-  try {
-    const doms = await api('/domains');
-    if (!doms.length){
-      $('#dom-list').innerHTML = `<div class="empty"><div class="ico">🌐</div><div class="ttl">Пока пусто</div></div>`;
-    } else {
-      $('#dom-list').innerHTML = doms.map(d => `
-        <div class="card tight">
+    let inWorkBanner = '';
+    if (tokenOk || data.domains.length){
+      const parts = [];
+      if (tokenOk) parts.push(`токен @${esc(data.pending_token.username)} принят`);
+      if (sslOk) parts.push('домен готов');
+      else if (domWaiting) parts.push('домен ждёт NS');
+      inWorkBanner = `
+        <div class="card" style="border-color:var(--accent-soft)">
+          <div class="uppercase" style="color:var(--accent);margin-bottom:6px">В работе</div>
+          <div style="font-size:13.5px;color:var(--text-soft);line-height:1.45">
+            Есть незавершённое создание: ${parts.join(', ')}. Сохранённое поле остаётся — допишите второе, и бот переедет в «Боты».
+          </div>
+        </div>`;
+    }
+
+    let myDomainsHtml = '';
+    if (data.domains.length){
+      myDomainsHtml = data.domains.map(d => `
+        <div class="card tight" style="margin-bottom:6px">
           <div class="row between">
             <div class="mono" style="font-size:13px">${esc(d.domain)}</div>
-            <span class="pill ${d.ssl_notified?'ok':'warn'} dot">${d.ssl_notified?'SSL':'Ждём'}</span>
+            <span class="pill ${d.ssl_notified?'ok':'warn'} dot">${d.ssl_notified?'SSL':'Ждём NS'}</span>
           </div>
         </div>`).join('');
     }
-  } catch(e){ $('#dom-list').innerHTML = `<div class="empty"><div class="sub">${esc(e.message)}</div></div>`; }
+
+    root.innerHTML = `
+      ${inWorkBanner}
+
+      <button class="btn" id="b-add" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <svg class="ico-svg" style="width:18px;height:18px"><use href="#ic-plus"/></svg>
+        Добавить бота
+      </button>
+
+      <div class="section-label">Чек-лист</div>
+      <div class="card">
+        <div class="row between" style="padding:4px 0">
+          <div><div style="font-weight:600;font-size:14px">Токен</div>
+          <div class="field-hint">${tokenOk ? 'принят: @' + esc(data.pending_token.username) : 'не добавлен'}</div></div>
+          <span class="pill ${tokenOk?'ok':'muted'} dot">${tokenOk?'OK':'—'}</span>
+        </div>
+        <div style="border-top:1px solid var(--hairline);padding-top:10px;margin-top:8px">
+          <div class="row between">
+            <div><div style="font-weight:600;font-size:14px">Домен</div>
+            <div class="field-hint">${sslOk ? 'SSL выпущен' : (domWaiting ? 'ждём распространения NS' : 'не привязан')}</div></div>
+            <span class="pill ${sslOk?'ok':(domWaiting?'warn':'muted')} dot">${sslOk?'OK':(domWaiting?'wait':'—')}</span>
+          </div>
+        </div>
+      </div>
+
+      ${myDomainsHtml ? `<div class="section-label">Ваши домены</div>${myDomainsHtml}` : ''}
+    `;
+
+    $('#b-add').onclick = ()=> openAddBotSheet(data);
+
+    if (canFinalize){
+      setMain('Проверить и подключить', async ()=>{
+        try {
+          const r = await api('/drafts/finalize', {method:'POST'});
+          toast(`Создан @${r.username}`); HAPTIC('success');
+          currentTab = 'bots';
+          document.querySelectorAll('nav.tabs .tab').forEach(x => x.classList.toggle('active', x.dataset.tab === 'bots'));
+          resetTo(screenBots);
+        } catch(e){ toast(e.message); HAPTIC('error'); }
+      });
+    } else {
+      hideMain();
+    }
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
+
+/* Единая шторка «Добавить бота» с двумя независимыми блоками
+   (Токен, Домен) и собственными «Сохранить». */
+function openAddBotSheet(data){
+  const tokenSaved = data.pending_token ? `@${data.pending_token.username}` : '';
+  const lastDomain = data.domains.length ? data.domains[data.domains.length-1] : null;
+  const domSaved = lastDomain ? lastDomain.domain : '';
+  const sslState = lastDomain ? (lastDomain.ssl_notified ? 'SSL OK' : 'ждём NS') : '';
+
+  openSheet(`
+    <div class="sheet-title">Добавить бота</div>
+    <div class="field-hint" style="margin-bottom:14px">Каждое поле сохраняется отдельно. Незавершённое создание попадает в «Создания» — продолжите позже.</div>
+
+    <div class="uppercase" style="margin-bottom:6px">Токен от @BotFather</div>
+    <div class="row gap-s" style="margin-bottom:4px">
+      <input class="input mono" id="ab-token" placeholder="123456789:AaBbCc…" style="flex:1">
+      <button class="btn small" id="ab-tok-save" style="width:auto;min-width:96px">Сохранить</button>
+    </div>
+    <div class="field-hint" id="ab-tok-state" style="margin-bottom:14px">${tokenSaved ? '✓ Сохранён: ' + esc(tokenSaved) : ''}</div>
+
+    <div class="uppercase" style="margin-bottom:6px">Домен</div>
+    <div class="row gap-s" style="margin-bottom:4px">
+      <input class="input mono" id="ab-domain" placeholder="example.com" style="flex:1">
+      <button class="btn small" id="ab-dom-save" style="width:auto;min-width:96px">Привязать</button>
+    </div>
+    <div class="field-hint" id="ab-dom-state">${domSaved ? '✓ ' + esc(domSaved) + ' · ' + esc(sslState) : 'SSL подтянется через ваш CF-аккаунт автоматически'}</div>
+  `);
+
+  $('#ab-tok-save').onclick = async ()=>{
+    const t = $('#ab-token').value.trim();
+    if (!t) return toast('Введите токен');
+    $('#ab-tok-save').disabled = true; $('#ab-tok-save').textContent = '…';
+    try {
+      const r = await api('/drafts/token', {method:'POST', body: JSON.stringify({token: t})});
+      $('#ab-tok-state').textContent = '✓ Сохранён: @' + r.username;
+      $('#ab-token').value = '';
+      HAPTIC('success');
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+    finally { $('#ab-tok-save').disabled = false; $('#ab-tok-save').textContent = 'Сохранить'; }
+  };
+
+  $('#ab-dom-save').onclick = async ()=>{
+    const d = $('#ab-domain').value.trim();
+    if (!d) return toast('Введите домен');
+    $('#ab-dom-save').disabled = true; $('#ab-dom-save').textContent = '…';
+    try {
+      const r = await api('/domains', {method:'POST', body: JSON.stringify({domain: d})});
+      $('#ab-dom-state').innerHTML = '✓ ' + esc(r.domain) + ' · пропишите NS у регистратора';
+      // Покажем NS-серверы под полем
+      const nsHtml = r.ns_servers.map(ns => `<div class="codeblock" data-ns="${esc(ns)}" style="margin-top:6px">${esc(ns)}</div>`).join('');
+      $('#ab-dom-state').insertAdjacentHTML('afterend', `<div id="ab-ns" style="margin-top:6px">${nsHtml}</div>`);
+      $('#ab-dom-state').nextElementSibling.querySelectorAll('[data-ns]').forEach(el => {
+        el.onclick = ()=> { navigator.clipboard?.writeText(el.dataset.ns); toast('Скопировано'); HAPTIC('success'); };
+      });
+      $('#ab-domain').value = '';
+      HAPTIC('success');
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+    finally { $('#ab-dom-save').disabled = false; $('#ab-dom-save').textContent = 'Привязать'; }
+  };
+}
+
+async function screenMyDomains(){
+  setTitle('Мои домены', '');
+  root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
+  try {
+    const doms = await api('/domains');
+    if (!doms.length){
+      root.innerHTML = `
+        <div class="empty">
+          <div class="ico">🌐</div>
+          <div class="ttl">Пока пусто</div>
+          <div class="sub">Привязка домена — на вкладке «Создания» → «Добавить бота».</div>
+        </div>`;
+      return;
+    }
+    root.innerHTML = doms.map(d => `
+      <div class="card tight">
+        <div class="row between">
+          <div class="mono" style="font-size:13.5px">${esc(d.domain)}</div>
+          <span class="pill ${d.ssl_notified?'ok':'warn'} dot">${d.ssl_notified?'SSL':'Ждём NS'}</span>
+        </div>
+      </div>`).join('');
+  } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
+}
+
+// screenBindDomain удалён — привязка теперь идёт через единую шторку «Добавить бота».
 
 /* =====================================================
    ЭКРАН: Папки
@@ -790,7 +880,7 @@ async function screenFolders(){
     const fs = await api('/folders');
     let html = `<button class="btn ghost" id="f-add">➕ Новая папка</button><div style="height:14px"></div>`;
     if (!fs.length){
-      html += `<div class="empty"><div class="ico">📁</div><div class="ttl">Папок пока нет</div><div class="sub">Папки помогают группировать ботов.</div></div>`;
+      html += `<div class="empty"><div class="ico">📁</div><div class="ttl">Папок пока нет</div><div class="sub">Перетаскивайте ботов между папками — порядок сохраняется в БД.</div></div>`;
     } else {
       for (const f of fs){
         html += `<div class="bot-item">
@@ -843,7 +933,7 @@ async function screenProfile(){
     html += `<div style="height:8px"></div><button class="btn ghost" id="p-admin">🛠 Админ-панель</button>`;
   }
   root.innerHTML = html;
-  $('#p-domains').onclick = ()=> navigate(screenBindDomain);
+  $('#p-domains').onclick = ()=> navigate(screenMyDomains);
   if (ME && ME.is_admin){
     $('#p-admin').onclick = ()=> navigate(screenAdmin);
   }
