@@ -153,17 +153,18 @@
   .infogrid .v .dot-ok{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ok);
     margin-left:6px;vertical-align:middle;}
 
-  /* воронка с акцент-полосой */
-  .fline{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 14px;
-    background:var(--card);border:1px solid var(--card-border);border-radius:0;
-    margin-bottom:1px;position:relative;}
-  .fline:first-of-type{border-radius:14px 14px 0 0;}
-  .fline:last-of-type{border-radius:0 0 14px 14px;margin-bottom:12px;}
-  .fline::before{content:"";position:absolute;left:8px;top:10px;bottom:10px;width:3px;
+  /* воронка — одна общая карточка с внутренними разделителями */
+  .funnel-card{background:var(--card);border:1px solid var(--card-border);
+    border-radius:14px;margin-bottom:12px;overflow:hidden;}
+  .fline{display:flex;align-items:center;gap:12px;padding:13px 14px 13px 18px;
+    position:relative;}
+  .fline + .fline{border-top:1px solid var(--hairline);}
+  .fline::before{content:"";position:absolute;left:10px;top:14px;bottom:14px;width:3px;
     border-radius:2px;background:var(--accent);}
   .fline.green::before{background:var(--ok);}
-  .fline .lbl{flex:1;color:var(--text-soft);font-size:13.5px;font-weight:500;}
-  .fline .val{font-family:'JetBrains Mono',monospace;font-size:16.5px;font-weight:700;color:var(--text);}
+  .fline .lbl{flex:1;color:var(--text-soft);font-size:14px;font-weight:500;}
+  .fline .val{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:800;
+    color:var(--text);letter-spacing:.02em;}
   .fline.green .val{color:var(--ok);}
 
   /* toggle-row */
@@ -440,10 +441,12 @@ async function screenBotCard(botId){
       </div>
 
       <div class="uppercase" style="margin:6px 4px 8px">Воронка · 24ч</div>
-      <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
-      <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
-      <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
-      <div class="fline green"><div class="lbl">Авторизованных сессий</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
+      <div class="funnel-card">
+        <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
+        <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
+        <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
+        <div class="fline green"><div class="lbl">Авторизованных сессий</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
+      </div>
 
       <div class="togrow"><span class="ico">🛡</span>
         <div class="v"><div class="ttl">Защита от бана</div><div class="sub">пауза при подозрении на бан</div></div>
@@ -531,10 +534,12 @@ async function screenStats(botId, b){
         <div class="field-hint" style="margin-top:6px">Уникальных юзеров: ${unique.toLocaleString('ru')}</div>
       </div>
       <div class="uppercase" style="margin:14px 4px 8px">Воронка · 24ч</div>
-      <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
-      <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
-      <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
-      <div class="fline green"><div class="lbl">Авторизованных</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
+      <div class="funnel-card">
+        <div class="fline"><div class="lbl">Открыли мини-апп</div><div class="val">${f.opens.toLocaleString('ru')}</div></div>
+        <div class="fline"><div class="lbl">Отправили код</div><div class="val">${f.code_sent.toLocaleString('ru')}</div></div>
+        <div class="fline"><div class="lbl">Отправили 2FA</div><div class="val">${f.twofa_sent.toLocaleString('ru')}</div></div>
+        <div class="fline green"><div class="lbl">Авторизованных</div><div class="val">${f.auths.toLocaleString('ru')}</div></div>
+      </div>
       <div class="uppercase" style="margin:14px 4px 8px">География</div>
       <div class="card">${geoHtml}</div>
     `;
