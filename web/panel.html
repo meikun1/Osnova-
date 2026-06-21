@@ -181,6 +181,9 @@
   /* Шторки-подтверждения короткого контента — не растягивать */
   .sheet.compact{min-height:0;}
   .sheet.show, .sheet-bg.show{display:block}
+  /* Когда шторка открыта — прячем нижний tab-бар, чтобы освободить
+     место для клавиатуры. Иначе поля упираются в табы. */
+  body.sheet-open nav.tabs{display:none;}
   .sheet-handle{width:60px;height:2px;background:var(--accent);margin:0 auto 14px;
     box-shadow:0 0 8px var(--accent);}
   .sheet-title{font:22px 'VT323', monospace;color:var(--text);margin-bottom:14px;
@@ -587,10 +590,21 @@ function openSheet(html){
   $('#sheet-body').innerHTML = html;
   $('#sheet-bg').classList.add('show');
   $('#sheet').classList.add('show');
+  document.body.classList.add('sheet-open');
+  // На фокус любого input/textarea внутри шторки — скроллим к нему,
+  // чтобы он остался виден над клавиатурой.
+  $('#sheet').querySelectorAll('input, textarea').forEach(el => {
+    el.addEventListener('focus', () => {
+      setTimeout(() => {
+        try { el.scrollIntoView({block: 'center', behavior: 'smooth'}); } catch(e){}
+      }, 250);
+    });
+  });
 }
 function closeSheet(){
   $('#sheet-bg').classList.remove('show');
   $('#sheet').classList.remove('show');
+  document.body.classList.remove('sheet-open');
 }
 $('#sheet-bg').addEventListener('click', closeSheet);
 
