@@ -174,9 +174,12 @@
   .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);
     border:1px solid var(--accent); border-bottom:none; border-radius:0;
     z-index:51;display:none;animation:sheetUp .22s cubic-bezier(.18,.89,.32,1.28);
-    padding:18px 16px calc(28px + env(safe-area-inset-bottom));
-    max-height:90%;overflow-y:auto;
+    padding:20px 16px calc(28px + env(safe-area-inset-bottom));
+    min-height:55vh; max-height:90vh;
+    overflow-y:auto;-webkit-overflow-scrolling:touch;
     box-shadow:0 -20px 60px rgba(0,255,209,.12);}
+  /* Шторки-подтверждения короткого контента — не растягивать */
+  .sheet.compact{min-height:0;}
   .sheet.show, .sheet-bg.show{display:block}
   .sheet-handle{width:60px;height:2px;background:var(--accent);margin:0 auto 14px;
     box-shadow:0 0 8px var(--accent);}
