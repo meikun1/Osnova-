@@ -463,16 +463,77 @@
     box-shadow:0 0 30px rgba(0,255,209,.3);}
   #toast.show{display:block}
   #toast::before{content:'> '; color:var(--magenta);}
+
+  /* ===== BOOT.SEQUENCE ===== */
+  #boot{position:fixed;inset:0;z-index:99999;background:#03060a;
+    color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12.5px;
+    padding:28px 18px 24px;overflow:hidden;letter-spacing:.04em;
+    display:flex;flex-direction:column;}
+  #boot::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:2;
+    background:repeating-linear-gradient(to bottom,rgba(0,255,209,.04) 0,rgba(0,255,209,.04) 1px,transparent 1px,transparent 3px);}
+  #boot::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.6) 100%);}
+  #boot.hide{opacity:0;transition:opacity .35s ease;pointer-events:none;}
+  #boot .inner{position:relative;z-index:4;display:flex;flex-direction:column;gap:14px;height:100%;}
+  #boot .logo{font-family:'VT323',monospace;font-size:84px;line-height:.9;
+    color:var(--accent);text-shadow:3px 0 var(--magenta),-3px 0 var(--accent),0 0 18px rgba(0,255,209,.35);
+    letter-spacing:.02em;animation:bootFlick 2.4s steps(2,end) infinite;}
+  #boot .subt{color:var(--label);letter-spacing:.32em;font-size:11px;margin-top:-4px;}
+  #boot .hr{height:1px;background:linear-gradient(90deg,transparent,var(--accent) 30%,var(--accent) 70%,transparent);opacity:.5;margin:2px 0 4px;}
+  #boot .lines{display:flex;flex-direction:column;gap:3px;}
+  #boot .ln{display:flex;align-items:baseline;white-space:nowrap;opacity:0;transform:translateY(2px);}
+  #boot .ln.show{opacity:1;transform:none;transition:opacity .15s,transform .15s;}
+  #boot .ln .tag{color:var(--accent);margin-right:8px;}
+  #boot .ln.warn .tag{color:var(--magenta);}
+  #boot .ln .lbl{color:var(--text-soft);}
+  #boot .ln .dots{flex:1;color:var(--label);overflow:hidden;margin:0 6px;}
+  #boot .ln .ms{color:var(--muted);font-variant-numeric:tabular-nums;}
+  #boot .barlbl{display:flex;justify-content:space-between;color:var(--label);
+    font-size:10px;letter-spacing:.28em;margin-top:8px;}
+  #boot .barlbl .pct{color:var(--accent);letter-spacing:.04em;}
+  #boot .bar{font-family:'Share Tech Mono',monospace;color:var(--accent);
+    font-size:14px;line-height:1;letter-spacing:1px;text-shadow:0 0 6px rgba(0,255,209,.4);}
+  #boot .footer{margin-top:auto;display:flex;flex-direction:column;gap:5px;color:var(--text-soft);}
+  #boot .footer .row{display:flex;align-items:baseline;gap:8px;opacity:0;}
+  #boot .footer .row.show{opacity:1;transition:opacity .2s;}
+  #boot .footer .row::before{content:'>';color:var(--accent);}
+  #boot .footer .val.ok{color:var(--accent);}
+  #boot .footer .val.mag{display:inline-block;background:var(--magenta);color:#0a0006;padding:1px 6px;letter-spacing:.18em;}
+  #boot .prompt{margin-top:10px;display:flex;align-items:center;gap:6px;
+    border:1px solid var(--accent);padding:8px 10px;background:#020608;}
+  #boot .prompt .dol{color:var(--magenta);}
+  #boot .prompt .cmd{color:var(--accent);}
+  #boot .prompt .arg{color:var(--text);}
+  #boot .prompt .car{display:inline-block;width:9px;height:14px;background:var(--accent);
+    animation:bootBlink 1s steps(2,end) infinite;vertical-align:middle;}
+  @keyframes bootFlick { 0%,97%,100%{opacity:1} 98%{opacity:.55} 99%{opacity:.85} }
+  @keyframes bootBlink { 50%{opacity:0} }
 </style>
 </head>
 <body>
+  <div id="boot" aria-hidden="true"><div class="inner">
+    <div class="logo">osno</div>
+    <div class="subt">[ TELEGRAM·CTRL·PANEL ]</div>
+    <div class="hr"></div>
+    <div class="lines" id="boot-lines"></div>
+    <div class="barlbl"><span>BOOT_PROGRESS</span><span class="pct" id="boot-pct">0%</span></div>
+    <div class="bar" id="boot-bar"></div>
+    <div class="footer" id="boot-foot">
+      <div class="row" data-i="0">probing telegram webview<span class="dot1">.</span><span class="dot2">.</span><span class="dot3">.</span></div>
+      <div class="row" data-i="1">matrix sync: <span class="val ok">aligned</span></div>
+      <div class="row" data-i="2">entropy pool: <span class="val mag">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></div>
+      <div class="row" data-i="3">press any key to abort <span style="color:var(--muted)">(you can't)</span></div>
+      <div class="prompt"><span class="dol">$</span><span class="cmd">init</span><span class="arg">--panel --owner=@design</span><span class="car"></span></div>
+    </div>
+  </div></div>
+
   <div class="topbar">
     <span class="back" id="backbtn">‹</span>
     <div class="v" style="gap:1px">
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.auths-sessions</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.boot</div>
   </div>
 
   <main id="content"></main>
@@ -517,6 +578,74 @@
   <div id="toast"></div>
 
 <script>
+/* ---------- BOOT.SEQUENCE ---------- */
+(function bootSeq(){
+  const LINES = [
+    ['OK','loading kernel.osn',40],
+    ['OK','mount /dev/bots',110],
+    ['OK','handshake tg.api',220],
+    ['OK','decrypt 247 tokens',380],
+    ['OK','verify ssl/13 domains',510],
+    ['OK','cf-pool: 41/64 free',550],
+    ['--','awaiting initData',0],
+  ];
+  const cont = document.getElementById('boot-lines');
+  if (!cont) return;
+  function dots(label){
+    const target = 30;
+    const n = Math.max(3, target - label.length);
+    return '.'.repeat(n);
+  }
+  LINES.forEach((L,i)=>{
+    const [tag,label,ms] = L;
+    const d = document.createElement('div');
+    d.className = 'ln' + (tag!=='OK' ? ' warn' : '');
+    const msTxt = ms ? (ms/1000).toFixed(2)+'s' : '';
+    d.innerHTML = `<span class="tag">[${tag}]</span><span class="lbl">${label}</span><span class="dots">${dots(label)}</span><span class="ms">${msTxt}</span>`;
+    cont.appendChild(d);
+  });
+  const lnEls = cont.querySelectorAll('.ln');
+  let idx = 0;
+  const showNext = ()=>{
+    if (idx < lnEls.length){ lnEls[idx].classList.add('show'); idx++; setTimeout(showNext, 130 + Math.random()*90); }
+  };
+  setTimeout(showNext, 120);
+
+  // Progress bar
+  const bar = document.getElementById('boot-bar');
+  const pct = document.getElementById('boot-pct');
+  const BW = 28;
+  let p = 0;
+  const tickBar = ()=>{
+    if (p >= 100) return;
+    p = Math.min(100, p + 3 + Math.random()*6);
+    const filled = Math.round(BW * p/100);
+    let s = '';
+    for (let i=0;i<BW;i++){
+      if (i < filled) s += '█';
+      else if (i < filled+2) s += '▓';
+      else s += '░';
+    }
+    bar.textContent = s;
+    pct.textContent = Math.round(p) + '%';
+    if (p < 100) setTimeout(tickBar, 90 + Math.random()*70);
+  };
+  setTimeout(tickBar, 220);
+
+  // Footer rows
+  const rows = document.querySelectorAll('#boot-foot .row');
+  rows.forEach((r,i)=> setTimeout(()=> r.classList.add('show'), 1100 + i*220));
+
+  window.__bootHide = ()=>{
+    const el = document.getElementById('boot');
+    if (!el) return;
+    el.classList.add('hide');
+    setTimeout(()=> el.remove(), 380);
+  };
+  // Safety: max boot time 6s
+  window.__bootSafety = setTimeout(()=> window.__bootHide && window.__bootHide(), 6000);
+})();
+
 /* ---------- Telegram WebApp init ---------- */
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 if (tg) {
@@ -2809,14 +2938,21 @@ async function screenAdmin(){
 /* ---------- старт ---------- */
 (async ()=>{
   if (!INIT_DATA){
+    try { window.__bootHide && window.__bootHide(); } catch(e){}
     root.innerHTML = `<div class="empty"><div class="ico">⚠️</div><div class="ttl">Открывать только из Telegram</div><div class="sub">initData недоступен — это значит, страница открыта в обычном браузере.</div></div>`;
     return;
   }
   try { ME = await api('/me'); }
   catch(e){
+    try { window.__bootHide && window.__bootHide(); } catch(e){}
     root.innerHTML = `<div class="empty"><div class="ico">🔒</div><div class="ttl">Авторизация не прошла</div><div class="sub">${esc(e.message)}</div></div>`;
     return;
   }
+  // Минимум 1.6с показываем boot, чтобы успела сыграть анимация
+  const minBoot = new Promise(r => setTimeout(r, 1600));
+  await minBoot;
+  try { clearTimeout(window.__bootSafety); } catch(e){}
+  try { window.__bootHide && window.__bootHide(); } catch(e){}
   resetTo(screenBots);
 })();
 </script>
