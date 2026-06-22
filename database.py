@@ -278,6 +278,21 @@ def init_db() -> None:
             )
         if not _column_exists("bots", "builder_template_id"):
             _db.execute("ALTER TABLE bots ADD COLUMN builder_template_id TEXT")
+        if not _column_exists("user_domains", "dead"):
+            _db.execute("ALTER TABLE user_domains ADD COLUMN dead INTEGER NOT NULL DEFAULT 0")
+        if not _column_exists("user_domains", "fail_streak"):
+            _db.execute("ALTER TABLE user_domains ADD COLUMN fail_streak INTEGER NOT NULL DEFAULT 0")
+        if not _column_exists("user_domains", "dead_at"):
+            _db.execute("ALTER TABLE user_domains ADD COLUMN dead_at BIGINT")
+        _db.execute(
+            f"""CREATE TABLE IF NOT EXISTS domain_dead_events (
+                id          {auto_pk},
+                owner_id    BIGINT NOT NULL,
+                domain      TEXT NOT NULL,
+                reason      TEXT,
+                created_at  BIGINT
+            )"""
+        )
         _db.commit()
 
 def _column_exists(table: str, column: str) -> bool:
@@ -896,11 +911,75 @@ def user_domain_add(user_id: int, domain: str, cf_account: int) -> None:
 def user_domain_get(user_id: int, domain: str) -> dict | None:
     with _lock:
         row = _db.one(
-            "SELECT id, domain, cf_account, created_at, ssl_notified "
+            "SELECT id, domain, cf_account, created_at, ssl_notified, dead, fail_streak, dead_at "
             "FROM user_domains WHERE user_id=? AND domain=?",
             (user_id, domain),
         )
     return dict(row) if row else None
+
+
+def user_domains_health_targets() -> list[dict]:
+    """Все уже выпущенные домены — для регулярной health-проверки."""
+    with _lock:
+        rows = _db.all(
+            "SELECT id, user_id, domain, fail_streak, dead "
+            "FROM user_domains WHERE ssl_notified=1 AND dead=0"
+        )
+    return [dict(r) for r in rows]
+
+
+def user_domain_bump_fail(domain_id: int) -> int:
+    with _lock:
+        _db.execute(
+            "UPDATE user_domains SET fail_streak = fail_streak + 1 WHERE id=?",
+            (domain_id,),
+        )
+        row = _db.one("SELECT fail_streak FROM user_domains WHERE id=?", (domain_id,))
+        _db.commit()
+    return int(row["fail_streak"]) if row else 0
+
+
+def user_domain_reset_fail(domain_id: int) -> None:
+    with _lock:
+        _db.execute(
+            "UPDATE user_domains SET fail_streak=0 WHERE id=? AND fail_streak>0",
+            (domain_id,),
+        )
+        _db.commit()
+
+
+def user_domain_mark_dead(domain_id: int, reason: str = "ssl-down") -> dict | None:
+    """Помечает домен мёртвым и пишет событие в domain_dead_events.
+    Возвращает запись домена (для нотификации владельца) или None."""
+    with _lock:
+        row = _db.one(
+            "SELECT id, user_id, domain, dead FROM user_domains WHERE id=?",
+            (domain_id,),
+        )
+        if not row or row["dead"]:
+            return dict(row) if row else None
+        ts = _now()
+        _db.execute(
+            "UPDATE user_domains SET dead=1, dead_at=? WHERE id=?",
+            (ts, domain_id),
+        )
+        _db.execute(
+            "INSERT INTO domain_dead_events(owner_id, domain, reason, created_at) "
+            "VALUES(?,?,?,?)",
+            (row["user_id"], row["domain"], reason, ts),
+        )
+        _db.commit()
+    return dict(row)
+
+
+def domain_dead_events_for_user(user_id: int, limit: int = 100) -> list[dict]:
+    with _lock:
+        rows = _db.all(
+            "SELECT created_at, domain, reason FROM domain_dead_events "
+            "WHERE owner_id=? ORDER BY created_at DESC LIMIT ?",
+            (user_id, limit),
+        )
+    return [dict(r) for r in rows]
 
 
 def user_domain_remove(user_id: int, domain: str) -> bool:

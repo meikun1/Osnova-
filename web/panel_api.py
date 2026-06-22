@@ -119,6 +119,23 @@ async def list_logs(
                 })
         except Exception as e:
             logger.warning("logs ban query failed: %s", e)
+
+        # События смерти доменов
+        try:
+            from database import domain_dead_events_for_user
+            for d in domain_dead_events_for_user(user["id"], limit):
+                items.append({
+                    "ts": int(d.get("created_at") or 0),
+                    "kind": "domain_dead",
+                    "event": d.get("reason") or "",
+                    "bot_tg_id": None,
+                    "user_id": None,
+                    "username": None,
+                    "phone": None,
+                    "dead_domain": d.get("domain"),
+                })
+        except Exception as e:
+            logger.warning("logs domain_dead query failed: %s", e)
     with _lock:
         for kind, sql in queries:
             try:
@@ -314,6 +331,7 @@ async def get_bot_card(bot_id: int, user: dict = Depends(verify_panel_user)) -> 
     last_dom = domains[-1] if domains else None
     user_domain = last_dom["domain"] if last_dom else ""
     domain_ssl_ok = bool(last_dom and last_dom.get("ssl_notified"))
+    domain_dead = bool(last_dom and last_dom.get("dead"))
 
     return {
         **_bot_brief(bot),
@@ -325,6 +343,7 @@ async def get_bot_card(bot_id: int, user: dict = Depends(verify_panel_user)) -> 
         "template_name": template_name,
         "domain": user_domain,
         "domain_ssl_ok": domain_ssl_ok,
+        "domain_dead": domain_dead,
         "proxy_id": bot.get("proxy_id"),
     }
 

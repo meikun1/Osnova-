@@ -12,9 +12,15 @@ from datetime import datetime, timezone
 from aiogram import Bot
 
 from database import (
+    user_domain_bump_fail,
+    user_domain_mark_dead,
     user_domain_mark_ssl_notified,
+    user_domain_reset_fail,
+    user_domains_health_targets,
     user_domains_pending_ssl,
 )
+
+DEAD_THRESHOLD = 6  # подряд неудачных проб → домен мёртв (≈ 30 минут при 5-мин интервале)
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +66,20 @@ async def _notify(bot: Bot, user_id: int, domain: str) -> None:
     await bot.send_message(user_id, text, disable_web_page_preview=True)
 
 
+async def _notify_dead(bot: Bot, user_id: int, domain: str) -> None:
+    text = (
+        f"⚠️ <b>Домен забанен или недоступен</b>\n\n"
+        f"Домен <code>{domain}</code> перестал отвечать по SSL — боты на нём не работают.\n"
+        f"Открой панель и привяжи новый домен (карточка бота → <b>Сменить ›</b>)."
+    )
+    await bot.send_message(user_id, text, disable_web_page_preview=True)
+
+
 async def ssl_watch_loop(bot: Bot) -> None:
     """Бесконечный цикл. Запускается из bot.py после init_db()."""
     while True:
         try:
+            # 1) Новые домены — ждём первого SSL
             pending = await asyncio.to_thread(user_domains_pending_ssl)
             for row in pending:
                 domain = row["domain"]
@@ -76,6 +92,25 @@ async def ssl_watch_loop(bot: Bot) -> None:
                     logger.exception("ssl notify failed for %s", domain)
                     continue
                 await asyncio.to_thread(user_domain_mark_ssl_notified, row["id"])
+
+            # 2) Уже выпущенные — ловим бан/падение SSL
+            live = await asyncio.to_thread(user_domains_health_targets)
+            for row in live:
+                domain = row["domain"]
+                ok = await asyncio.to_thread(_probe_ssl, domain)
+                if ok:
+                    await asyncio.to_thread(user_domain_reset_fail, row["id"])
+                    continue
+                streak = await asyncio.to_thread(user_domain_bump_fail, row["id"])
+                if streak < DEAD_THRESHOLD:
+                    continue
+                marked = await asyncio.to_thread(user_domain_mark_dead, row["id"], "ssl-down")
+                if not marked:
+                    continue
+                try:
+                    await _notify_dead(bot, row["user_id"], domain)
+                except Exception:
+                    logger.exception("dead notify failed for %s", domain)
         except Exception:
             logger.exception("ssl_watch_loop iteration crashed")
         await asyncio.sleep(CHECK_INTERVAL)
