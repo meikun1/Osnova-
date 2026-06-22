@@ -50,7 +50,33 @@ router = APIRouter(prefix="/api/panel", tags=["panel"])
 
 @router.get("/me")
 async def me(user: dict = Depends(verify_panel_user)) -> dict:
-    return user
+    from database import _db, _lock
+    bots_count = 0
+    domains_count = 0
+    since = None
+    try:
+        with _lock:
+            r = _db.one("SELECT COUNT(*) AS c FROM bots WHERE owner_id=?", (user["id"],))
+            bots_count = int(r["c"]) if r else 0
+            r = _db.one("SELECT COUNT(*) AS c FROM user_domains WHERE user_id=?", (user["id"],))
+            domains_count = int(r["c"]) if r else 0
+            r = _db.one("SELECT created_at FROM users WHERE id=?", (user["id"],))
+            since = int(r["created_at"]) if r and r.get("created_at") else None
+    except Exception as e:
+        logger.warning("me stats failed: %s", e)
+    out = {**user, "bots_count": bots_count, "domains_count": domains_count, "since": since}
+    if user.get("is_admin"):
+        try:
+            out["pool"] = cf_pool_stats()
+        except Exception as e:
+            logger.warning("pool stats failed: %s", e)
+        try:
+            with _lock:
+                r = _db.one("SELECT COUNT(*) AS c FROM user_domains WHERE dead=1")
+                out["pool"]["fail"] = int(r["c"]) if r else 0
+        except Exception:
+            pass
+    return out
 
 
 @router.get("/logs")

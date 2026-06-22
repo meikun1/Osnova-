@@ -467,6 +467,94 @@
   #toast.show{display:block}
   #toast::before{content:'> '; color:var(--magenta);}
 
+  /* ===== PROFILE — terminal/CRT layout ===== */
+  .term-bar{display:flex;align-items:center;gap:8px;
+    border:1px solid var(--card-border);background:var(--card);
+    padding:6px 10px;font:11px 'Share Tech Mono',monospace;
+    color:var(--label);margin-bottom:10px;}
+  .term-bar .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .term-bar .dot.r{background:#ff5f56}
+  .term-bar .dot.y{background:#ffbd2e}
+  .term-bar .dot.g{background:#27c93f}
+  .term-bar .term-path{flex:1;text-align:center;letter-spacing:.22em;
+    color:var(--label);font-size:10.5px;}
+  .term-bar .term-tag{color:var(--warn);letter-spacing:.18em;font-size:10.5px;}
+
+  .id-card{border:1px solid var(--magenta);background:linear-gradient(180deg,#180814 0%,#0a040b 100%);
+    padding:14px 14px 12px;margin-bottom:12px;position:relative;
+    box-shadow:0 0 12px rgba(255,43,214,.12);}
+  .id-card.admin{border-color:var(--magenta);}
+  .id-card .id-avatar{width:44px;height:44px;border:1px solid var(--magenta);
+    background:transparent;color:var(--magenta);
+    display:flex;align-items:center;justify-content:center;
+    font:14px 'Share Tech Mono',monospace;letter-spacing:.08em;}
+  .id-card .id-name{font:15px 'Share Tech Mono',monospace;color:var(--text);}
+  .id-card .id-meta{font:11px 'Share Tech Mono',monospace;color:var(--muted);line-height:1.5;}
+  .id-card .id-meta .role{color:var(--warn);}
+  .id-card .id-tag{position:absolute;top:8px;right:10px;
+    font:9.5px 'Share Tech Mono',monospace;color:var(--magenta);letter-spacing:.22em;
+    border:1px solid var(--magenta);padding:1px 5px;}
+  .id-card .id-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+    margin-top:12px;padding-top:10px;border-top:1px dashed #3a1a2f;}
+  .id-card .id-stats > div{text-align:left;}
+  .id-card .id-stats .lbl{font:9.5px 'Share Tech Mono',monospace;color:var(--label);letter-spacing:.2em;}
+  .id-card .id-stats .val{font:22px 'VT323',monospace;color:var(--text);line-height:1;margin-top:2px;}
+
+  .term-line{display:flex;align-items:center;gap:10px;
+    border:1px solid var(--card-border);background:var(--card);
+    padding:11px 12px;margin-bottom:8px;cursor:pointer;
+    font:12.5px 'Share Tech Mono',monospace;}
+  .term-line .tl-arr{color:var(--accent);}
+  .term-line .tl-path{color:var(--accent);}
+  .term-line .tl-tail{color:var(--muted);flex:1;}
+  .term-line .tl-chev{color:var(--accent);font-size:16px;opacity:.7;}
+  .term-line.warn{border-color:var(--warn);background:#1c1605;}
+  .term-line.warn .tl-tail{color:var(--text-soft);}
+
+  .cf-box{border:1px solid var(--card-border);background:var(--card);
+    padding:10px 12px 12px;margin-bottom:12px;
+    font-family:'Share Tech Mono',monospace;}
+  .cf-box .cf-title{color:var(--label);font-size:10.5px;letter-spacing:.14em;margin-bottom:8px;}
+  .cf-box .cf-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+    border-top:1px dashed #1f2e26;border-bottom:1px dashed #1f2e26;padding:8px 0;}
+  .cf-box .cf-grid .lbl{font-size:9.5px;color:var(--label);letter-spacing:.2em;}
+  .cf-box .cf-grid .val{font:22px 'VT323',monospace;color:var(--text);line-height:1;margin-top:2px;}
+  .cf-box .cf-grid .val.ok{color:var(--accent);}
+  .cf-box .cf-grid .val.mag{color:var(--magenta);}
+  .cf-box .cf-grid .val.err{color:var(--err);}
+  .cf-box .cf-usage{margin-top:10px;}
+  .cf-box .cf-usage-lbl{color:var(--label);font-size:10.5px;letter-spacing:.18em;margin-bottom:4px;}
+  .cf-box .cf-usage-bar{height:6px;background:#0d1814;border:1px solid #1f2e26;position:relative;}
+  .cf-box .cf-usage-bar span{position:absolute;left:0;top:0;bottom:0;
+    background:linear-gradient(90deg,var(--accent),#54ffa0);
+    box-shadow:0 0 8px rgba(0,255,209,.4);}
+
+  .radar-wrap{margin-top:8px;}
+  .radar-head{color:var(--label);font:10.5px 'Share Tech Mono',monospace;
+    letter-spacing:.14em;margin-bottom:4px;}
+  .radar-svg{width:100%;height:auto;display:block;
+    border:1px solid var(--card-border);background:#040908;}
+  .radar-svg .radar-label{font:8px 'Share Tech Mono',monospace;
+    fill:#5a8a82;letter-spacing:.26em;}
+  .radar-svg .radar-txt{font:7.5px 'Share Tech Mono',monospace;fill:var(--warn);letter-spacing:.1em;}
+  .radar-svg .radar-q{font:7.5px 'Share Tech Mono',monospace;fill:var(--accent);letter-spacing:.1em;}
+  .radar-svg .radar-dot{font:7.5px monospace;fill:#3d6962;}
+  .radar-svg .radar-angle,.radar-svg #rad-q{fill:var(--accent);}
+  .radar-svg .ping{fill:var(--accent);opacity:.85;
+    animation:radarPing 2.2s ease-out infinite;}
+  .radar-svg .pingm{fill:var(--magenta);opacity:.85;
+    animation:radarPing 2.2s ease-out infinite;}
+  .radar-svg .micro{fill:#3d6962;animation:radarMicro 3.4s ease-in-out infinite;}
+  .radar-svg .beam{stroke:var(--accent);stroke-width:1.4;stroke-linecap:round;
+    opacity:.6;animation:radarBeam 1.8s ease-in-out infinite;}
+  .radar-svg .sweep{transform-origin:150px 122px;
+    animation:radarSweep 3.6s linear infinite;mix-blend-mode:screen;}
+  @keyframes radarPing { 0%,100%{opacity:.2;r:1} 50%{opacity:1;r:1.9} }
+  @keyframes radarMicro { 0%,100%{opacity:.15} 50%{opacity:.6} }
+  @keyframes radarBeam { 0%,100%{opacity:.25;stroke-width:1} 50%{opacity:.9;stroke-width:1.6} }
+  @keyframes radarSweep { 0%{transform:rotate(-55deg)} 50%{transform:rotate(55deg)} 100%{transform:rotate(-55deg)} }
+
+
   /* ===== BOOT.SEQUENCE ===== */
   #boot{position:fixed;inset:0;z-index:99999;background:#03060a;
     color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12.5px;
@@ -536,7 +624,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.dom-chev</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.profile-crt</div>
   </div>
 
   <main id="content"></main>
@@ -2948,25 +3036,169 @@ function renderLogsScreen(data){
 /* =====================================================
    ЭКРАН: Профиль
    ===================================================== */
+function _profileSince(ts){
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts*1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  } catch(e){ return '—'; }
+}
+
+function _radarSVG(){
+  // Тёмный CRT-радар с анимациями: scan-line вращается, точки-пинги мигают.
+  const dots = [];
+  for (let i=0;i<28;i++){
+    const a = (Math.PI * (0.06 + 0.88 * (i/27))); // верхняя полуплоскость
+    const r = 92 + (i%3 - 1)*4;
+    const x = 150 + Math.cos(a) * r;
+    const y = 122 - Math.sin(a) * r;
+    const cl = (i===6 || i===21) ? 'pingm' : 'ping';
+    const delay = (i*0.18).toFixed(2);
+    dots.push(`<circle class="${cl}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" style="animation-delay:${delay}s"/>`);
+  }
+  // случайные точки-«статика» внутри сектора
+  const inner = [];
+  const innerPos = [[80,108],[112,96],[145,90],[180,98],[215,110],[100,72],[195,72],[60,90],[238,92],[130,72],[170,72],[90,128],[210,128]];
+  innerPos.forEach((p,i)=>{
+    inner.push(`<circle class="micro" cx="${p[0]}" cy="${p[1]}" r="1" style="animation-delay:${(i*0.31).toFixed(2)}s"/>`);
+  });
+  // лучи (5 фиксированных, разной длины — как на референсе)
+  const beams = [
+    [-45, 56], [-22, 70], [0, 76], [22, 70], [45, 56],
+  ].map(([deg, len], i)=>{
+    const rad = (deg * Math.PI) / 180;
+    const x2 = 150 + Math.sin(rad) * len;
+    const y2 = 122 - Math.cos(rad) * len;
+    return `<line class="beam" x1="150" y1="122" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="animation-delay:${(i*0.22).toFixed(2)}s"/>`;
+  }).join('');
+  return `
+    <svg viewBox="0 0 300 160" class="radar-svg" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="sweep" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#00ffd1" stop-opacity="0"/>
+          <stop offset=".7" stop-color="#00ffd1" stop-opacity=".18"/>
+          <stop offset="1" stop-color="#00ffd1" stop-opacity=".55"/>
+        </linearGradient>
+      </defs>
+      <!-- внешняя рамка -->
+      <rect x="6" y="6" width="288" height="148" fill="none" stroke="#1f3b34" stroke-width="1"/>
+      <!-- центральная цель -->
+      <rect x="132" y="52" width="36" height="22" fill="none" stroke="#406b62" stroke-width="1"/>
+      <line x1="148" y1="63" x2="152" y2="63" stroke="#7fb9aa" stroke-width="1"/>
+      <line x1="150" y1="61" x2="150" y2="65" stroke="#7fb9aa" stroke-width="1"/>
+      <text x="150" y="92" text-anchor="middle" class="radar-label">SHIELD</text>
+      <!-- точки полуокружности -->
+      ${dots.join('')}
+      ${inner.join('')}
+      <!-- лучи -->
+      ${beams}
+      <!-- вращающийся сектор-свип -->
+      <g class="sweep">
+        <polygon points="150,122 150,40 95,88" fill="url(#sweep)"/>
+      </g>
+      <!-- подписи -->
+      <text x="92" y="148" class="radar-txt">SCAN[<tspan class="radar-angle" id="rad-ang">42</tspan>°]</text>
+      <text x="148" y="148" class="radar-dot">·</text>
+      <text x="160" y="148" class="radar-q">q=<tspan id="rad-q">4.7</tspan></text>
+    </svg>
+  `;
+}
+
 async function screenProfile(){
   setTitle('Профиль', ME ? (ME.username ? '@'+ME.username : ('ID '+ME.id)) : '');
+  const uname = (ME && ME.username) ? ME.username : 'anonymous';
+  const init = (uname.replace('@','').substring(0,2) || '??').toUpperCase();
+  const role = (ME && ME.is_admin) ? 'superadmin' : 'owner';
+  const since = _profileSince(ME && ME.since);
+  const bots = (ME && ME.bots_count != null) ? ME.bots_count : '—';
+  const doms = (ME && ME.domains_count != null) ? ME.domains_count : '—';
+  const pool = (ME && ME.pool) ? ME.pool : null;
+
   let html = `
-    <div class="card">
-      <div class="row gap-l">
-        <div class="avatar" style="width:54px;height:54px;border-radius:14px;font-size:18px">${esc(((ME&&ME.username)||'?').substring(0,2).toUpperCase())}</div>
-        <div class="v" style="gap:3px"><div style="font-weight:700;font-size:16px">${esc(ME&&ME.username?('@'+ME.username):'Пользователь')}</div>
-        <div class="mono" style="color:var(--muted);font-size:12px">${ME?ME.id:'—'}</div></div>
+    <div class="term-bar">
+      <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      <span class="term-path">ROOT@OSNOVA:~/ME</span>
+      ${ME && ME.is_admin ? '<span class="term-tag">[ADMIN]</span>' : ''}
+    </div>
+
+    <div class="id-card ${ME && ME.is_admin ? 'admin' : ''}">
+      <div class="row gap-l" style="align-items:flex-start">
+        <div class="id-avatar">${esc(init)}</div>
+        <div class="v" style="flex:1;gap:2px">
+          <div class="id-name">@${esc(uname.replace('@',''))}</div>
+          <div class="id-meta">tg.id <span class="mono">${ME?ME.id:'—'}</span></div>
+          <div class="id-meta">▲ ROLE: <span class="role">${role}</span> · since ${since}</div>
+        </div>
+        <div class="id-tag">ID_CARD</div>
+      </div>
+      <div class="id-stats">
+        <div><div class="lbl">BOTS</div><div class="val">${bots}</div></div>
+        <div><div class="lbl">DOMAINS</div><div class="val">${doms}</div></div>
+        <div><div class="lbl">QUOTA</div><div class="val">∞</div></div>
       </div>
     </div>
-    <button class="btn ghost" id="p-domains">🌐 Мои домены</button>
+
+    <div class="term-line" id="p-domains">
+      <span class="tl-arr">▷</span>
+      <span class="tl-path">/domains</span>
+      <span class="tl-tail">— мои домены (${doms})</span>
+      <span class="tl-chev">›</span>
+    </div>
   `;
   if (ME && ME.is_admin){
-    html += `<div style="height:8px"></div><button class="btn ghost" id="p-admin">🛠 Админ-панель</button>`;
+    html += `
+      <div class="term-line warn" id="p-admin">
+        <span class="tl-arr" style="color:var(--warn)">▲</span>
+        <span class="tl-path" style="color:var(--warn)">/admin</span>
+        <span class="tl-tail">— su panel</span>
+        <span class="tl-chev" style="color:var(--warn)">›</span>
+      </div>
+    `;
+    if (pool){
+      const usage = pool.total ? Math.round((pool.taken||0)*100/pool.total) : 0;
+      html += `
+        <div class="cf-box">
+          <div class="cf-title">┌── CF_POOL.STATS ── [ SU ] ──┐</div>
+          <div class="cf-grid">
+            <div><div class="lbl">TOTAL</div><div class="val">${pool.total||0}</div></div>
+            <div><div class="lbl">FREE</div><div class="val ok">${pool.free||0}</div></div>
+            <div><div class="lbl">TAKEN</div><div class="val mag">${pool.taken||0}</div></div>
+            <div><div class="lbl">FAIL</div><div class="val err">${pool.fail||0}</div></div>
+          </div>
+          <div class="cf-usage">
+            <div class="cf-usage-lbl">USAGE ${usage}%</div>
+            <div class="cf-usage-bar"><span style="width:${usage}%"></span></div>
+          </div>
+        </div>
+      `;
+    }
   }
+  html += `
+    <div class="radar-wrap">
+      <div class="radar-head">┌── THREAT_RADAR ─────────────────┐</div>
+      ${_radarSVG()}
+    </div>
+  `;
   root.innerHTML = html;
-  $('#p-domains').onclick = ()=> navigate(screenMyDomains);
+  $('#p-domains').onclick = ()=> { HAPTIC('light'); navigate(screenMyDomains); };
   if (ME && ME.is_admin){
-    $('#p-admin').onclick = ()=> navigate(screenAdmin);
+    const pa = $('#p-admin'); if (pa) pa.onclick = ()=> { HAPTIC('light'); navigate(screenAdmin); };
+  }
+  // мигающие подписи угла/коэффициента
+  const angEl = $('#rad-ang'), qEl = $('#rad-q');
+  if (angEl && qEl){
+    let t = 0;
+    const tick = ()=>{
+      if (!document.body.contains(angEl)) return;
+      t += 1;
+      angEl.textContent = (30 + Math.floor(Math.sin(t/4)*15+15));
+      qEl.textContent = (3.8 + Math.sin(t/7)*0.9).toFixed(1);
+      setTimeout(tick, 700);
+    };
+    tick();
   }
 }
 
