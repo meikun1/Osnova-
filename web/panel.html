@@ -544,15 +544,9 @@
     animation:radarPing 2.2s ease-out infinite;}
   .radar-svg .pingm{fill:var(--magenta);opacity:.85;
     animation:radarPing 2.2s ease-out infinite;}
-  .radar-svg .micro{fill:#3d6962;animation:radarMicro 3.4s ease-in-out infinite;}
-  .radar-svg .beam{stroke:var(--accent);stroke-width:1.4;stroke-linecap:round;
-    opacity:.6;animation:radarBeam 1.8s ease-in-out infinite;}
-  .radar-svg .sweep{transform-origin:150px 122px;
-    animation:radarSweep 3.6s linear infinite;mix-blend-mode:screen;}
-  @keyframes radarPing { 0%,100%{opacity:.2;r:1} 50%{opacity:1;r:1.9} }
-  @keyframes radarMicro { 0%,100%{opacity:.15} 50%{opacity:.6} }
-  @keyframes radarBeam { 0%,100%{opacity:.25;stroke-width:1} 50%{opacity:.9;stroke-width:1.6} }
-  @keyframes radarSweep { 0%{transform:rotate(-55deg)} 50%{transform:rotate(55deg)} 100%{transform:rotate(-55deg)} }
+  .radar-svg .sweep{animation:radarSweep 3.6s linear infinite;mix-blend-mode:screen;}
+  @keyframes radarPing { 0%,100%{opacity:.25} 50%{opacity:1} }
+  @keyframes radarSweep { 0%{transform:rotate(180deg)} 100%{transform:rotate(540deg)} }
 
 
   /* ===== BOOT.SEQUENCE ===== */
@@ -624,7 +618,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.profile-crt</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v2</div>
   </div>
 
   <main id="content"></main>
@@ -3048,61 +3042,78 @@ function _profileSince(ts){
 }
 
 function _radarSVG(){
-  // Тёмный CRT-радар с анимациями: scan-line вращается, точки-пинги мигают.
-  const dots = [];
-  for (let i=0;i<28;i++){
-    const a = (Math.PI * (0.06 + 0.88 * (i/27))); // верхняя полуплоскость
-    const r = 92 + (i%3 - 1)*4;
-    const x = 150 + Math.cos(a) * r;
-    const y = 122 - Math.sin(a) * r;
-    const cl = (i===6 || i===21) ? 'pingm' : 'ping';
-    const delay = (i*0.18).toFixed(2);
-    dots.push(`<circle class="${cl}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" style="animation-delay:${delay}s"/>`);
+  // CRT-радар: вращающаяся развёртка с угасающим следом, концентрические дуги,
+  // полу-окружность точек-пингов, центральная цель SHIELD.
+  const CX = 200, CY = 150, R = 120;
+  // Точки на полуокружности (верхняя половина), угол от 180° до 0°
+  const arcDots = [];
+  const N = 24;
+  for (let i=0; i<=N; i++){
+    const a = Math.PI * (i/N);                 // 0..π
+    const x = CX - Math.cos(a) * R;            // слева-направо
+    const y = CY - Math.sin(a) * R;
+    const threat = (i===5 || i===19);
+    arcDots.push(`<circle class="${threat?'pingm':'ping'}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.8" style="animation-delay:${(i*0.12).toFixed(2)}s"/>`);
   }
-  // случайные точки-«статика» внутри сектора
-  const inner = [];
-  const innerPos = [[80,108],[112,96],[145,90],[180,98],[215,110],[100,72],[195,72],[60,90],[238,92],[130,72],[170,72],[90,128],[210,128]];
-  innerPos.forEach((p,i)=>{
-    inner.push(`<circle class="micro" cx="${p[0]}" cy="${p[1]}" r="1" style="animation-delay:${(i*0.31).toFixed(2)}s"/>`);
-  });
-  // лучи (5 фиксированных, разной длины — как на референсе)
-  const beams = [
-    [-45, 56], [-22, 70], [0, 76], [22, 70], [45, 56],
-  ].map(([deg, len], i)=>{
-    const rad = (deg * Math.PI) / 180;
-    const x2 = 150 + Math.sin(rad) * len;
-    const y2 = 122 - Math.cos(rad) * len;
-    return `<line class="beam" x1="150" y1="122" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" style="animation-delay:${(i*0.22).toFixed(2)}s"/>`;
-  }).join('');
+  // Несколько крупных «обнаруженных» отметок внутри
+  const blips = [
+    [CX - 55, CY - 65, 'ping'],
+    [CX + 70, CY - 40, 'pingm'],
+    [CX - 30, CY - 30, 'ping'],
+    [CX + 35, CY - 80, 'ping'],
+  ].map(([x,y,cls],i)=>`<circle class="${cls}" cx="${x}" cy="${y}" r="2.2" style="animation-delay:${(i*0.55).toFixed(2)}s"/>`).join('');
+  // Концентрические дуги (полу) — r/3, 2r/3, r
+  const arcs = [R/3, R*2/3, R].map(r =>
+    `<path d="M ${(CX-r).toFixed(1)} ${CY} A ${r} ${r} 0 0 1 ${(CX+r).toFixed(1)} ${CY}" fill="none" stroke="#15302a" stroke-width="1"/>`
+  ).join('');
+  // Крест-перекрестье
+  const cross = `
+    <line x1="${CX-R}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#15302a" stroke-width="1"/>
+    <line x1="${CX}" y1="${CY-R}" x2="${CX}" y2="${CY}" stroke="#15302a" stroke-width="1"/>
+  `;
   return `
-    <svg viewBox="0 0 300 160" class="radar-svg" preserveAspectRatio="xMidYMid meet">
+    <svg viewBox="0 0 400 200" class="radar-svg" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <linearGradient id="sweep" x1="0" y1="1" x2="0" y2="0">
+        <!-- угасающий клин-след развёртки -->
+        <radialGradient id="sweepGrad" cx="0" cy="1" r="1">
           <stop offset="0" stop-color="#00ffd1" stop-opacity="0"/>
-          <stop offset=".7" stop-color="#00ffd1" stop-opacity=".18"/>
-          <stop offset="1" stop-color="#00ffd1" stop-opacity=".55"/>
-        </linearGradient>
+          <stop offset=".55" stop-color="#00ffd1" stop-opacity=".12"/>
+          <stop offset="1" stop-color="#00ffd1" stop-opacity=".5"/>
+        </radialGradient>
       </defs>
-      <!-- внешняя рамка -->
-      <rect x="6" y="6" width="288" height="148" fill="none" stroke="#1f3b34" stroke-width="1"/>
-      <!-- центральная цель -->
-      <rect x="132" y="52" width="36" height="22" fill="none" stroke="#406b62" stroke-width="1"/>
-      <line x1="148" y1="63" x2="152" y2="63" stroke="#7fb9aa" stroke-width="1"/>
-      <line x1="150" y1="61" x2="150" y2="65" stroke="#7fb9aa" stroke-width="1"/>
-      <text x="150" y="92" text-anchor="middle" class="radar-label">SHIELD</text>
-      <!-- точки полуокружности -->
-      ${dots.join('')}
-      ${inner.join('')}
-      <!-- лучи -->
-      ${beams}
-      <!-- вращающийся сектор-свип -->
-      <g class="sweep">
-        <polygon points="150,122 150,40 95,88" fill="url(#sweep)"/>
+      <!-- угловые скобки рамки -->
+      <path d="M 4 16 L 4 4 L 16 4" fill="none" stroke="#1f3b34" stroke-width="1"/>
+      <path d="M 396 16 L 396 4 L 384 4" fill="none" stroke="#1f3b34" stroke-width="1"/>
+      <path d="M 4 184 L 4 196 L 16 196" fill="none" stroke="#1f3b34" stroke-width="1"/>
+      <path d="M 396 184 L 396 196 L 384 196" fill="none" stroke="#1f3b34" stroke-width="1"/>
+
+      ${arcs}
+      ${cross}
+
+      <!-- центральная цель SHIELD -->
+      <rect x="${CX-22}" y="${CY-58}" width="44" height="24" fill="none" stroke="#406b62" stroke-width="1"/>
+      <line x1="${CX-3}" y1="${CY-46}" x2="${CX+3}" y2="${CY-46}" stroke="#7fb9aa" stroke-width="1"/>
+      <line x1="${CX}" y1="${CY-49}" x2="${CX}" y2="${CY-43}" stroke="#7fb9aa" stroke-width="1"/>
+      <text x="${CX}" y="${CY-22}" text-anchor="middle" class="radar-label">SHIELD</text>
+
+      <!-- точки полу-окружности и blips -->
+      ${arcDots.join('')}
+      ${blips}
+
+      <!-- вращающаяся развёртка: клин-след + ведущая линия -->
+      <g class="sweep" style="transform-origin:${CX}px ${CY}px">
+        <polygon points="${CX},${CY} ${CX+R},${CY} ${(CX+R*Math.cos(-Math.PI/3)).toFixed(1)},${(CY+R*Math.sin(-Math.PI/3)).toFixed(1)}" fill="url(#sweepGrad)"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#00ffd1" stroke-width="1.4" opacity=".9"/>
       </g>
+
+      <!-- центральная точка -->
+      <circle cx="${CX}" cy="${CY}" r="2" fill="#00ffd1"/>
+
       <!-- подписи -->
-      <text x="92" y="148" class="radar-txt">SCAN[<tspan class="radar-angle" id="rad-ang">42</tspan>°]</text>
-      <text x="148" y="148" class="radar-dot">·</text>
-      <text x="160" y="148" class="radar-q">q=<tspan id="rad-q">4.7</tspan></text>
+      <text x="14" y="186" class="radar-txt">SCAN[<tspan class="radar-angle" id="rad-ang">42</tspan>°]</text>
+      <text x="110" y="186" class="radar-dot">·</text>
+      <text x="124" y="186" class="radar-q">q=<tspan id="rad-q">4.7</tspan></text>
+      <text x="386" y="186" text-anchor="end" class="radar-txt" style="fill:var(--accent);opacity:.7">● LIVE</text>
     </svg>
   `;
 }
