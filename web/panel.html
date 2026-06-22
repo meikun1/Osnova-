@@ -532,8 +532,25 @@
   .radar-wrap{margin-top:8px;}
   .radar-head{color:var(--label);font:10.5px 'Share Tech Mono',monospace;
     letter-spacing:.14em;margin-bottom:4px;}
-  .radar-svg{width:100%;height:auto;display:block;
-    border:1px solid var(--card-border);background:#040908;}
+  .radar-stage{position:relative;border:1px solid var(--card-border);
+    background:#040908;overflow:hidden;}
+  .radar-svg{width:100%;height:auto;display:block;}
+  /* Фосфор-след: конический градиент, вращается вокруг центра радара (50%, 75%).
+     Маска — круг (donut с лёгким наружным фейдом), чтобы свечение ограничилось диском. */
+  .radar-phosphor{position:absolute;inset:0;pointer-events:none;
+    background:conic-gradient(from 90deg at 50% 75%,
+      rgba(0,255,209,0) 0deg,
+      rgba(0,255,209,0) 280deg,
+      rgba(0,255,209,.05) 300deg,
+      rgba(0,255,209,.18) 340deg,
+      rgba(0,255,209,.55) 358deg,
+      rgba(191,255,231,.9) 360deg);
+    -webkit-mask:radial-gradient(circle at 50% 75%, #000 0, #000 56%, transparent 60%);
+            mask:radial-gradient(circle at 50% 75%, #000 0, #000 56%, transparent 60%);
+    mix-blend-mode:screen;
+    transform-origin:50% 75%;
+    animation:radarSweep 4.5s linear infinite;
+    will-change:transform;}
   .radar-svg .radar-label{font:8px 'Share Tech Mono',monospace;
     fill:#5a8a82;letter-spacing:.26em;}
   .radar-svg .radar-txt{font:7.5px 'Share Tech Mono',monospace;fill:var(--warn);letter-spacing:.1em;}
@@ -618,7 +635,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v4</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v5</div>
   </div>
 
   <main id="content"></main>
@@ -3104,10 +3121,9 @@ function _radarSVG(){
       ${arcDots.join('')}
       ${blips}
 
-      <!-- вращающаяся развёртка: клин-след (sector) + ведущая яркая линия + точка на конце -->
+      <!-- вращающаяся ведущая линия развёртки (фосфор-след — отдельным CSS-оверлеем) -->
       <g class="sweep" style="transform-origin:${CX}px ${CY}px" filter="url(#sweepGlow)">
-        <path d="M ${CX} ${CY} L ${CX+R} ${CY} A ${R} ${R} 0 0 0 ${tx} ${ty} Z" fill="url(#sweepGrad)"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#bfffe7" stroke-width="1.8" opacity=".95"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#bfffe7" stroke-width="1.6" opacity=".95"/>
         <circle cx="${CX+R}" cy="${CY}" r="2.4" fill="#bfffe7"/>
       </g>
 
@@ -3194,7 +3210,10 @@ async function screenProfile(){
   html += `
     <div class="radar-wrap">
       <div class="radar-head">┌── THREAT_RADAR ─────────────────┐</div>
-      ${_radarSVG()}
+      <div class="radar-stage">
+        ${_radarSVG()}
+        <div class="radar-phosphor"></div>
+      </div>
     </div>
   `;
   root.innerHTML = html;
