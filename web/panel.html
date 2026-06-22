@@ -618,7 +618,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.role-worker</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v3</div>
   </div>
 
   <main id="content"></main>
@@ -3074,12 +3074,16 @@ function _radarSVG(){
   return `
     <svg viewBox="0 0 400 200" class="radar-svg" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <!-- угасающий клин-след развёртки -->
-        <radialGradient id="sweepGrad" cx="0" cy="1" r="1">
+        <!-- угасающий хвост развёртки: горячая точка на ведущем конце линии -->
+        <linearGradient id="sweepLine" x1="0" y1="0" x2="1" y2="0">
           <stop offset="0" stop-color="#00ffd1" stop-opacity="0"/>
-          <stop offset=".55" stop-color="#00ffd1" stop-opacity=".12"/>
-          <stop offset="1" stop-color="#00ffd1" stop-opacity=".5"/>
-        </radialGradient>
+          <stop offset=".75" stop-color="#00ffd1" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#bfffe7" stop-opacity="1"/>
+        </linearGradient>
+        <filter id="sweepGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
       </defs>
       <!-- угловые скобки рамки -->
       <path d="M 4 16 L 4 4 L 16 4" fill="none" stroke="#1f3b34" stroke-width="1"/>
@@ -3100,10 +3104,17 @@ function _radarSVG(){
       ${arcDots.join('')}
       ${blips}
 
-      <!-- вращающаяся развёртка: клин-след + ведущая линия -->
-      <g class="sweep" style="transform-origin:${CX}px ${CY}px">
-        <polygon points="${CX},${CY} ${CX+R},${CY} ${(CX+R*Math.cos(-Math.PI/3)).toFixed(1)},${(CY+R*Math.sin(-Math.PI/3)).toFixed(1)}" fill="url(#sweepGrad)"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#00ffd1" stroke-width="1.4" opacity=".9"/>
+      <!-- вращающаяся развёртка: 7 тонких линий веером со сдвигом, гаснущие к хвосту -->
+      <g class="sweep" style="transform-origin:${CX}px ${CY}px" filter="url(#sweepGlow)">
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1.8" opacity="1" transform="rotate(0 ${CX} ${CY})"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1.4" opacity=".55" transform="rotate(-8 ${CX} ${CY})"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1.2" opacity=".35" transform="rotate(-16 ${CX} ${CY})"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1" opacity=".22" transform="rotate(-24 ${CX} ${CY})"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width=".8" opacity=".14" transform="rotate(-32 ${CX} ${CY})"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width=".6" opacity=".08" transform="rotate(-40 ${CX} ${CY})"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width=".4" opacity=".04" transform="rotate(-48 ${CX} ${CY})"/>
+        <!-- горячая точка на ведущем конце -->
+        <circle cx="${CX+R}" cy="${CY}" r="2.5" fill="#bfffe7"/>
       </g>
 
       <!-- центральная точка -->
