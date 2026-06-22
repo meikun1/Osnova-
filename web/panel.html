@@ -540,11 +540,12 @@
   .radar-phosphor{position:absolute;inset:0;pointer-events:none;
     background:conic-gradient(from 90deg at 50% 75%,
       rgba(0,255,209,0) 0deg,
-      rgba(0,255,209,0) 280deg,
-      rgba(0,255,209,.05) 300deg,
-      rgba(0,255,209,.18) 340deg,
-      rgba(0,255,209,.55) 358deg,
-      rgba(191,255,231,.9) 360deg);
+      rgba(0,255,209,0) 270deg,
+      rgba(0,255,209,.06) 295deg,
+      rgba(0,255,209,.22) 335deg,
+      rgba(0,255,209,.5) 355deg,
+      rgba(191,255,231,.95) 359deg,
+      rgba(255,255,255,1) 360deg);
     -webkit-mask:radial-gradient(circle at 50% 75%, #000 0, #000 56%, transparent 60%);
             mask:radial-gradient(circle at 50% 75%, #000 0, #000 56%, transparent 60%);
     mix-blend-mode:screen;
@@ -635,7 +636,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v5</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v6</div>
   </div>
 
   <main id="content"></main>
@@ -3121,11 +3122,8 @@ function _radarSVG(){
       ${arcDots.join('')}
       ${blips}
 
-      <!-- вращающаяся ведущая линия развёртки (фосфор-след — отдельным CSS-оверлеем) -->
-      <g class="sweep" style="transform-origin:${CX}px ${CY}px" filter="url(#sweepGlow)">
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#bfffe7" stroke-width="1.6" opacity=".95"/>
-        <circle cx="${CX+R}" cy="${CY}" r="2.4" fill="#bfffe7"/>
-      </g>
+      <!-- ведущая линия и след — всё рисует CSS .radar-phosphor оверлеем -->
+
 
       <!-- центральная точка -->
       <circle cx="${CX}" cy="${CY}" r="2" fill="#00ffd1"/>
