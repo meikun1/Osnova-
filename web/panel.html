@@ -636,7 +636,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v7</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.boot-4s</div>
   </div>
 
   <main id="content"></main>
@@ -710,7 +710,7 @@
   const lnEls = cont.querySelectorAll('.ln');
   let idx = 0;
   const showNext = ()=>{
-    if (idx < lnEls.length){ lnEls[idx].classList.add('show'); idx++; setTimeout(showNext, 130 + Math.random()*90); }
+    if (idx < lnEls.length){ lnEls[idx].classList.add('show'); idx++; setTimeout(showNext, 320 + Math.random()*160); }
   };
   setTimeout(showNext, 120);
 
@@ -731,13 +731,13 @@
     }
     bar.textContent = s;
     pct.textContent = Math.round(p) + '%';
-    if (p < 100) setTimeout(tickBar, 90 + Math.random()*70);
+    if (p < 100) setTimeout(tickBar, 160 + Math.random()*110);
   };
   setTimeout(tickBar, 220);
 
   // Footer rows
   const rows = document.querySelectorAll('#boot-foot .row');
-  rows.forEach((r,i)=> setTimeout(()=> r.classList.add('show'), 1100 + i*220));
+  rows.forEach((r,i)=> setTimeout(()=> r.classList.add('show'), 2400 + i*500));
 
   window.__bootHide = ()=>{
     const el = document.getElementById('boot');
@@ -746,7 +746,7 @@
     setTimeout(()=> el.remove(), 380);
   };
   // Safety: max boot time 6s
-  window.__bootSafety = setTimeout(()=> window.__bootHide && window.__bootHide(), 6000);
+  window.__bootSafety = setTimeout(()=> window.__bootHide && window.__bootHide(), 9000);
 })();
 
 /* ---------- Telegram WebApp init ---------- */
@@ -3298,7 +3298,7 @@ async function screenAdmin(){
     return;
   }
   // Минимум 1.6с показываем boot, чтобы успела сыграть анимация
-  const minBoot = new Promise(r => setTimeout(r, 1600));
+  const minBoot = new Promise(r => setTimeout(r, 4500));
   await minBoot;
   try { clearTimeout(window.__bootSafety); } catch(e){}
   try { window.__bootHide && window.__bootHide(); } catch(e){}
