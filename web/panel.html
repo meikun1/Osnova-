@@ -533,7 +533,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.boot</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.dom-switch</div>
   </div>
 
   <main id="content"></main>
@@ -737,6 +737,76 @@ function closeSheet(){
 }
 $('#sheet-bg').addEventListener('click', closeSheet);
 
+/* ---------- domain sheet (привязать / отвязать / NS) ---------- */
+async function openDomainSheet(currentDomain){
+  openSheet(`
+    <div class="sheet-title">Домены</div>
+    <div class="field-hint" style="margin-bottom:12px">Привяжи новый домен, дождись зелёного SSL — потом отвяжи старый. Без этого бот ляжет на время прорастания NS.</div>
+    <div id="dom-list" style="margin-bottom:14px">
+      <div class="field-hint">⏳ загружаем…</div>
+    </div>
+    <div class="uppercase" style="margin:8px 0 6px">Новый домен</div>
+    <div class="row gap-s" style="margin-bottom:4px">
+      <input class="input mono" id="ds-domain" placeholder="example.com" style="flex:1">
+      <button class="btn small" id="ds-bind" style="width:auto;min-width:96px">Привязать</button>
+    </div>
+    <div class="field-hint" id="ds-state">Получишь NS-серверы Cloudflare — пропиши их у регистратора.</div>
+    <div id="ds-ns" style="margin-top:6px"></div>
+  `);
+
+  async function refreshList(){
+    try {
+      const doms = await api('/domains');
+      const box = $('#dom-list');
+      if (!doms.length){ box.innerHTML = `<div class="field-hint">Пока нет привязанных доменов.</div>`; return; }
+      box.innerHTML = doms.map(d => {
+        const isCurrent = d.domain === currentDomain;
+        const ok = d.ssl_notified ? '<span class="dot-ok"></span>' : '<span class="dot-warn"></span>';
+        const tag = isCurrent ? '<span style="color:var(--accent);font-size:10px;letter-spacing:.18em">АКТИВНЫЙ</span>' : '';
+        return `<div class="togrow" style="cursor:default;padding:10px 12px">
+          <div class="v" style="flex:1;gap:2px">
+            <div class="ttl mono" style="display:flex;align-items:center;gap:8px">${esc(d.domain)} ${ok}</div>
+            <div class="sub">${d.ssl_notified ? 'SSL ок' : 'ждём NS / SSL'} ${tag}</div>
+          </div>
+          <button class="btn small danger" data-unbind="${esc(d.domain)}" style="width:auto;min-width:92px">Отвязать</button>
+        </div>`;
+      }).join('');
+      box.querySelectorAll('[data-unbind]').forEach(btn => {
+        btn.onclick = async ()=>{
+          const dom = btn.dataset.unbind;
+          if (doms.length <= 1){ toast('Нельзя отвязать последний — сначала привяжи новый'); HAPTIC('error'); return; }
+          if (!confirm(`Отвязать ${dom}? Зона удалится из Cloudflare, домен освободится.`)) return;
+          btn.disabled = true; btn.textContent = '…';
+          try {
+            await api(`/domains/${encodeURIComponent(dom)}`, {method:'DELETE'});
+            toast('Отвязан'); HAPTIC('success');
+            await refreshList();
+          } catch(e){ toast(e.message); HAPTIC('error'); btn.disabled = false; btn.textContent = 'Отвязать'; }
+        };
+      });
+    } catch(e){ $('#dom-list').innerHTML = `<div class="field-hint">Ошибка: ${esc(e.message)}</div>`; }
+  }
+  refreshList();
+
+  $('#ds-bind').onclick = async ()=>{
+    const d = $('#ds-domain').value.trim();
+    if (!d) return toast('Введите домен');
+    $('#ds-bind').disabled = true; $('#ds-bind').textContent = '…';
+    try {
+      const r = await api('/domains', {method:'POST', body: JSON.stringify({domain: d})});
+      $('#ds-state').innerHTML = `✓ ${esc(r.domain)} · пропиши эти NS у регистратора и подожди (5 мин — часы):`;
+      $('#ds-ns').innerHTML = r.ns_servers.map(ns => `<div class="codeblock" data-ns="${esc(ns)}" style="margin-top:6px;cursor:pointer">${esc(ns)}</div>`).join('');
+      $('#ds-ns').querySelectorAll('[data-ns]').forEach(el => {
+        el.onclick = ()=> { navigator.clipboard?.writeText(el.dataset.ns); toast('Скопировано'); HAPTIC('success'); };
+      });
+      $('#ds-domain').value = '';
+      HAPTIC('success');
+      refreshList();
+    } catch(e){ toast(e.message); HAPTIC('error'); }
+    finally { $('#ds-bind').disabled = false; $('#ds-bind').textContent = 'Привязать'; }
+  };
+}
+
 /* ---------- routing ---------- */
 let ME = null;
 const stack = [];   // история экранов для back
@@ -926,7 +996,7 @@ async function screenBotCard(botId){
       <div class="infogrid">
         <div class="k">Токен</div>     <div class="v mono" id="i-tok" style="cursor:pointer" title="Тап — скопировать полный токен">${esc(b.token_mask||'—')}</div>
         <div class="k">Шаблон</div>    <div class="v link" id="i-tpl">${esc(b.template_name||'—')}</div>
-        <div class="k">Домен</div>     <div class="v link" id="i-dom"><span class="vwrap"><span class="txt">${esc(b.domain||'—')}</span>${b.domain?(b.domain_ssl_ok?'<span class="dot-ok"></span>':'<span class="dot-warn"></span>'):''}</span></div>
+        <div class="k">Домен</div>     <div class="v link" id="i-dom" style="cursor:pointer" title="Управление доменами"><span class="vwrap"><span class="txt">${esc(b.domain||'—')}</span>${b.domain?(b.domain_ssl_ok?'<span class="dot-ok"></span>':'<span class="dot-warn"></span>'):''}</span></div>
       </div>
 
       <div class="uppercase" style="margin:6px 4px 8px">Воронка · 24ч</div>
@@ -973,6 +1043,10 @@ async function screenBotCard(botId){
       try { await api(`/bots/${botId}`, {method:'PATCH', body: JSON.stringify({[key]: next})}); b[key] = next; }
       catch(e){ toast(e.message); el.classList.toggle('on', !next); HAPTIC('error'); }
     };
+    // Тап по строке «Домен» — открыть шторку управления доменами
+    const iDom = $('#i-dom');
+    if (iDom) iDom.onclick = ()=> openDomainSheet(b.domain || '');
+
     // Свитч щёлкает прямо в карточке; вся строка открывает экран с описанием/ссылкой.
     $('#t-guard').onclick = (e)=>{ e.stopPropagation(); toggle('guard_enabled', e.currentTarget, b.guard_enabled); };
     $('#r-guard').onclick = ()=> navigate(screenGuard, botId, b.username);

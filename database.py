@@ -819,6 +819,15 @@ def cf_pool_purge_invalid() -> int:
     return len(bad_ids)
 
 
+def cf_pool_get_by_id(account_id: int) -> dict | None:
+    with _lock:
+        row = _db.one(
+            "SELECT id, email, api_token, label FROM cf_accounts WHERE id=?",
+            (account_id,),
+        )
+    return dict(row) if row else None
+
+
 def cf_pool_get_for_user(user_id: int) -> dict | None:
     """Возвращает уже привязанный к юзеру аккаунт или атомарно клеймит
     первый свободный. None — если пул пуст. Если у юзера закреплён битый
@@ -882,6 +891,26 @@ def user_domain_add(user_id: int, domain: str, cf_account: int) -> None:
             (user_id, domain, cf_account, _now()),
         )
         _db.commit()
+
+
+def user_domain_get(user_id: int, domain: str) -> dict | None:
+    with _lock:
+        row = _db.one(
+            "SELECT id, domain, cf_account, created_at, ssl_notified "
+            "FROM user_domains WHERE user_id=? AND domain=?",
+            (user_id, domain),
+        )
+    return dict(row) if row else None
+
+
+def user_domain_remove(user_id: int, domain: str) -> bool:
+    with _lock:
+        cur = _db.execute(
+            "DELETE FROM user_domains WHERE user_id=? AND domain=?",
+            (user_id, domain),
+        )
+        _db.commit()
+        return (cur.rowcount or 0) > 0
 
 
 def user_domains_list(user_id: int) -> list[dict]:

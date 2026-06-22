@@ -1439,6 +1439,56 @@ async def bind_domain(
     return {"domain": domain, "ns_servers": ns}
 
 
+@router.delete("/domains/{domain}")
+async def unbind_domain(
+    domain: str,
+    user: dict = Depends(verify_panel_user),
+) -> dict:
+    """Отвязать домен: удалить zone из CF, убрать из Caddy, освободить слот пула."""
+    from database import (
+        cf_pool_get_by_id, user_domain_get, user_domain_remove,
+        user_domains_list,
+    )
+    from domain_flow import (
+        CaddyReloadError, CFError,
+        cf_delete_zone, cf_get_zone_id,
+        reload_caddy, remove_domain_from_caddy,
+    )
+
+    domain = (domain or "").strip().lower()
+    rec = user_domain_get(user["id"], domain)
+    if not rec:
+        raise HTTPException(404, "domain not found")
+    if len(user_domains_list(user["id"])) <= 1:
+        raise HTTPException(409, "cannot remove last domain — bind a new one first")
+
+    account = cf_pool_get_by_id(rec["cf_account"]) if rec.get("cf_account") else None
+
+    def _do() -> None:
+        if account and account.get("api_token"):
+            try:
+                zid = cf_get_zone_id(domain, account["api_token"])
+                if zid:
+                    cf_delete_zone(zid, account["api_token"])
+            except CFError as e:
+                logger.warning("cf_delete_zone(%s) failed: %s", domain, e)
+        try:
+            remove_domain_from_caddy(domain, config.DOMAIN_CADDYFILE)
+        except Exception as e:
+            logger.warning("caddy remove(%s) failed: %s", domain, e)
+        try:
+            reload_caddy(
+                config.DOMAIN_CADDY_EXE, config.DOMAIN_CADDYFILE,
+                admin_url=config.DOMAIN_CADDY_ADMIN_URL or None,
+            )
+        except CaddyReloadError as e:
+            logger.warning("caddy reload after remove failed: %s", e)
+
+    await asyncio.to_thread(_do)
+    user_domain_remove(user["id"], domain)
+    return {"removed": domain}
+
+
 # ===== admin =====
 
 @router.get("/admin/cf-pool")
