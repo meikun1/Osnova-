@@ -618,7 +618,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v2</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.role-worker</div>
   </div>
 
   <main id="content"></main>
@@ -3122,7 +3122,7 @@ async function screenProfile(){
   setTitle('Профиль', ME ? (ME.username ? '@'+ME.username : ('ID '+ME.id)) : '');
   const uname = (ME && ME.username) ? ME.username : 'anonymous';
   const init = (uname.replace('@','').substring(0,2) || '??').toUpperCase();
-  const role = (ME && ME.is_admin) ? 'superadmin' : 'owner';
+  const role = (ME && ME.is_admin) ? 'superadmin' : 'worker';
   const since = _profileSince(ME && ME.since);
   const bots = (ME && ME.bots_count != null) ? ME.bots_count : '—';
   const doms = (ME && ME.domains_count != null) ? ME.domains_count : '—';
