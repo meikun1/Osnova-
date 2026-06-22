@@ -544,9 +544,9 @@
     animation:radarPing 2.2s ease-out infinite;}
   .radar-svg .pingm{fill:var(--magenta);opacity:.85;
     animation:radarPing 2.2s ease-out infinite;}
-  .radar-svg .sweep{animation:radarSweep 3.6s linear infinite;mix-blend-mode:screen;}
+  .radar-svg .sweep{animation:radarSweep 4.5s linear infinite;mix-blend-mode:screen;}
   @keyframes radarPing { 0%,100%{opacity:.25} 50%{opacity:1} }
-  @keyframes radarSweep { 0%{transform:rotate(180deg)} 100%{transform:rotate(540deg)} }
+  @keyframes radarSweep { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 
 
   /* ===== BOOT.SEQUENCE ===== */
@@ -618,7 +618,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v3</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.radar-v4</div>
   </div>
 
   <main id="content"></main>
@@ -3042,31 +3042,32 @@ function _profileSince(ts){
 }
 
 function _radarSVG(){
-  // CRT-радар: вращающаяся развёртка с угасающим следом, концентрические дуги,
-  // полу-окружность точек-пингов, центральная цель SHIELD.
+  // CRT-радар: вращающаяся развёртка (ведущая линия + угасающий клин-след),
+  // концентрические дуги, полу-окружность точек-пингов, центральная цель SHIELD.
   const CX = 200, CY = 150, R = 120;
+  const TRAIL_DEG = 75;
+  const tRad = -TRAIL_DEG * Math.PI / 180;
+  const tx = (CX + R * Math.cos(tRad)).toFixed(2);
+  const ty = (CY + R * Math.sin(tRad)).toFixed(2);
   // Точки на полуокружности (верхняя половина), угол от 180° до 0°
   const arcDots = [];
   const N = 24;
   for (let i=0; i<=N; i++){
-    const a = Math.PI * (i/N);                 // 0..π
-    const x = CX - Math.cos(a) * R;            // слева-направо
+    const a = Math.PI * (i/N);
+    const x = CX - Math.cos(a) * R;
     const y = CY - Math.sin(a) * R;
     const threat = (i===5 || i===19);
     arcDots.push(`<circle class="${threat?'pingm':'ping'}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.8" style="animation-delay:${(i*0.12).toFixed(2)}s"/>`);
   }
-  // Несколько крупных «обнаруженных» отметок внутри
   const blips = [
     [CX - 55, CY - 65, 'ping'],
     [CX + 70, CY - 40, 'pingm'],
     [CX - 30, CY - 30, 'ping'],
     [CX + 35, CY - 80, 'ping'],
   ].map(([x,y,cls],i)=>`<circle class="${cls}" cx="${x}" cy="${y}" r="2.2" style="animation-delay:${(i*0.55).toFixed(2)}s"/>`).join('');
-  // Концентрические дуги (полу) — r/3, 2r/3, r
   const arcs = [R/3, R*2/3, R].map(r =>
     `<path d="M ${(CX-r).toFixed(1)} ${CY} A ${r} ${r} 0 0 1 ${(CX+r).toFixed(1)} ${CY}" fill="none" stroke="#15302a" stroke-width="1"/>`
   ).join('');
-  // Крест-перекрестье
   const cross = `
     <line x1="${CX-R}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#15302a" stroke-width="1"/>
     <line x1="${CX}" y1="${CY-R}" x2="${CX}" y2="${CY}" stroke="#15302a" stroke-width="1"/>
@@ -3074,15 +3075,15 @@ function _radarSVG(){
   return `
     <svg viewBox="0 0 400 200" class="radar-svg" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <!-- угасающий хвост развёртки: горячая точка на ведущем конце линии -->
-        <linearGradient id="sweepLine" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="#00ffd1" stop-opacity="0"/>
-          <stop offset=".75" stop-color="#00ffd1" stop-opacity=".55"/>
-          <stop offset="1" stop-color="#bfffe7" stop-opacity="1"/>
+        <!-- Градиент для клина-следа: ярко на ведущей кромке (низ-право), угасает к хвосту (верх-лево) -->
+        <linearGradient id="sweepGrad" x1="1" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#bfffe7" stop-opacity=".95"/>
+          <stop offset=".15" stop-color="#00ffd1" stop-opacity=".45"/>
+          <stop offset=".55" stop-color="#00ffd1" stop-opacity=".15"/>
+          <stop offset="1" stop-color="#00ffd1" stop-opacity="0"/>
         </linearGradient>
-        <filter id="sweepGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <filter id="sweepGlow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="1.2"/>
         </filter>
       </defs>
       <!-- угловые скобки рамки -->
@@ -3100,27 +3101,19 @@ function _radarSVG(){
       <line x1="${CX}" y1="${CY-49}" x2="${CX}" y2="${CY-43}" stroke="#7fb9aa" stroke-width="1"/>
       <text x="${CX}" y="${CY-22}" text-anchor="middle" class="radar-label">SHIELD</text>
 
-      <!-- точки полу-окружности и blips -->
       ${arcDots.join('')}
       ${blips}
 
-      <!-- вращающаяся развёртка: 7 тонких линий веером со сдвигом, гаснущие к хвосту -->
+      <!-- вращающаяся развёртка: клин-след (sector) + ведущая яркая линия + точка на конце -->
       <g class="sweep" style="transform-origin:${CX}px ${CY}px" filter="url(#sweepGlow)">
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1.8" opacity="1" transform="rotate(0 ${CX} ${CY})"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1.4" opacity=".55" transform="rotate(-8 ${CX} ${CY})"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1.2" opacity=".35" transform="rotate(-16 ${CX} ${CY})"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width="1" opacity=".22" transform="rotate(-24 ${CX} ${CY})"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width=".8" opacity=".14" transform="rotate(-32 ${CX} ${CY})"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width=".6" opacity=".08" transform="rotate(-40 ${CX} ${CY})"/>
-        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="url(#sweepLine)" stroke-width=".4" opacity=".04" transform="rotate(-48 ${CX} ${CY})"/>
-        <!-- горячая точка на ведущем конце -->
-        <circle cx="${CX+R}" cy="${CY}" r="2.5" fill="#bfffe7"/>
+        <path d="M ${CX} ${CY} L ${CX+R} ${CY} A ${R} ${R} 0 0 0 ${tx} ${ty} Z" fill="url(#sweepGrad)"/>
+        <line x1="${CX}" y1="${CY}" x2="${CX+R}" y2="${CY}" stroke="#bfffe7" stroke-width="1.8" opacity=".95"/>
+        <circle cx="${CX+R}" cy="${CY}" r="2.4" fill="#bfffe7"/>
       </g>
 
       <!-- центральная точка -->
       <circle cx="${CX}" cy="${CY}" r="2" fill="#00ffd1"/>
 
-      <!-- подписи -->
       <text x="14" y="186" class="radar-txt">SCAN[<tspan class="radar-angle" id="rad-ang">42</tspan>°]</text>
       <text x="110" y="186" class="radar-dot">·</text>
       <text x="124" y="186" class="radar-q">q=<tspan id="rad-q">4.7</tspan></text>
