@@ -636,7 +636,7 @@
       <div class="title" id="screen-title">Панель</div>
       <div class="sub" id="screen-sub"></div>
     </div>
-    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.boot-4s</div>
+    <div id="buildtag" style="font-size:9.5px;color:var(--hint);font-family:'JetBrains Mono',monospace;opacity:.7">b.cleanup</div>
   </div>
 
   <main id="content"></main>
@@ -978,12 +978,6 @@ function avatarColors(username){
   let h = 0; for (let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
   return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
 }
-function botStatusDot(b){
-  // зелёная — в порядке, янтарная — мини-апп выключен / нет домена, красная — что-то совсем
-  if (b.miniapp_enabled) return 'green';
-  return 'amber';
-}
-
 let CURRENT_FOLDER = null;
 let LAST_OVERVIEW = null;
 
@@ -1808,38 +1802,6 @@ async function screenTemplate(botId, templateId){
       });
     });
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
-}
-
-function openLegacyTemplateSheet(legacyId, name){
-  openSheet(`
-    <div class="sheet-title">Старый шаблон</div>
-    <div class="card tight" style="margin-bottom:12px">
-      <div style="font-weight:600">${esc(name)}</div>
-      <div class="field-hint" style="margin-top:4px">Создан в Telegram-чате старым редактором.</div>
-    </div>
-    <div class="field-hint" style="line-height:1.5;margin-bottom:14px">
-      Старые шаблоны нельзя редактировать в новом конструкторе.
-      Можно <b>импортировать</b> — получишь копию в формате конструктора,
-      исходник останется на месте.
-    </div>
-    <button class="btn" id="legacy-import">Импортировать в конструктор</button>
-    <div style="height:8px"></div>
-    <button class="btn muted" id="legacy-cancel">Отмена</button>
-  `);
-  $('#legacy-cancel').onclick = closeSheet;
-  $('#legacy-import').onclick = async ()=>{
-    $('#legacy-import').textContent = 'Импорт…';
-    $('#legacy-import').disabled = true;
-    try {
-      const t = await api(`/builder/templates/import-legacy/${encodeURIComponent(legacyId)}`, {method:'POST'});
-      closeSheet(); HAPTIC('success');
-      toast(`✓ Импортирован: ${t.name}`);
-      navigate(screenBuilder, t.id);
-    } catch(e){ toast(e.message); HAPTIC('error');
-      $('#legacy-import').textContent = 'Импортировать в конструктор';
-      $('#legacy-import').disabled = false;
-    }
-  };
 }
 
 /* =====================================================
@@ -2853,8 +2815,6 @@ async function screenMyDomains(){
     };
   } catch(e){ root.innerHTML = `<div class="empty"><div class="ttl">Ошибка</div><div class="sub">${esc(e.message)}</div></div>`; }
 }
-
-// screenBindDomain удалён — привязка теперь идёт через единую шторку «Добавить бота».
 
 /* =====================================================
    ЭКРАН: Папки
