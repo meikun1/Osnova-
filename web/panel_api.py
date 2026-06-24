@@ -1187,8 +1187,20 @@ async def bt_publish(template_id: str, user: dict = Depends(verify_panel_user)) 
 
 @router.delete("/builder/templates/{template_id}")
 async def bt_delete(template_id: str, user: dict = Depends(verify_panel_user)) -> dict:
-    from database import builder_template_delete
+    from database import builder_template_delete, builder_template_get, delete_template
     _bt_owned(template_id, user["id"])
+    # Если шаблон был мигрирован из legacy — удаляем и оттуда, иначе он
+    # автоматически переимпортируется на следующем GET /builder/templates.
+    try:
+        full = builder_template_get(template_id) or {}
+        lid = (full.get("data") or {}).get("legacy_source_id")
+        if isinstance(lid, int):
+            try:
+                delete_template(lid)
+            except Exception as e:
+                logger.warning("delete legacy %s failed: %s", lid, e)
+    except Exception:
+        pass
     builder_template_delete(template_id)
     return {"ok": True}
 
