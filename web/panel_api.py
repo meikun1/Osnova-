@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, File, HTTPException, UploadFile
 
@@ -545,7 +545,6 @@ async def download_sessions(bot_id: int, user: dict = Depends(verify_panel_user)
     """Отдаёт ZIP всех .session-файлов бота. Если сессия одна — отдельный
     .session-файл."""
     import io
-    import os
     import zipfile
     from datetime import datetime, timezone
 
@@ -1212,7 +1211,6 @@ def _stickers_path():
     """Путь к stickers.json (web/static/stickers.json)."""
     global _STICKERS_PATH
     if _STICKERS_PATH is None:
-        from pathlib import Path
         _STICKERS_PATH = Path(__file__).parent / "static" / "stickers.json"
     return _STICKERS_PATH
 
@@ -1227,11 +1225,10 @@ _STICKER_EXTS = {
 }
 
 
-def _ensure_tgs_unpacked(tgs_path) -> "Path | None":
+def _ensure_tgs_unpacked(tgs_path: Path) -> Path | None:
     """Распаковывает .tgs (gzip Lottie JSON) в .json рядом. Возвращает путь
     к получившемуся .json. Если уже распакован — возвращает существующий."""
     import gzip
-    from pathlib import Path
     json_path = tgs_path.with_suffix(".json")
     if json_path.exists() and json_path.stat().st_mtime >= tgs_path.stat().st_mtime:
         return json_path
@@ -1252,7 +1249,6 @@ def _scan_stickers_folder() -> list[dict]:
     Дополнительно: для каждого .tgs файла автоматически распаковывает
     рядом .json (если ещё не распакован). lottie-player понимает только
     распакованный JSON."""
-    from pathlib import Path
     folder = Path(__file__).parent / "static" / "stickers"
     if not folder.is_dir():
         return []
@@ -1289,7 +1285,6 @@ def _scan_stickers_folder() -> list[dict]:
 def _load_stickers_meta() -> dict:
     """Читает stickers-meta.json (категории, pinned, читаемые имена)."""
     import json as _json
-    from pathlib import Path
     p = Path(__file__).parent / "static" / "stickers-meta.json"
     if not p.exists():
         return {}
@@ -1378,7 +1373,6 @@ async def bt_upload_image(
     Возвращает {ref: <uuid.ext>, url: '/static/uploads/...'}."""
     import os
     import uuid as _uuid
-    from pathlib import Path
 
     _bt_owned(template_id, user["id"])
 
