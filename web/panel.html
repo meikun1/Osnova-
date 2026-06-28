@@ -913,6 +913,9 @@ async function openDomainSheet(currentDomain){
 
 /* ---------- routing ---------- */
 let ME = null;
+// LogBot ботов (мок-состояние UI; разделы лендингов и ботов — разные боты)
+const LOGBOT = {connected:true, name:'@bots_log_bot', chat:'-1001234567890',
+  triggers:{start:true, contact:true, blocked:false, broadcast:false}};
 const stack = [];   // история экранов для back
 let currentTab = 'bots';
 
@@ -3101,6 +3104,73 @@ function _radarSVG(){
   `;
 }
 
+async function screenLogbot(){
+  setTitle('LogBot', 'Логи раздела «Боты»');
+  const lb = LOGBOT;
+  if (!lb.connected){
+    root.innerHTML = `
+      <div class="card">
+        <div class="row between"><span style="color:var(--label)">Статус</span><span class="pill muted dot">не подключён</span></div>
+      </div>
+      <div class="field-row"><div class="lbl">Bot Token</div><input class="input mono" id="lb-token" type="password" placeholder="123456789:AAEhhHg…"></div>
+      <div class="field-row"><div class="lbl">Chat ID</div><input class="input mono" id="lb-chat" placeholder="-1001234567890"></div>
+      <button class="btn" id="lb-connect">Подключить</button>
+    `;
+    $('#lb-connect').onclick = ()=>{
+      lb.chat = ($('#lb-chat').value || '').trim() || lb.chat;
+      lb.connected = true; HAPTIC('success'); screenLogbot(); toast('Подключён');
+    };
+    return;
+  }
+  const TR = [
+    ['start','Бот запущен (/start)'],
+    ['contact','Контакт получен'],
+    ['blocked','Заблокирован клоакой'],
+    ['broadcast','Рассылка завершена'],
+  ];
+  root.innerHTML = `
+    <div class="card">
+      <div class="row between" style="margin-bottom:8px"><span style="color:var(--label)">Статус</span><span class="pill ok dot">подключён</span></div>
+      <div class="row between" style="margin-bottom:8px"><span style="color:var(--label)">Бот</span><span class="mono">${esc(lb.name)}</span></div>
+      <div class="row between"><span style="color:var(--label)">Чат</span><span class="mono" style="color:var(--muted)">${esc(lb.chat)}</span></div>
+    </div>
+    <div style="color:var(--label);margin:14px 0 8px;font:10px 'Share Tech Mono',monospace;letter-spacing:.2em;text-transform:uppercase">Что отправлять</div>
+    ${TR.map(([k,label])=>`
+      <div class="togrow tg-trig" data-k="${k}" style="cursor:pointer">
+        <svg class="ico-svg" style="width:18px;height:18px;color:var(--accent)"><use href="#ic-send"/></svg>
+        <div class="v"><div class="ttl">${esc(label)}</div></div>
+        <div class="switch ${lb.triggers[k]?'on':''}"></div>
+      </div>
+    `).join('')}
+    <div class="row" style="gap:8px;margin-top:14px">
+      <button class="btn ghost" id="lb-test" style="flex:1">Тест</button>
+      <button class="btn" id="lb-save" style="flex:1">Сохранить</button>
+    </div>
+    <button class="btn danger" id="lb-off" style="margin-top:10px">Отключить LogBot</button>
+  `;
+  root.querySelectorAll('.tg-trig').forEach(row=>{
+    row.onclick = ()=>{
+      const k = row.dataset.k;
+      lb.triggers[k] = !lb.triggers[k];
+      row.querySelector('.switch').classList.toggle('on', lb.triggers[k]);
+      HAPTIC('light');
+    };
+  });
+  $('#lb-test').onclick = ()=>{ HAPTIC('light'); toast('Тестовое отправлено'); };
+  $('#lb-save').onclick = ()=>{ HAPTIC('success'); toast('Триггеры сохранены'); };
+  $('#lb-off').onclick = ()=>{
+    openSheet(`
+      <div class="sheet-title">Отключить LogBot?</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:14px">Логи раздела «Боты» больше не будут отправляться.</p>
+      <button class="btn danger" id="lb-off-go">Отключить</button>
+      <div style="height:10px"></div>
+      <button class="btn muted" id="lb-off-cancel">Отмена</button>
+    `);
+    $('#lb-off-cancel').onclick = closeSheet;
+    $('#lb-off-go').onclick = ()=>{ lb.connected = false; closeSheet(); HAPTIC('warning'); screenLogbot(); };
+  };
+}
+
 async function screenProfile(){
   setTitle('Профиль', ME ? (ME.username ? '@'+ME.username : ('ID '+ME.id)) : '');
   const uname = (ME && ME.username) ? ME.username : 'anonymous';
@@ -3139,6 +3209,12 @@ async function screenProfile(){
       <span class="tl-arr">▷</span>
       <span class="tl-path">/domains</span>
       <span class="tl-tail">— мои домены (${doms})</span>
+      <span class="tl-chev">›</span>
+    </div>
+    <div class="term-line" id="p-logbot">
+      <span class="tl-arr">▷</span>
+      <span class="tl-path">/logbot</span>
+      <span class="tl-tail">— логи ботов ${LOGBOT.connected?'<span class="role">on</span>':'off'}</span>
       <span class="tl-chev">›</span>
     </div>
   `;
@@ -3181,6 +3257,7 @@ async function screenProfile(){
   `;
   root.innerHTML = html;
   $('#p-domains').onclick = ()=> { HAPTIC('light'); navigate(screenMyDomains); };
+  $('#p-logbot').onclick = ()=> { HAPTIC('light'); navigate(screenLogbot); };
   if (ME && ME.is_admin){
     const pa = $('#p-admin'); if (pa) pa.onclick = ()=> { HAPTIC('light'); navigate(screenAdmin); };
   }
