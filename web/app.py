@@ -116,6 +116,31 @@ def create_app() -> FastAPI:
     from web.panel_api import router as panel_router
     app.include_router(panel_router)
 
+    _LAUNCHER_PATH = Path(__file__).parent / "launcher.html"
+    _EVA_PATH = Path(__file__).parent / "eva.html"
+
+    def _serve_static_html(path: Path) -> HTMLResponse:
+        import os
+        html = path.read_text(encoding="utf-8")
+        mtime = int(os.path.getmtime(path))
+        return HTMLResponse(
+            html,
+            headers={
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "ETag": f'"{mtime}"',
+            },
+        )
+
+    @app.get("/launcher", response_class=HTMLResponse)
+    async def launcher_page() -> HTMLResponse:
+        return _serve_static_html(_LAUNCHER_PATH)
+
+    @app.get("/eva", response_class=HTMLResponse)
+    async def eva_page() -> HTMLResponse:
+        return _serve_static_html(_EVA_PATH)
+
     @app.get("/panel", response_class=HTMLResponse)
     async def panel_page() -> HTMLResponse:
         # Читаем файл при каждом запросе — изменения подхватываются мгновенно
