@@ -266,7 +266,7 @@
     const lnEls = cont.querySelectorAll('.ln');
     let idx = 0;
     const showNext = ()=>{
-      if (idx < lnEls.length){ lnEls[idx].classList.add('show'); idx++; setTimeout(showNext, 300 + Math.random()*150); }
+      if (idx < lnEls.length){ lnEls[idx].classList.add('show'); idx++; setTimeout(showNext, 150 + Math.random()*80); }
     };
     setTimeout(showNext, 120);
 
@@ -276,7 +276,7 @@
     let p = 0;
     const tickBar = ()=>{
       if (p >= 100) return;
-      p = Math.min(100, p + 3 + Math.random()*6);
+      p = Math.min(100, p + 7 + Math.random()*9);
       const filled = Math.round(BW * p/100);
       let s = '';
       for (let i=0;i<BW;i++){
@@ -286,12 +286,12 @@
       }
       bar.textContent = s;
       pct.textContent = Math.round(p) + '%';
-      if (p < 100) setTimeout(tickBar, 150 + Math.random()*100);
+      if (p < 100) setTimeout(tickBar, 90 + Math.random()*60);
     };
     setTimeout(tickBar, 220);
 
     const rows = document.querySelectorAll('#boot-foot .row');
-    rows.forEach((r,i)=> setTimeout(()=> r.classList.add('show'), 2200 + i*420));
+    rows.forEach((r,i)=> setTimeout(()=> r.classList.add('show'), 900 + i*200));
 
     function hideBoot(){
       const el = document.getElementById('boot');
@@ -303,8 +303,8 @@
         document.body.classList.remove('booting');
       }, 380);
     }
-    setTimeout(hideBoot, 4500);
-    setTimeout(hideBoot, 7000);
+    setTimeout(hideBoot, 2200);
+    setTimeout(hideBoot, 4000);
   })();
 </script>
 </body>
