@@ -334,6 +334,7 @@
       <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
 
       <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M6 16V10a6 6 0 0 1 12 0v6l1.5 2h-15L6 16Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4 21c0-4 3.6-6.5 8-6.5S20 17 20 21" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
       <symbol id="ic-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
@@ -387,7 +388,7 @@
     <div class="tab" data-tab="domains"><svg class="svgi x22"><use href="#ic-globe"/></svg>Домены</div>
     <div class="tab" data-tab="sessions"><svg class="svgi x22"><use href="#ic-target"/></svg>Сессии</div>
     <div class="tab" data-tab="stats"><svg class="svgi x22"><use href="#ic-bars"/></svg>Стат</div>
-    <div class="tab" data-tab="settings"><svg class="svgi x22"><use href="#ic-gear"/></svg>Настр</div>
+    <div class="tab" data-tab="profile"><svg class="svgi x22"><use href="#ic-profile"/></svg>Профиль</div>
   </nav>
 
   <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
@@ -1357,17 +1358,35 @@ screens.stats = ()=>{
   };
 };
 
-/* ---- SETTINGS ---- */
-screens.settings = ()=>{
-  const u=DATA.user;
+/* ---- PROFILE ---- */
+screens.profile = ()=>{
+  const u=DATA.user, k=DATA.kpi;
+  const uname=(u.username||'@anonymous').replace('@','');
+  const init=(uname.substring(0,2)||'??').toUpperCase();
   return {
-    title:'Настройки', tab:'settings',
+    title:'Профиль', sub:'@'+uname, tab:'profile',
     html:`
-      <div class="section-label">Аккаунт</div>
       <div class="card static">
-        <div><b>${esc(u.username)}</b></div>
-        <div class="t-muted mt-s">TG ID: ${u.tg_id}</div>
+        <div class="row gap-m" style="align-items:flex-start">
+          <div class="kpi" style="width:54px;height:54px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font:20px 'VT323',monospace;color:var(--accent)">${esc(init)}</div>
+          <div class="grow">
+            <div><b>@${esc(uname)}</b></div>
+            <div class="t-muted mt-s">tg.id ${u.tg_id}</div>
+            <div class="t-muted mt-s">role: <span class="t-acc">worker</span></div>
+          </div>
+          <span class="pill muted">ID_CARD</span>
+        </div>
+        <div class="hr"></div>
+        <div class="row between">
+          <div><div class="t-label">Сессий</div><b class="num">${k.total.toLocaleString('ru')}</b></div>
+          <div><div class="t-label">Доменов</div><b class="num">${k.activeDomains}</b></div>
+          <div><div class="t-label">Конверсия</div><b class="num">${k.conversion}%</b></div>
+        </div>
       </div>
+      <div class="card" onclick="nav.goTab('domains')">
+        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-globe"/></svg>Мои домены</span><span class="chev">${CHEV}</span></div>
+      </div>
+      <div class="section-label">Настройки</div>
       <div class="card" onclick="nav.go('templates')">
         <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-mask"/></svg>Шаблоны</span><span class="chev">${CHEV}</span></div>
       </div>
@@ -1375,7 +1394,7 @@ screens.settings = ()=>{
         <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-bell"/></svg>Уведомления</span><span class="chev">${CHEV}</span></div>
       </div>
       <div class="card" onclick="nav.go('logbot')">
-        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot</span><span class="chev">${CHEV}</span></div>
+        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot <span class="t-muted">(отдельный для EVA)</span></span><span class="chev">${CHEV}</span></div>
       </div>
     `
   };
@@ -1384,7 +1403,7 @@ screens.settings = ()=>{
 /* ---- TEMPLATES LIST ---- */
 screens.templates = ()=>{
   return {
-    title:'Шаблоны', tab:'settings',
+    title:'Шаблоны', tab:'profile',
     html:`
       <div class="row between mb-s">
         <span class="t-label">Управление</span>
@@ -1428,7 +1447,7 @@ screens.templateEditor = (p)=>{
     : DATA.templates.mine.find(x=>x.id===p.id);
   const page = t.pages[TPL_PAGE]||{};
   return {
-    title:t.name, tab:'settings',
+    title:t.name, tab:'profile',
     html:`
       <div class="row gap-s mb-m">
         <button class="btn ghost small" onclick="toast('Preview')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-eye"/></svg>Preview</button>
@@ -1536,7 +1555,7 @@ function themeField(key,lbl,val){
 /* ---- NOTIFICATIONS ---- */
 screens.notifications = ()=>{
   return {
-    title:'Уведомления', tab:'settings',
+    title:'Уведомления', tab:'profile',
     html:`
       <div class="row between mb-s">
         <span class="t-label">${DATA.notifications.filter(n=>n.unread).length} непрочитанных</span>
@@ -1568,7 +1587,7 @@ screens.logbot = ()=>{
   const lb=DATA.logbot;
   if(!lb.connected){
     return {
-      title:'LogBot', tab:'settings',
+      title:'LogBot', tab:'profile',
       html:`
         <div class="card static">
           <div class="row between"><span class="t-label">Статус</span><span class="pill muted">⭕ Не подключён</span></div>
@@ -1588,7 +1607,7 @@ screens.logbot = ()=>{
     ['page','Страница открыта'],
   ];
   return {
-    title:'LogBot', tab:'settings',
+    title:'LogBot', tab:'profile',
     html:`
       <div class="card static">
         <div class="row between mb-s"><span class="t-label">Статус</span><span class="pill ok">✅ Подключён</span></div>
