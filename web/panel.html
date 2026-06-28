@@ -982,11 +982,15 @@ function avatarColors(username){
 let CURRENT_FOLDER = null;
 let LAST_OVERVIEW = null;
 
+let PREFETCH_OVERVIEW = null;
 async function screenBots(){
   setTitle('Панель', '');
   root.innerHTML = `<div class="empty"><div class="ico">⏳</div></div>`;
   try {
-    const data = await api('/overview');
+    // на первом старте overview уже летит параллельно с /me — подхватываем его
+    const p = PREFETCH_OVERVIEW || api('/overview');
+    PREFETCH_OVERVIEW = null;
+    const data = await p;
     LAST_OVERVIEW = data;
     renderBotsDashboard(data);
   } catch(e){
@@ -3252,15 +3256,18 @@ async function screenAdmin(){
     root.innerHTML = `<div class="empty"><div class="ico">⚠️</div><div class="ttl">Открывать только из Telegram</div><div class="sub">initData недоступен — это значит, страница открыта в обычном браузере.</div></div>`;
     return;
   }
+  // оба запроса стартуют одновременно — overview не ждёт ответа /me
+  PREFETCH_OVERVIEW = api('/overview');
   try { ME = await api('/me'); }
   catch(e){
+    // авторизация не прошла — overview тоже отвалится, гасим его без unhandled rejection
+    try { PREFETCH_OVERVIEW.catch(()=>{}); } catch(_){}
+    PREFETCH_OVERVIEW = null;
     try { window.__bootHide && window.__bootHide(); } catch(e){}
     root.innerHTML = `<div class="empty"><div class="ico">🔒</div><div class="ttl">Авторизация не прошла</div><div class="sub">${esc(e.message)}</div></div>`;
     return;
   }
-  // Минимум 1.6с показываем boot, чтобы успела сыграть анимация
-  const minBoot = new Promise(r => setTimeout(r, 4500));
-  await minBoot;
+  // boot в панели отключён (display:none) — рисуем боты сразу, без искусственной паузы
   try { clearTimeout(window.__bootSafety); } catch(e){}
   try { window.__bootHide && window.__bootHide(); } catch(e){}
   resetTo(screenBots);
