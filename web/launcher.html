@@ -90,6 +90,8 @@
     animation:blk 1.2s steps(2,end) infinite;vertical-align:middle;margin-left:4px;}
 
   /* ---- BOOT.SEQUENCE (mini-app startup splash) ---- */
+  /* пока boot не закончился, всё под ним скрыто — иначе мелькает */
+  body.booting > *:not(#boot){visibility:hidden;}
   #boot{position:fixed;inset:0;z-index:99999;background:#03060a;color:var(--text);
     font-family:'Share Tech Mono',monospace;font-size:12.5px;
     padding:28px 18px 24px;overflow:hidden;letter-spacing:.04em;
@@ -133,7 +135,7 @@
     animation:blk 1s steps(2,end) infinite;vertical-align:middle;}
 </style>
 </head>
-<body>
+<body class="booting">
   <div id="boot" aria-hidden="true"><div class="inner">
     <div class="logo">EVA</div>
     <div class="subt">[ CONTROL · PANEL · BOOT ]</div>
@@ -216,6 +218,26 @@
 
   /* ---------- BOOT.SEQUENCE ---------- */
   (function bootSeq(){
+    // Пропускаем boot:
+    //   1. если пришли из panel/eva с ?skip=1 (переход внутри сессии)
+    //   2. если уже играли boot в этой вкладке (sessionStorage флаг)
+    const url = new URL(location.href);
+    const skip = url.searchParams.get('skip') === '1';
+    let alreadyBooted = false;
+    try { alreadyBooted = sessionStorage.getItem('eva_booted') === '1'; } catch(e){}
+    if (skip || alreadyBooted){
+      const el = document.getElementById('boot');
+      if (el) el.remove();
+      document.body.classList.remove('booting');
+      try { sessionStorage.setItem('eva_booted','1'); } catch(e){}
+      // подчистим ?skip=1 из URL чтобы при F5 boot не запустился внезапно
+      if (skip){
+        url.searchParams.delete('skip');
+        history.replaceState(null,'',url.pathname + (url.search||'') + url.hash);
+      }
+      return;
+    }
+    // body.booting уже стоит из HTML — не трогаем
     const LINES = [
       ['OK','loading kernel.osn',40],
       ['OK','mount /dev/bots',110],
@@ -275,11 +297,13 @@
       const el = document.getElementById('boot');
       if (!el) return;
       el.classList.add('hide');
-      setTimeout(()=> el.remove(), 380);
+      try { sessionStorage.setItem('eva_booted','1'); } catch(e){}
+      setTimeout(()=>{
+        el.remove();
+        document.body.classList.remove('booting');
+      }, 380);
     }
-    // Hide when bar reaches 100% AND все строки показаны — обычно ~4.5с
     setTimeout(hideBoot, 4500);
-    // Safety: максимум 7с
     setTimeout(hideBoot, 7000);
   })();
 </script>
