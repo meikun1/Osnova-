@@ -274,6 +274,37 @@
     color:var(--accent);font-size:13px;}
   .icobtn.danger{border-color:var(--err);color:var(--err);background:var(--err-bg);}
 
+  /* toggle switch */
+  .tgl{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:11px 12px;border:1px solid var(--card-border);margin-bottom:6px;cursor:pointer;
+    background:var(--card);}
+  .tgl .tgl-txt{min-width:0;}
+  .tgl .tgl-lbl{font-size:12.5px;color:var(--text-soft);letter-spacing:.02em;}
+  .tgl.on .tgl-lbl{color:var(--text);}
+  .tgl .tgl-sub{font-size:10px;color:var(--muted);margin-top:3px;line-height:1.45;letter-spacing:.02em;}
+  .tgl .sw{width:38px;height:20px;border:1px solid var(--card-border);
+    background:var(--input-bg);position:relative;flex-shrink:0;transition:.15s;}
+  .tgl .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;
+    background:var(--muted);transition:.15s;}
+  .tgl.on .sw{border-color:var(--accent);background:var(--accent-soft);}
+  .tgl.on .sw::after{left:20px;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+
+  /* data table */
+  .dtable{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px;}
+  .dtable th{text-align:left;color:var(--label);font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.12em;padding:7px 8px;border-bottom:1px solid var(--accent);font-weight:normal;}
+  .dtable td{padding:8px;border-bottom:1px solid var(--hairline);color:var(--text-soft);
+    font-family:'Share Tech Mono',monospace;word-break:break-all;vertical-align:middle;}
+  .dtable tr:active{background:#0a0d12;}
+  .dtable .idx{color:var(--label);width:30px;}
+  .dtable .badge{display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+    padding:2px 6px;border:1px solid var(--card-border);color:var(--muted);}
+  .dtable .badge.ip{border-color:var(--accent);color:var(--accent);}
+  .dtable .badge.cidr{border-color:var(--magenta);color:var(--magenta);}
+  .dtable .del{color:var(--err);cursor:pointer;text-align:right;width:34px;}
+  .bb-summary{font-size:11.5px;line-height:1.6;padding:9px 11px;margin-bottom:10px;
+    border:1px solid var(--card-border);background:var(--input-bg);}
+
   /* SVG icons */
   .svgi{display:inline-block;vertical-align:middle;color:currentColor;flex-shrink:0;}
   .svgi.x14{width:14px;height:14px;}
@@ -313,6 +344,7 @@
       <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M5 15V6a2 2 0 0 1 2-2h9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14 6l4 4" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
       <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-send" viewBox="0 0 24 24"><path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2l-7 20-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
       <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
       <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
@@ -400,6 +432,11 @@ const DATA = {
     {id:3,fqdn:'pending-domain.ru',type:'phishing',status:'pending',cf:false,
      ns:['ns1.cloudflare.com','ns2.cloudflare.com']},
     {id:4,fqdn:'broken.net',type:'phishing',status:'error',cf:false,err:'CF: зона не найдена'},
+  ],
+  botBase:[
+    {value:'66.249.64.0/19', type:'cidr'},
+    {value:'8.8.8.8',        type:'ip'},
+    {value:'2a01:4f8::/29',  type:'cidr'},
   ],
   templates:{
     system:[
@@ -919,6 +956,7 @@ screens.cloakLinks = (p)=>{
         <span class="t-label">${d.fqdn}</span>
         <button class="btn small" onclick="nav.go('cloakLinkEdit',{domainId:${d.id}})"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Ссылка</button>
       </div>
+      <button class="btn ghost small mb-m" onclick="nav.go('botBase')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-mask"/></svg>Своя база ботов</button>
       ${(d.cloakLinks||[]).map(l=>`
         <div class="card static">
           <div class="row between mb-s">
@@ -943,6 +981,134 @@ screens.cloakLinks = (p)=>{
   };
 };
 function flagOf(c){return ({RU:'🇷🇺',BY:'🇧🇾',KZ:'🇰🇿',UA:'🇺🇦',US:'🇺🇸'})[c]||'🏳';}
+
+/* ---- BOT BASE (своя база ботов для фильтрации трафика) ---- */
+function _isIPv4(s){
+  const p = s.split('.');
+  if(p.length!==4) return false;
+  return p.every(o=>/^\d{1,3}$/.test(o) && +o<=255);
+}
+function _isIPv6(s){
+  if(s.indexOf(':')<0) return false;
+  const dc = s.match(/::/g);
+  if(dc && dc.length>1) return false;            // '::' допускается максимум один раз
+  const hasDC = s.includes('::');
+  const groups = s.split(':');
+  let count = 0;
+  for(const g of groups){
+    if(g==='') continue;                          // пустые группы от '::'
+    if(!/^[0-9a-fA-F]{1,4}$/.test(g)) return false;
+    count++;
+  }
+  return hasDC ? count<=7 : (groups.length===8 && count===8);
+}
+function classifyBotEntry(line){
+  if(line.includes('/')){
+    const parts = line.split('/');
+    if(parts.length!==2) return null;
+    const [addr,mask] = parts;
+    if(!/^\d{1,3}$/.test(mask)) return null;
+    const m = +mask;
+    if(_isIPv4(addr) && m<=32)  return {type:'cidr', value:line};
+    if(_isIPv6(addr) && m<=128) return {type:'cidr', value:line};
+    return null;
+  }
+  if(_isIPv4(line)) return {type:'ip', value:line};
+  if(_isIPv6(line)) return {type:'ip', value:line};
+  return null;
+}
+
+let BB_LAST = null;   // итог последнего добавления {added,dup,invalid}
+
+screens.botBase = ()=>{
+  const rows = DATA.botBase.map((e,i)=>`
+    <tr>
+      <td class="idx">${i+1}</td>
+      <td>${esc(e.value)}</td>
+      <td><span class="badge ${e.type}">${e.type==='cidr'?'CIDR':'IP'}</span></td>
+      <td class="del" onclick="removeBotEntry(${i})"><svg class="svgi"><use href="#ic-trash"/></svg></td>
+    </tr>`).join('');
+  const summary = BB_LAST ? `
+    <div class="bb-summary">
+      <span class="t-ok">Добавлено: ${BB_LAST.added}</span> ·
+      <span class="t-warn">дубликатов: ${BB_LAST.dup}</span> ·
+      <span class="t-err">невалидных: ${BB_LAST.invalid}</span>
+    </div>` : '';
+  const table = DATA.botBase.length ? `
+    <table class="dtable">
+      <thead><tr><th>#</th><th>Запись</th><th>Тип</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>` : `<div class="empty"><div class="ic">∅</div><div class="ttl">База пуста</div><div class="sb">Добавьте IP-адреса или CIDR-диапазоны через поле выше.</div></div>`;
+  return {
+    title:'Своя база ботов', tab:'domains',
+    html:`
+      <div class="field-row">
+        <div class="lbl">Записи (каждая с новой строки)</div>
+        <textarea class="textarea" id="bb-input" rows="6" placeholder="8.8.8.8&#10;66.249.64.0/19&#10;2001:4860:4860::8888&#10;2a01:4f8::/29&#10;# комментарий — игнорируется"></textarea>
+        <div class="field-hint">Ваша база данных которую можно использовать для фильтрации трафика.<br>
+          Принимается: IP-адрес (8.8.8.8 или 2001:4860:4860::8888), CIDR-диапазон (66.249.64.0/19 или 2a01:4f8::/29).
+          Строки, начинающиеся с <span class="t-acc">#</span>, и пустые строки игнорируются.</div>
+      </div>
+      <button class="btn mb-m" onclick="addBotBase()"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Добавить</button>
+      ${summary}
+      <div class="row between mb-s">
+        <span class="t-label">Всего записей: ${DATA.botBase.length}</span>
+      </div>
+      ${table}
+      <div class="actbar">
+        <button class="btn ghost small" onclick="exportBotBase()"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-download"/></svg>Выгрузить список</button>
+        <button class="btn danger small" onclick="clearBotBase()"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-trash"/></svg>Очистить весь список</button>
+      </div>
+    `
+  };
+};
+
+function addBotBase(){
+  const ta = $('#bb-input');
+  const raw = ta ? ta.value : '';
+  let added=0, dup=0, invalid=0;
+  const seen = new Set(DATA.botBase.map(e=>e.value.toLowerCase()));
+  for(let line of raw.split(/\r?\n/)){
+    line = line.trim();
+    if(!line || line.startsWith('#')) continue;     // пустые и комментарии — мимо
+    const c = classifyBotEntry(line);
+    if(!c){ invalid++; continue; }
+    const key = c.value.toLowerCase();
+    if(seen.has(key)){ dup++; continue; }
+    seen.add(key);
+    DATA.botBase.push(c);
+    added++;
+  }
+  BB_LAST = {added,dup,invalid};
+  toast(`Добавлено: ${added} · дубликатов: ${dup} · невалидных: ${invalid}`, added===0 && (invalid>0||dup>0));
+  nav._render();
+}
+function removeBotEntry(i){
+  DATA.botBase.splice(i,1);
+  nav._render();
+}
+function clearBotBase(){
+  if(!DATA.botBase.length) return toast('Список уже пуст', true);
+  confirmSheet('Очистить весь список?', `Будут удалены все записи (${DATA.botBase.length}). Действие нельзя отменить.`, ()=>{
+    DATA.botBase = [];
+    BB_LAST = null;
+    nav._render();
+    toast('Список очищен');
+  }, true);
+}
+function exportBotBase(){
+  if(!DATA.botBase.length) return toast('Список пуст', true);
+  const text = DATA.botBase.map(e=>e.value).join('\n');
+  try{
+    const blob = new Blob([text],{type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='bot-base.txt'; a.style.display='none';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1000);
+    toast('Список выгружен');
+  }catch(e){ copyText(text); }
+}
 
 screens.cloakLinkEdit = (p)=>{
   const d=DATA.domains.find(x=>x.id===p.domainId);
@@ -974,10 +1140,27 @@ screens.cloakLinkEdit = (p)=>{
           <div class="chip" onclick="toast('Выбор страны')">+</div>
         </div>
       </div>
-      <button class="btn" onclick="nav.back();toast('Сохранено')">Сохранить</button>
+
+      <div class="section-label">Фильтрация трафика</div>
+      ${cloakToggleRow('fBots',  'Блокировать ботов',           l.fBots!==false, '')}
+      ${cloakToggleRow('fVpn',   'Блокировать VPN',             !!l.fVpn,        '')}
+      ${cloakToggleRow('fProxy', 'Блокировать прокси',          !!l.fProxy,      '')}
+      ${cloakToggleRow('fDc',    'Блокировать датацентры',      !!l.fDc,         '')}
+      ${cloakToggleRow('fBase',  'Применить свою базу ботов',   !!l.fBase,       'Использует записи из «Своей базы ботов».')}
+
+      <button class="btn mt-m" onclick="nav.back();toast('Сохранено')">Сохранить</button>
     `
   };
 };
+function cloakToggleRow(key,label,on,sub){
+  return `<div class="tgl ${on?'on':''}" data-key="${key}" onclick="this.classList.toggle('on')">
+    <div class="tgl-txt">
+      <div class="tgl-lbl">${esc(label)}</div>
+      ${sub?`<div class="tgl-sub">${esc(sub)}</div>`:''}
+    </div>
+    <span class="sw"></span>
+  </div>`;
+}
 function cloakMode(el,mode){
   el.parentElement.querySelectorAll('.radio').forEach(r=>r.classList.remove('active'));
   el.classList.add('active');
