@@ -912,6 +912,35 @@ def user_domains_health_targets() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def user_domains_dead_targets() -> list[dict]:
+    """Мёртвые домены — чтобы проверить, не вернулся ли SSL (и оживить)."""
+    with _lock:
+        rows = _db.all(
+            "SELECT id, user_id, domain "
+            "FROM user_domains WHERE ssl_notified=1 AND dead=1"
+        )
+    return [dict(r) for r in rows]
+
+
+def user_domain_revive(domain_id: int) -> dict | None:
+    """Возвращает домен к жизни после восстановления SSL: dead=0, dead_at=NULL,
+    сбрасывает fail_streak. Возвращает запись (для нотификации) или None, если
+    домен не был мёртв."""
+    with _lock:
+        row = _db.one(
+            "SELECT id, user_id, domain, dead FROM user_domains WHERE id=?",
+            (domain_id,),
+        )
+        if not row or not row["dead"]:
+            return None
+        _db.execute(
+            "UPDATE user_domains SET dead=0, dead_at=NULL, fail_streak=0 WHERE id=?",
+            (domain_id,),
+        )
+        _db.commit()
+    return dict(row)
+
+
 def user_domain_bump_fail(domain_id: int) -> int:
     with _lock:
         _db.execute(
@@ -979,7 +1008,7 @@ def user_domain_remove(user_id: int, domain: str) -> bool:
 def user_domains_list(user_id: int) -> list[dict]:
     with _lock:
         rows = _db.all(
-            "SELECT id, domain, cf_account, created_at, ssl_notified "
+            "SELECT id, domain, cf_account, created_at, ssl_notified, dead "
             "FROM user_domains WHERE user_id=? ORDER BY id",
             (user_id,),
         )

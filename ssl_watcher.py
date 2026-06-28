@@ -16,6 +16,8 @@ from database import (
     user_domain_mark_dead,
     user_domain_mark_ssl_notified,
     user_domain_reset_fail,
+    user_domain_revive,
+    user_domains_dead_targets,
     user_domains_health_targets,
     user_domains_pending_ssl,
 )
@@ -75,6 +77,14 @@ async def _notify_dead(bot: Bot, user_id: int, domain: str) -> None:
     await bot.send_message(user_id, text, disable_web_page_preview=True)
 
 
+async def _notify_revived(bot: Bot, user_id: int, domain: str) -> None:
+    text = (
+        f"✅ <b>Домен снова в строю</b>\n\n"
+        f"SSL у <code>{domain}</code> восстановился — боты снова работают."
+    )
+    await bot.send_message(user_id, text, disable_web_page_preview=True)
+
+
 async def ssl_watch_loop(bot: Bot) -> None:
     """Бесконечный цикл. Запускается из bot.py после init_db()."""
     while True:
@@ -111,6 +121,21 @@ async def ssl_watch_loop(bot: Bot) -> None:
                     await _notify_dead(bot, row["user_id"], domain)
                 except Exception:
                     logger.exception("dead notify failed for %s", domain)
+
+            # 3) Мёртвые — проверяем, не вернулся ли SSL, и оживляем
+            dead = await asyncio.to_thread(user_domains_dead_targets)
+            for row in dead:
+                domain = row["domain"]
+                ok = await asyncio.to_thread(_probe_ssl, domain)
+                if not ok:
+                    continue
+                revived = await asyncio.to_thread(user_domain_revive, row["id"])
+                if not revived:
+                    continue
+                try:
+                    await _notify_revived(bot, row["user_id"], domain)
+                except Exception:
+                    logger.exception("revive notify failed for %s", domain)
         except Exception:
             logger.exception("ssl_watch_loop iteration crashed")
         await asyncio.sleep(CHECK_INTERVAL)

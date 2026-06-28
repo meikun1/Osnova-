@@ -1409,13 +1409,15 @@ async def list_my_domains(user: dict = Depends(verify_panel_user)) -> list[dict]
 async def recheck_ssl(user: dict = Depends(verify_panel_user)) -> dict:
     """Принудительно перепроверяет SSL у всех доменов юзера (без ожидания
     периода воркера). Помечает ssl_notified=1 если сертификат живой."""
-    from database import user_domain_mark_ssl_notified
+    from database import user_domain_mark_ssl_notified, user_domain_revive
     from ssl_watcher import _probe_ssl
 
     domains = user_domains_list(user["id"])
     changed = 0
+    revived = 0
     for d in domains:
-        if d.get("ssl_notified"):
+        # уже живой и выпущенный — пропускаем
+        if d.get("ssl_notified") and not d.get("dead"):
             continue
         try:
             ok = await asyncio.to_thread(_probe_ssl, d["domain"])
@@ -1423,10 +1425,16 @@ async def recheck_ssl(user: dict = Depends(verify_panel_user)) -> dict:
             logger.warning("recheck %s: probe raised %s", d["domain"], e)
             ok = False
         logger.info("recheck %s: ok=%s", d["domain"], ok)
-        if ok:
+        if not ok:
+            continue
+        if d.get("ssl_notified"):
+            # домен был помечен мёртвым, но SSL вернулся — оживляем
+            if user_domain_revive(d["id"]):
+                revived += 1
+        else:
             user_domain_mark_ssl_notified(d["id"])
             changed += 1
-    return {"checked": len(domains), "marked_ok": changed}
+    return {"checked": len(domains), "marked_ok": changed, "revived": revived}
 
 
 @router.post("/domains")
