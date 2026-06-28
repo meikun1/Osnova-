@@ -74,10 +74,10 @@ async def main() -> None:
             await bot.set_chat_menu_button(
                 menu_button=MenuButtonWebApp(
                     text=PANEL_MENU_LABEL,
-                    web_app=WebAppInfo(url=f"{PANEL_BASE_URL}/panel"),
+                    web_app=WebAppInfo(url=f"{PANEL_BASE_URL}/launcher"),
                 ),
             )
-            logger.info("panel menu button set: %s/panel", PANEL_BASE_URL)
+            logger.info("panel menu button set: %s/launcher", PANEL_BASE_URL)
         except Exception as e:
             logger.warning("set_chat_menu_button failed: %s", e)
     else:
