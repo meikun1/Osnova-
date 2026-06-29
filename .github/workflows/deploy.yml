@@ -1,0 +1,39 @@
+name: Deploy
+
+# Деплоим только при создании git-тега вида v1.2.3
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          # Имя тега, который задеплоить (например v1.2.3)
+          envs: TAG
+          script_stop: true
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            echo "==> Деплой тега $TAG"
+            git fetch --all --tags --prune
+            git checkout --force "$TAG"
+            docker compose up -d --build
+            docker image prune -f
+            docker compose ps
+        env:
+          TAG: ${{ github.ref_name }}

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches-ignore: []
+  pull_request:
+
+# Не гоняем по два раза один и тот же коммит и отменяем устаревшие прогоны
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Compile & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Byte-compile (syntax check)
+        run: python -m compileall -q .
+
+      - name: Ruff lint (advisory)
+        continue-on-error: true
+        run: ruff check .
