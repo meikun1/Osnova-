@@ -110,3 +110,45 @@ def generate_variants(text: str, count: int,
         return []
     return [uniqualize(text, homoglyph_ratio=homoglyph_ratio, mode=mode)
             for _ in range(count)]
+
+
+# Поля контента шаблона, которые НЕ являются текстом и не уникализируются:
+# оформление, флаги и сами настройки уникализации.
+_NON_TEXT_KEYS = {
+    "ui_color", "view", "bg", "blur", "app_name",
+    "uniq_enabled", "uniq_ratio", "uniq_mode",
+}
+
+
+def _is_text_field(key: str, value) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    if key in _NON_TEXT_KEYS:
+        return False
+    # эмодзи-поля (main_emoji, code_emoji, …) и одиночное "emoji" не трогаем
+    if key == "emoji" or key.endswith("_emoji"):
+        return False
+    return True
+
+
+def uniqualize_content(content: dict,
+                       homoglyph_ratio: float = 0.5,
+                       mode: str = "hard",
+                       keys=None) -> dict:
+    """Уникализирует ВЕСЬ текст шаблона за один вызов.
+
+    Принимает словарь контента (плоский: start_msg, main_text, code_button…)
+    и возвращает его копию, где у всех текстовых полей символы заменены на
+    гомоглифы. URL и HTML-теги внутри текста сохраняются (см. uniqualize),
+    эмодзи / цвета / view / флаги не трогаются.
+
+    keys — если задан, обрабатываются только перечисленные поля.
+    """
+    out = dict(content)
+    for key, value in content.items():
+        if keys is not None and key not in keys:
+            continue
+        if not _is_text_field(key, value):
+            continue
+        out[key] = uniqualize(value, homoglyph_ratio=homoglyph_ratio, mode=mode)
+    return out

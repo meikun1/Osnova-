@@ -36,7 +36,7 @@ def _bot_stats_lines(tg_id) -> list[str]:
             auth = {"code_sent": 0, "pwd_requested": 0, "success": 0}
             sessions_total = 0
     except Exception:
-        # Транзиентный сбой БД (например, Neon просыпается) — не роняем карточку.
+        # Транзиентный сбой БД (реконнект пула) — не роняем карточку.
         return [header, "временно недоступна — нажмите 🔄 Обновить"]
     return [
         header,

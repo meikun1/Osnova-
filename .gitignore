@@ -6,3 +6,5 @@ __pycache__/
 venv/
 .DS_Store
 cf_pool.json
+# Swagger/OpenAPI документация — генерируется локально, в репозиторий не коммитим
+api-docs.yaml
