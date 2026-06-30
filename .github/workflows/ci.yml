@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches-ignore: []
+    # design/hacker-theme проверяется внутри Deploy — здесь не дублируем
+    branches-ignore:
+      - design/hacker-theme
   pull_request:
 
 # Не гоняем по два раза один и тот же коммит и отменяем устаревшие прогоны
