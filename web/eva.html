@@ -320,6 +320,49 @@
   .topbar .back .svgi{width:18px;height:18px;}
   .icobtn .svgi{width:14px;height:14px;}
   .chev-svg{color:var(--muted);width:14px;height:14px;display:inline-block;vertical-align:middle;}
+
+  /* ===== PROFILE — terminal/CRT layout (как в боте) ===== */
+  .term-bar{display:flex;align-items:center;gap:8px;
+    border:1px solid var(--card-border);background:var(--card);
+    padding:6px 10px;font:11px 'Share Tech Mono',monospace;
+    color:var(--label);margin-bottom:10px;}
+  .term-bar .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+  .term-bar .dot.r{background:#ff5f56}
+  .term-bar .dot.y{background:#ffbd2e}
+  .term-bar .dot.g{background:#27c93f}
+  .term-bar .term-path{flex:1;text-align:center;letter-spacing:.22em;
+    color:var(--label);font-size:10.5px;}
+  .term-bar .term-tag{color:var(--warn);letter-spacing:.18em;font-size:10.5px;}
+
+  .id-card{border:1px solid var(--magenta);background:linear-gradient(180deg,#180814 0%,#0a040b 100%);
+    padding:14px 14px 12px;margin-bottom:12px;position:relative;
+    box-shadow:0 0 12px rgba(255,43,214,.12);}
+  .id-card .id-avatar{width:44px;height:44px;border:1px solid var(--magenta);
+    background:transparent;color:var(--magenta);
+    display:flex;align-items:center;justify-content:center;
+    font:14px 'Share Tech Mono',monospace;letter-spacing:.08em;}
+  .id-card .id-name{font:15px 'Share Tech Mono',monospace;color:var(--text);}
+  .id-card .id-meta{font:11px 'Share Tech Mono',monospace;color:var(--muted);line-height:1.5;}
+  .id-card .id-meta .role{color:var(--warn);}
+  .id-card .id-tag{position:absolute;top:8px;right:10px;
+    font:9.5px 'Share Tech Mono',monospace;color:var(--magenta);letter-spacing:.22em;
+    border:1px solid var(--magenta);padding:1px 5px;}
+  .id-card .id-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
+    margin-top:12px;padding-top:10px;border-top:1px dashed #3a1a2f;}
+  .id-card .id-stats > div{text-align:left;}
+  .id-card .id-stats .lbl{font:9.5px 'Share Tech Mono',monospace;color:var(--label);letter-spacing:.2em;}
+  .id-card .id-stats .val{font:22px 'VT323',monospace;color:var(--text);line-height:1;margin-top:2px;}
+
+  .term-line{display:flex;align-items:center;gap:10px;
+    border:1px solid var(--card-border);background:var(--card);
+    padding:11px 12px;margin-bottom:8px;cursor:pointer;
+    font:12.5px 'Share Tech Mono',monospace;}
+  .term-line .tl-arr{color:var(--accent);}
+  .term-line .tl-path{color:var(--accent);}
+  .term-line .tl-tail{color:var(--muted);flex:1;}
+  .term-line .tl-chev{color:var(--accent);font-size:16px;opacity:.7;}
+  .term-line.warn{border-color:var(--warn);background:#1a1700;}
+  .term-line.warn .tl-tail{color:var(--text-soft);}
 </style>
 </head>
 <body>
@@ -1363,35 +1406,43 @@ screens.profile = ()=>{
   const u=DATA.user, k=DATA.kpi;
   const uname=(u.username||'@anonymous').replace('@','');
   const init=(uname.substring(0,2)||'??').toUpperCase();
+  const lbOn = DATA.logbot.connected;
   return {
     title:'Профиль', sub:'@'+uname, tab:'profile',
     html:`
-      <div class="card static">
-        <div class="row gap-m" style="align-items:flex-start">
-          <div class="kpi" style="width:54px;height:54px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;font:20px 'VT323',monospace;color:var(--accent)">${esc(init)}</div>
-          <div class="grow">
-            <div><b>@${esc(uname)}</b></div>
-            <div class="t-muted mt-s">tg.id ${u.tg_id}</div>
-            <div class="t-muted mt-s">role: <span class="t-acc">worker</span></div>
+      <div class="term-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="term-path">ROOT@EVA:~/ME</span>
+      </div>
+
+      <div class="id-card">
+        <div class="row gap-l" style="align-items:flex-start">
+          <div class="id-avatar">${esc(init)}</div>
+          <div class="v" style="flex:1;gap:2px">
+            <div class="id-name">@${esc(uname)}</div>
+            <div class="id-meta">tg.id ${u.tg_id}</div>
+            <div class="id-meta">▲ ROLE: <span class="role">worker</span></div>
           </div>
-          <span class="pill muted">ID_CARD</span>
+          <div class="id-tag">ID_CARD</div>
         </div>
-        <div class="hr"></div>
-        <div class="row between">
-          <div><div class="t-label">Сессий</div><b class="num">${k.total.toLocaleString('ru')}</b></div>
-          <div><div class="t-label">Доменов</div><b class="num">${k.activeDomains}</b></div>
-          <div><div class="t-label">Конверсия</div><b class="num">${k.conversion}%</b></div>
+        <div class="id-stats">
+          <div><div class="lbl">SESSIONS</div><div class="val">${k.total.toLocaleString('ru')}</div></div>
+          <div><div class="lbl">DOMAINS</div><div class="val">${k.activeDomains}</div></div>
+          <div><div class="lbl">CONV</div><div class="val">${k.conversion}%</div></div>
         </div>
       </div>
-      <div class="section-label">Настройки</div>
-      <div class="card" onclick="nav.go('templates')">
-        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-mask"/></svg>Шаблоны</span><span class="chev">${CHEV}</span></div>
+
+      <div class="term-line" onclick="nav.go('templates')">
+        <span class="tl-arr">▷</span><span class="tl-path">/templates</span>
+        <span class="tl-tail">— шаблоны лендингов</span><span class="tl-chev">›</span>
       </div>
-      <div class="card" onclick="nav.go('notifications')">
-        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-bell"/></svg>Уведомления</span><span class="chev">${CHEV}</span></div>
+      <div class="term-line" onclick="nav.go('logbot')">
+        <span class="tl-arr">▷</span><span class="tl-path">/logbot</span>
+        <span class="tl-tail">— логи ${lbOn?'<span class="role" style="color:var(--accent)">on</span>':'off'}</span><span class="tl-chev">›</span>
       </div>
-      <div class="card" onclick="nav.go('logbot')">
-        <div class="row between"><span class="row gap-s"><svg class="svgi x18 t-acc"><use href="#ic-send"/></svg>LogBot</span><span class="row gap-s">${DATA.logbot.connected?'<span class="pill ok">on</span>':'<span class="pill muted">off</span>'}<span class="chev">${CHEV}</span></span></div>
+      <div class="term-line" onclick="nav.go('notifications')">
+        <span class="tl-arr">▷</span><span class="tl-path">/notifications</span>
+        <span class="tl-tail">— уведомления</span><span class="tl-chev">›</span>
       </div>
     `
   };
