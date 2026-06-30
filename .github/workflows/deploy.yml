@@ -1,10 +1,10 @@
 name: Deploy
 
-# Деплоим только при создании git-тега вида v1.2.3
+# Деплоим при каждом пуше в ветку design/hacker-theme
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - design/hacker-theme
 
 concurrency:
   group: deploy-production
@@ -23,17 +23,18 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
-          # Имя тега, который задеплоить (например v1.2.3)
-          envs: TAG
+          # Ветка, которую разворачиваем на сервере
+          envs: BRANCH
           script_stop: true
           script: |
             set -e
             cd "${{ secrets.DEPLOY_PATH }}"
-            echo "==> Деплой тега $TAG"
-            git fetch --all --tags --prune
-            git checkout --force "$TAG"
+            echo "==> Деплой ветки $BRANCH"
+            git fetch --all --prune
+            git checkout --force "$BRANCH"
+            git reset --hard "origin/$BRANCH"
             docker compose up -d --build
             docker image prune -f
             docker compose ps
         env:
-          TAG: ${{ github.ref_name }}
+          BRANCH: ${{ github.ref_name }}
