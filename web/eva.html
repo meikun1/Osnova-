@@ -363,6 +363,29 @@
   .term-line .tl-chev{color:var(--accent);font-size:16px;opacity:.7;}
   .term-line.warn{border-color:var(--warn);background:#1a1700;}
   .term-line.warn .tl-tail{color:var(--text-soft);}
+
+  /* ===== LIVE_SESSIONS — осциллограф (CRT-волна сессий) ===== */
+  .osc-wrap{margin-top:14px;}
+  .osc-head{color:var(--label);font:10.5px 'Share Tech Mono',monospace;
+    letter-spacing:.14em;margin-bottom:4px;}
+  .osc-stage{position:relative;border:1px solid var(--card-border);
+    background:#040908;overflow:hidden;}
+  .osc-svg{width:100%;height:auto;display:block;}
+  .osc-svg .osc-frame{fill:none;stroke:#1f3b34;stroke-width:1;}
+  .osc-svg .osc-grid{stroke:#0e221d;stroke-width:1;}
+  .osc-svg .osc-base{stroke:#15302a;stroke-width:1;}
+  .osc-svg .osc-line{fill:none;stroke:var(--accent);stroke-width:1.6;
+    filter:drop-shadow(0 0 3px rgba(0,255,209,.55));}
+  .osc-svg .osc-cursor{stroke:var(--accent);stroke-width:1.4;opacity:.85;
+    filter:drop-shadow(0 0 4px rgba(0,255,209,.7));}
+  .osc-svg .osc-txt{font:7.5px 'Share Tech Mono',monospace;fill:var(--warn);letter-spacing:.1em;}
+  .osc-svg .osc-q{font:7.5px 'Share Tech Mono',monospace;fill:var(--accent);letter-spacing:.1em;}
+  /* CRT-развёртка: горизонтальные линии поверх */
+  .osc-stage::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.16) 2px 3px);
+    mix-blend-mode:multiply;}
+  @keyframes oscBlink{50%{opacity:.3}}
+  .osc-svg .osc-live{animation:oscBlink 1.4s steps(1) infinite;}
 </style>
 </head>
 <body>
@@ -1401,6 +1424,42 @@ screens.stats = ()=>{
   };
 };
 
+/* ---- LIVE_SESSIONS осциллограф ---- */
+function _oscSVG(){
+  const W=400, base=96, N=80;
+  const pts=[];
+  for(let i=0;i<=N;i++){
+    const x=(i/N)*W;
+    // периодичная волна (y[0]==y[N] для бесшовного скролла) + спайки-сессии
+    let y=base - Math.sin(2*Math.PI*6*i/N)*8 - Math.sin(2*Math.PI*2*i/N)*4;
+    if(i%20===6) y-=34;        // спайк — сессия завершена
+    else if(i%20===7) y+=12;   // откат после спайка
+    pts.push(x.toFixed(1)+' '+y.toFixed(1));
+  }
+  const d='M '+pts.join(' L ');
+  let grid='';
+  for(let gx=0; gx<=W; gx+=40) grid+=`<line class="osc-grid" x1="${gx}" y1="8" x2="${gx}" y2="152"/>`;
+  for(let gy=24; gy<152; gy+=32) grid+=`<line class="osc-grid" x1="6" y1="${gy}" x2="394" y2="${gy}"/>`;
+  return `
+    <svg viewBox="0 0 400 160" class="osc-svg" preserveAspectRatio="xMidYMid meet">
+      <path class="osc-frame" d="M 4 16 L 4 4 L 16 4"/>
+      <path class="osc-frame" d="M 396 16 L 396 4 L 384 4"/>
+      <path class="osc-frame" d="M 4 144 L 4 156 L 16 156"/>
+      <path class="osc-frame" d="M 396 144 L 396 156 L 384 156"/>
+      ${grid}
+      <line class="osc-base" x1="6" y1="${base}" x2="394" y2="${base}" stroke-dasharray="3 4"/>
+      <g class="osc-wave">
+        <animateTransform attributeName="transform" type="translate" from="0 0" to="-400 0" dur="6s" repeatCount="indefinite"/>
+        <path class="osc-line" d="${d}"/>
+        <path class="osc-line" d="${d}" transform="translate(400 0)"/>
+      </g>
+      <line class="osc-cursor" x1="372" y1="10" x2="372" y2="150"/>
+      <text x="14" y="150" class="osc-txt">AMP[<tspan id="osc-amp">62</tspan>%]</text>
+      <text x="118" y="150" class="osc-q">rate=<tspan id="osc-rate">3.4</tspan>/s</text>
+      <text x="386" y="150" text-anchor="end" class="osc-q osc-live" style="opacity:.85">● LIVE +<tspan id="osc-live">87</tspan></text>
+    </svg>`;
+}
+
 /* ---- PROFILE ---- */
 screens.profile = ()=>{
   const u=DATA.user, k=DATA.kpi;
@@ -1444,7 +1503,28 @@ screens.profile = ()=>{
         <span class="tl-arr">▷</span><span class="tl-path">/notifications</span>
         <span class="tl-tail">— уведомления</span><span class="tl-chev">›</span>
       </div>
-    `
+
+      <div class="osc-wrap">
+        <div class="osc-head">┌── LIVE_SESSIONS ──────────────┐</div>
+        <div class="osc-stage">${_oscSVG()}</div>
+      </div>
+    `,
+    after(){
+      const amp=document.getElementById('osc-amp'),
+            rate=document.getElementById('osc-rate'),
+            live=document.getElementById('osc-live');
+      if(!amp) return;
+      let t=0, n=parseInt(live.textContent,10)||87;
+      const tick=()=>{
+        if(!document.body.contains(amp)) return;   // экран сменился — стоп
+        t+=1;
+        amp.textContent = 55+Math.round(Math.sin(t/3)*12+12);
+        rate.textContent = (3.0+Math.sin(t/5)*1.2).toFixed(1);
+        if(t%4===0){ n+=1; live.textContent=n; }
+        setTimeout(tick,800);
+      };
+      tick();
+    }
   };
 };
 
